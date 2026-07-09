@@ -69,7 +69,7 @@ def login():
         password = request.form.get('password')
         
         # Простая проверка админа (можете изменить под свои нужды)
-        if username == 'admin' and password == '8026009Wall!':
+        if username == 'admin' and password == 'Brest2026!':
             session['logged_in'] = True
             return redirect(url_for('dashboard'))
         else:
