@@ -30,6 +30,9 @@ def safe_float(value, default=0.0):
     except ValueError:
         return default
 
+# ==========================================
+# АВТОРИЗАЦИЯ
+# ==========================================
 @app.route('/login', methods=['GET', 'POST'])
 def login():
     if request.method == 'POST':
@@ -46,6 +49,9 @@ def logout():
     session.clear()
     return redirect(url_for('login'))
 
+# ==========================================
+# ДАШБОРД
+# ==========================================
 @app.route('/')
 @login_required
 def dashboard():
@@ -85,6 +91,9 @@ def dashboard():
     
     return render_template('dashboard.html', current_page='dashboard', orders=orders, metrics=metrics, exec_stats=exec_stats)
 
+# ==========================================
+# ВСЕ ЗАКАЗЫ
+# ==========================================
 @app.route('/orders')
 @login_required
 def list_orders():
@@ -96,6 +105,9 @@ def list_orders():
     conn.close()
     return render_template('dashboard.html', current_page='orders', orders=orders, exec_stats={})
 
+# ==========================================
+# СОЗДАНИЕ ЗАКАЗА
+# ==========================================
 @app.route('/orders/create', methods=['GET', 'POST'])
 @login_required
 def create_order():
@@ -132,6 +144,30 @@ def create_order():
     return render_template('dashboard.html', current_page='create_order', orders=[], exec_stats={})
 
 # ==========================================
+# КЛИЕНТЫ (БАЗА)
+# ==========================================
+@app.route('/clients')
+@login_required
+def list_clients():
+    try:
+        conn = get_db_connection()
+        cur = conn.cursor(cursor_factory=DictCursor)
+        cur.execute("""
+            SELECT customer, phone, COUNT(*) as total_orders, SUM(price) as total_spent
+            FROM orders
+            GROUP BY customer, phone
+            ORDER BY total_spent DESC;
+        """)
+        clients = cur.fetchall()
+        cur.close()
+        conn.close()
+        return render_template('dashboard.html', current_page='clients', clients=clients, orders=[], exec_stats={})
+    except Exception as e:
+        print(f"Ошибка в /clients: {e}")
+        flash(f'Ошибка загрузки клиентов: {e}', 'error')
+        return redirect(url_for('dashboard'))
+
+# ==========================================
 # РЕДАКТИРОВАНИЕ ЗАКАЗА
 # ==========================================
 @app.route('/orders/<int:order_id>/edit', methods=['GET', 'POST'])
@@ -141,7 +177,6 @@ def edit_order(order_id):
     cur = conn.cursor(cursor_factory=DictCursor)
     
     if request.method == 'POST':
-        # Получаем данные из формы
         customer = request.form.get('customer')
         phone = request.form.get('phone')
         address = request.form.get('address')
@@ -172,7 +207,6 @@ def edit_order(order_id):
             conn.rollback()
             flash(f'Ошибка при обновлении: {e}', 'error')
     
-    # GET-запрос — показываем форму
     cur.execute("SELECT * FROM orders WHERE id = %s;", (order_id,))
     order = cur.fetchone()
     cur.close()
@@ -189,7 +223,7 @@ def edit_order(order_id):
                          exec_stats={})
 
 # ==========================================
-# API ДЛЯ ПРИЛОЖЕНИЯ (без изменений)
+# API ДЛЯ ПРИЛОЖЕНИЯ
 # ==========================================
 @app.route('/api/orders')
 def api_orders():
@@ -211,12 +245,8 @@ def api_orders():
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
-# ==========================================
-# API: Обновление заказа из приложения
-# ==========================================
 @app.route('/api/orders/<int:order_id>', methods=['PUT', 'PATCH'])
 def api_update_order(order_id):
-    """API-endpoint для обновления заказа (можно вызывать из приложения)"""
     try:
         data = request.get_json()
         if not data:
@@ -225,7 +255,6 @@ def api_update_order(order_id):
         conn = get_db_connection()
         cur = conn.cursor()
         
-        # Разрешаем обновлять только определённые поля
         allowed_fields = ['customer', 'phone', 'address', 'product', 'price', 
                          'prepaid', 'priority', 'executor', 'status', 'comment', 'url']
         
@@ -245,17 +274,19 @@ def api_update_order(order_id):
         query = f"UPDATE orders SET {', '.join(updates)} WHERE id = %s;"
         cur.execute(query, values)
         conn.commit()
-        
-        # Получаем обновлённый заказ
-        cur.execute("SELECT * FROM orders WHERE id = %s;", (order_id,))
-        updated = cur.fetchone()
-        
         cur.close()
         conn.close()
         
         return jsonify({"success": True, "message": "Order updated"})
     except Exception as e:
         return jsonify({"error": str(e)}), 500
+
+# ==========================================
+# ОБРАБОТКА ОШИБОК
+# ==========================================
+@app.errorhandler(404)
+def page_not_found(e):
+    return jsonify({"error": "Page not found", "url": request.url}), 404
 
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
