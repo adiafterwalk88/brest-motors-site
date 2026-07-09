@@ -7,13 +7,11 @@ from supabase import create_client
 
 app = Flask(__name__)
 app.secret_key = 'brest-motors-secret-key-2026'
-
 # ============ ПОДКЛЮЧЕНИЕ К БАЗЕ ДАННЫХ ============
-# Обходим сбой DNS на Render, используя прямой IP-адрес серверов Supabase
-SUPABASE_URL = "https://104.21.51.155" 
-SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9waHVzZ2NvbnViY3Vmcm9ienljIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODM1ODc5MjQsImV4cCI6MjA5OTE2MzkyNH0.a1DBm4PkDt1NHHyIDfF_xFqZd7qEhSGwUfdZbnvXKXs"
+# Используем новые, проверенные данные проекта
+SUPABASE_URL = "https://ophusgconubcufrobzyc.supabase.co"
+SUPABASE_KEY = "sb_publishable_Oi1gbpCpzhfrZ6ZocysTuw__bbAJRzA"
 
-# Передаем правильный заголовок хоста, чтобы Supabase поняла, к какому проекту мы идем
 supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
 supabase.postgrest.auth({"Host": "ophusgconubcufrzobzyc.supabase.co"})
 
