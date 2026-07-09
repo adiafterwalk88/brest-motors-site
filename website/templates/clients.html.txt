@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <title>Клиенты | Брест-Моторс</title>
+    <style>
+        *{margin:0;padding:0;box-sizing:border-box}
+        body{font-family:'Segoe UI',sans-serif;background:#f0f2f5;display:flex}
+        .sidebar{width:220px;background:#1a1a2e;color:white;min-height:100vh;padding:20px}
+        .sidebar h2{font-size:1.2em;margin-bottom:24px}
+        .sidebar a{display:block;color:#aaa;text-decoration:none;padding:10px;border-radius:8px;margin-bottom:4px}
+        .sidebar a:hover,.sidebar a.active{background:rgba(255,255,255,.1);color:white}
+        .main{flex:1;padding:20px}
+        table{width:100%;border-collapse:collapse;background:white;border-radius:12px;overflow:hidden}
+        th,td{padding:12px;text-align:left;border-bottom:1px solid #eee;font-size:14px}
+        th{background:#f8f9fa}
+    </style>
+</head>
+<body>
+    <div class="sidebar">
+        <h2>🔧 Брест-Моторс</h2>
+        <a href="/">📊 Дашборд</a>
+        <a href="/orders">📋 Заказы</a>
+        <a href="/clients" class="active">👥 Клиенты</a>
+        <a href="/logout" style="color:#e74c3c">🚪 Выйти</a>
+    </div>
+    <div class="main">
+        <h1>👥 Клиенты</h1>
+        <table>
+            <tr><th>ID</th><th>Имя</th><th>Телефон</th><th>Адрес</th><th>Заказов</th><th>Сумма</th></tr>
+            {% for c in clients %}
+            <tr>
+                <td>{{ c.id }}</td>
+                <td>{{ c.name }}</td>
+                <td>{{ c.phone }}</td>
+                <td>{{ c.address }}</td>
+                <td>{{ c.order_count }}</td>
+                <td>{{ c.total_sum }} Br</td>
+            </tr>
+            {% endfor %}
+        </table>
+    </div>
+</body>
+</html>
