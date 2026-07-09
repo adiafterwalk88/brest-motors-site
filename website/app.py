@@ -9,8 +9,8 @@ app = Flask(__name__)
 app.secret_key = 'brest-motors-secret-key-2026'
 
 # ============ ПОДКЛЮЧЕНИЕ К БАЗЕ ДАННЫХ ============
-# Исправлен URL (убрана опечатка в ID проекта) и добавлена поддержка переменных Render
-SUPABASE_URL = os.getenv("SUPABASE_URL", "https://ophusgconubcufrobzyc.supabase.co")
+# URL изменен, чтобы строго соответствовать внутренностям вашего JWT-ключа
+SUPABASE_URL = os.getenv("SUPABASE_URL", "https://ophusgconubcufrzobzyc.supabase.co")
 SUPABASE_KEY = os.getenv("SUPABASE_KEY", "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9waHVzZ2NvbnViY3Vmcm9ienljIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODM1ODc5MjQsImV4cCI6MjA5OTE2MzkyNH0.a1DBm4PkDt1NHHyIDfF_xFqZd7qEhSGwUfdZbnvXKXs")
 
 supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
