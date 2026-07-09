@@ -1,0 +1,36 @@
+<div class="order-card {% if o.priority == 'Высокий' %}priority-high{% elif o.priority == 'Низкий' %}priority-low{% endif %}">
+    <div class="order-header">
+        <div>
+            <span class="order-number">№{{ o.id }}</span>
+            <span class="order-date">{{ o.date }}</span>
+        </div>
+        <span class="badge badge-{{ 'new' if o.status=='Новый' else 'progress' if o.status=='В работе' else 'ready' if o.status=='Готов' else 'done' }}">{{ o.status }}</span>
+    </div>
+    <div class="order-body">
+        <strong>{{ o.product[:60] }}{% if o.product|length > 60 %}...{% endif %}</strong>
+    </div>
+    <div class="order-meta">
+        <span>👤 {{ o.customer }}</span>
+        <span>📱 {{ o.phone }}</span>
+        {% if o.address %}<span>📍 {{ o.address }}</span>{% endif %}
+    </div>
+    <div class="order-meta">
+        <span>💰 <strong>{{ o.price }} Br</strong></span>
+        {% if o.prepaid > 0 %}<span>💳 {{ o.prepaid }} Br</span>{% endif %}
+        <span>📋 Долг: <strong style="color:{{ 'var(--danger)' if o.price - o.prepaid > 0 else 'var(--success)' }}">{{ o.price - o.prepaid }} Br</strong></span>
+    </div>
+    <div class="order-footer">
+        <div>
+            <select class="status-select" onchange="changeStatus({{ o.id }}, this)">
+                {% for s in statuses %}
+                <option value="{{ s }}" {% if o.status == s %}selected{% endif %}>{{ s }}</option>
+                {% endfor %}
+            </select>
+            <span style="margin-left:8px;font-size:13px;color:var(--text-light);">👨‍🔧 {{ o.executor }}</span>
+        </div>
+        <div>
+            <button class="btn btn-accent btn-sm" onclick="openEditModal({{ o | tojson }})">✏️</button>
+            <button class="btn btn-danger btn-sm" onclick="deleteOrder({{ o.id }})">🗑️</button>
+        </div>
+    </div>
+</div>
