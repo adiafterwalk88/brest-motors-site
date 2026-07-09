@@ -1,20 +1,18 @@
 import os
 import psycopg2
 from psycopg2.extras import RealDictCursor
-from flask import Flask, render_template, request, redirect, url_for, session, flash
-from functools import wraps
+from flask import Flask, render_template, request, redirect, url_for, session
 
 app = Flask(__name__)
 app.secret_key = "super_secret_flash_key_for_brest_motors"  # Ключ для работы сессий Flask
 
 # ============ ПРЯМОЕ ПОДКЛЮЧЕНИЕ К POSTGRESQL ============
-# Используем ваш пароль и корректный адрес базы данных Supabase напрямую с sslmode=require
 DATABASE_URL = "postgresql://postgres:8026009Wall!@db.ophusgconubcufrzobzyc.supabase.co:5432/postgres?sslmode=require"
 
 def get_db_connection():
     return psycopg2.connect(DATABASE_URL, cursor_factory=RealDictCursor)
 
-# Класс-заглушка (эмулятор), чтобы методы .table().select().execute() не ломались
+# Класс-заглушка (эмулятор) для работы с базой
 class SupabaseDirectBackend:
     def table(self, table_name):
         class QueryBuilder:
@@ -24,7 +22,6 @@ class SupabaseDirectBackend:
                 conn = get_db_connection()
                 cur = conn.cursor()
                 try:
-                    # Выполняем прямой запрос к таблице
                     cur.execute(f"SELECT * FROM {table_name} ORDER BY id DESC;")
                     data = cur.fetchall()
                 except Exception as e:
@@ -34,7 +31,6 @@ class SupabaseDirectBackend:
                     cur.close()
                     conn.close()
                 
-                # Возвращаем данные в привычном для вашего кода формате .data
                 class Result:
                     def __init__(self, d): self.data = [dict(row) for row in d]
                 return Result(data)
@@ -44,6 +40,7 @@ supabase = SupabaseDirectBackend()
 
 # ============ ДЕКОРАТОР ДЛЯ ЗАЩИТЫ СТРАНИЦ ============
 def login_required(f):
+    from functools import wraps
     @wraps(f)
     def decorated(*args, **kwargs):
         if not session.get('logged_in'):
@@ -57,30 +54,24 @@ def login_required(f):
 @app.route('/')
 @login_required
 def dashboard():
-    # Запрос пойдет напрямую в базу PostgreSQL через наш класс-эмулятор
     all_orders = supabase.table('orders').select('*').order('id', desc=True).execute().data
     return render_template('dashboard.html', orders=all_orders)
 
-# 2. Страница авторизации (Вход)
+# 2. Страница авторизации (Вход только по ПАРОЛЮ)
 @app.route('/login', methods=['GET', 'POST'])
 def login():
+    error = None
     if request.method == 'POST':
-        # Подстраховка на случай, если в HTML форме поля названы по-разному
-        username = request.form.get('username') or request.form.get('email') or request.form.get('login')
-        password = request.form.get('password') or request.form.get('pass')
+        password = request.form.get('password')
         
-        print(f"[AUTH] Попытка входа с логином: '{username}'") # Отобразится в логах Render
-        
-        # Сверяем данные админа
-        if username == 'admin' and password == '8026009Wall!':
+        # Проверяем только пароль, логин больше не нужен!
+        if password == '8026009Wall!':
             session['logged_in'] = True
-            print("[AUTH] Успешный вход! Перенаправляем на дашборд...")
             return redirect(url_for('dashboard'))
         else:
-            print(f"[AUTH] Ошибка: неверные данные. Получено: login='{username}', password='{password}'")
-            flash('Неверное имя пользователя или пароль', 'danger')
+            error = 'Неверный пароль доступа'
             
-    return render_template('login.html')
+    return render_template('login.html', error=error)
 
 # 3. Выход из аккаунта
 @app.route('/logout')
@@ -90,6 +81,5 @@ def logout():
 
 # ============ ЗАПУСК ПРИЛОЖЕНИЯ ============
 if __name__ == '__main__':
-    # На Render порт выставляется автоматически через переменную окружения PORT
     port = int(os.environ.get('PORT', 5000))
     app.run(host='0.0.0.0', port=port)
