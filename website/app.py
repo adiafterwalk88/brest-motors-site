@@ -6,6 +6,10 @@ from psycopg2.extras import DictCursor
 
 app = Flask(__name__)
 
+# Если мы на Render, принудительно отключаем дебаг-режим во всем приложении
+if os.environ.get('RENDER'):
+    app.config['DEBUG'] = False
+    app.config['ENV'] = 'production'
 # Секретный ключ для сессий и пароль администратора
 app.secret_key = os.environ.get('SECRET_KEY', 'BrestMotors2026_Secret_Key')
 ADMIN_PASSWORD = os.environ.get('ADMIN_PASSWORD', 'BrestMotorsPassword')
