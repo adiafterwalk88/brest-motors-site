@@ -10,6 +10,8 @@ app.secret_key = os.environ.get('SECRET_KEY', 'BrestMotors2026_Secret_Key')
 ADMIN_PASSWORD = os.environ.get('ADMIN_PASSWORD', 'BrestMotorsPassword')
 
 def get_db_connection():
+    # ВНИМАНИЕ: Смени пароль в Supabase! Он утёк в логи/историю.
+    # Желательно полностью перенести эту строку в переменную окружения DATABASE_URL в панели Render.
     db_url = os.environ.get('DATABASE_URL', 'postgresql://postgres.ophusgconubcufrobzyc:8026009Wall!@aws-0-eu-central-1.pooler.supabase.com:6543/postgres?pgbouncer=true')
     conn = psycopg2.connect(db_url)
     return conn
@@ -21,6 +23,15 @@ def login_required(f):
             return redirect(url_for('login'))
         return f(*args, **kwargs)
     return decorated_function
+
+def safe_float(value, default=0.0):
+    """Безопасно конвертирует строку в float, предотвращая падение сервера при пустых полях."""
+    if not value:
+        return default
+    try:
+        return float(value.strip().replace(',', '.'))
+    except ValueError:
+        return default
 
 @app.route('/login', methods=['GET', 'POST'])
 def login():
@@ -96,8 +107,11 @@ def create_order():
         phone = request.form.get('phone')
         address = request.form.get('address')
         product = request.form.get('product')
-        price = float(request.form.get('price', 0))
-        prepaid = float(request.form.get('prepaid', 0))
+        
+        # Безопасная конвертация цен вместо прямого float()
+        price = safe_float(request.form.get('price'))
+        prepaid = safe_float(request.form.get('prepaid'))
+        
         priority = request.form.get('priority') or 'Обычный'
         executor = request.form.get('executor') or 'Не назначен'
         status = request.form.get('status') or 'Новый'
