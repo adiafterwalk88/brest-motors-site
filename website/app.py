@@ -6,17 +6,12 @@ from psycopg2.extras import DictCursor
 
 app = Flask(__name__)
 
-# Если мы на Render, принудительно отключаем дебаг-режим во всем приложении
-if os.environ.get('RENDER'):
-    app.config['DEBUG'] = False
-    app.config['ENV'] = 'production'
 # Секретный ключ для сессий и пароль администратора
 app.secret_key = os.environ.get('SECRET_KEY', 'BrestMotors2026_Secret_Key')
 ADMIN_PASSWORD = os.environ.get('ADMIN_PASSWORD', 'BrestMotorsPassword')
 
 # Функция подключения к вашей базе данных PostgreSQL (Supabase)
 def get_db_connection():
-    # На Render берется переменная DATABASE_URL. Локально можно вставить строку подключения вместо заглушки.
     db_url = os.environ.get('DATABASE_URL', 'your_supabase_postgresql_connection_string_here')
     conn = psycopg2.connect(db_url)
     return conn
@@ -106,7 +101,7 @@ def dashboard():
 def list_orders():
     conn = get_db_connection()
     cur = conn.cursor(cursor_factory=DictCursor)
-    cur.execute("SELECT * FROM orders ORDER BY created_at DESC;")
+    cur.execute("SELECT * FROM orders ORDER BY DESC;")
     orders = cur.fetchall()
     cur.close()
     conn.close()
@@ -116,11 +111,11 @@ def list_orders():
 @login_required
 def create_order():
     if request.method == 'POST':
-        # Сбор данных из полей формы (БЕЗ источника заказа)
+        # Данные БЕЗ источника заказа
         customer = request.form.get('customer')
         phone = request.form.get('phone')
         address = request.form.get('address')
-        product = request.form.get('product')  # Наименование техники
+        product = request.form.get('product')
         
         price = request.form.get('price')
         price = float(price) if price else 0.0
@@ -129,16 +124,16 @@ def create_order():
         prepaid = float(prepaid) if prepaid else 0.0
 
         priority = request.form.get('priority') or 'Обычный'
-        executor = request.form.get('executor') or 'Не назначен'  # Кто готовит технику к выдаче
+        executor = request.form.get('executor') or 'Не назначен'
         status = request.form.get('status') or 'Новый'
         comment = request.form.get('comment')
 
         try:
             conn = get_db_connection()
-            conn.autocommit = True  # Мгновенное сохранение в базу данных без отката транзакций
+            conn.autocommit = True  
             cur = conn.cursor()
             
-            # Ровно 10 полей (БЕЗ source)
+            # Ровно 10 полей садовой техники
             query = """
                 INSERT INTO orders (customer, phone, address, product, price, prepaid, priority, executor, status, comment)
                 VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s);
@@ -146,13 +141,11 @@ def create_order():
             cur.execute(query, (customer, phone, address, product, price, prepaid, priority, executor, status, comment))
             cur.close()
             conn.close()
-            print("[DB SUCCESS] Заказ успешно сохранен в PostgreSQL!")
             return redirect(url_for('dashboard'))
         except Exception as e:
-            print(f"\n❌ [DB ERROR] Ошибка при сохранении заказа:\n{e}\n")
+            print(f"Ошибка БД: {e}")
             return redirect(url_for('dashboard'))
 
-    # Срабатывает при GET-запросе (просто открытие страницы создания)
     return render_template('dashboard.html', current_page='create_order', orders=[], exec_stats={})
 
 # --- ПРОСМОТР КЛИЕНТОВ ---
@@ -173,12 +166,7 @@ def list_clients():
     conn.close()
     return render_template('dashboard.html', current_page='clients', clients=clients, orders=[], exec_stats={})
 
+# Для gunicorn этот блок не важен, но оставим его для локальных тестов дома
 if __name__ == '__main__':
-    # Автоматически берем порт хостинга Render или 5000 для локального компьютера
     port = int(os.environ.get('PORT', 5000))
-    
-    # Привязываемся к 0.0.0.0, чтобы Render видел открытый порт приложения снаружи
-    # Отладочный режим debug включается только если мы запускаем код дома (локально)
-    is_debug = os.environ.get('RENDER') is None 
-    
-    app.run(host='0.0.0.0', port=port, debug=is_debug)
+    app.run(host='0.0.0.0', port=port)
