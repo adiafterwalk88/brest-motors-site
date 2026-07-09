@@ -12,6 +12,7 @@ ADMIN_PASSWORD = os.environ.get('ADMIN_PASSWORD', 'BrestMotorsPassword')
 
 # Функция подключения к вашей базе данных PostgreSQL (Supabase)
 def get_db_connection():
+    # ВАЖНО: Вставьте вашу строку подключения вместо заглушки ниже, если не используете переменные окружения!
     db_url = os.environ.get('DATABASE_URL', 'your_supabase_postgresql_connection_string_here')
     conn = psycopg2.connect(db_url)
     return conn
@@ -62,11 +63,11 @@ def dashboard():
     cur.execute("SELECT COUNT(*) FROM orders WHERE created_at::date = CURRENT_DATE;")
     today_orders = cur.fetchone()[0]
     
-    # 3. Финансовая аналитика (Выручка и Дебиторка по предзаказам)
+    # 3. Финансовая аналитика (Выручка и Долг по предзаказам)
     cur.execute("SELECT COALESCE(SUM(price), 0), COALESCE(SUM(price - prepaid) FILTER (WHERE status != 'Завершен'), 0) FROM orders;")
     total_revenue, pending_payment = cur.fetchone()
     
-    # 4. Нагрузка на мастеров (сборка, предпродажная подготовка техники)
+    # 4. Нагрузка на сотрудников (сборка, предпродажная подготовка техники)
     cur.execute("""
         SELECT executor, COUNT(*) as count, COALESCE(SUM(price), 0) as total_sum 
         FROM orders 
@@ -115,7 +116,7 @@ def create_order():
         customer = request.form.get('customer')
         phone = request.form.get('phone')
         address = request.form.get('address')
-        product = request.form.get('product')  # Наименование техники (напр. Мотоблок)
+        product = request.form.get('product')  # Наименование техники
         
         price = request.form.get('price')
         price = float(price) if price else 0.0
@@ -124,16 +125,16 @@ def create_order():
         prepaid = float(prepaid) if prepaid else 0.0
 
         priority = request.form.get('priority') or 'Обычный'
-        executor = request.form.get('executor') or 'Не назначен'  # Кто готовит/собирает технику
+        executor = request.form.get('executor') or 'Не назначен'  # Кто готовит/собирает технику к выдаче
         status = request.form.get('status') or 'Новый'
         comment = request.form.get('comment')
 
-        # Запись в PostgreSQL (10 полей, без source)
         try:
             conn = get_db_connection()
-            conn.autocommit = True  
+            conn.autocommit = True  # Мгновенное сохранение в Supabase без откатов транзакций
             cur = conn.cursor()
             
+            # Ровно 10 полей (БЕЗ source)
             query = """
                 INSERT INTO orders (customer, phone, address, product, price, prepaid, priority, executor, status, comment)
                 VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s);
@@ -141,14 +142,13 @@ def create_order():
             cur.execute(query, (customer, phone, address, product, price, prepaid, priority, executor, status, comment))
             cur.close()
             conn.close()
-            print("[DB SUCCESS] Заказ садовой техники успешно сохранен!")
+            print("[DB SUCCESS] Заказ успешно сохранен в PostgreSQL!")
+            return redirect(url_for('dashboard'))
         except Exception as e:
-            # Если в самой базе Supabase в таблице всё еще создана колонка source как NOT NULL, 
-            # или наоборот, какого-то поля не хватает, мы мгновенно увидим ошибку здесь:
             print(f"\n❌ [DB ERROR] Ошибка при сохранении заказа:\n{e}\n")
+            return redirect(url_for('dashboard'))
 
-        return redirect(url_for('dashboard'))
-
+    # Срабатывает при обычном переходе (GET), открывая чистую форму
     return render_template('dashboard.html', current_page='create_order', orders=[], exec_stats={})
 
 # --- ПРОСМОТР КЛИЕНТОВ ---
