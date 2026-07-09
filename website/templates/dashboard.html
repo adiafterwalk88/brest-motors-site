@@ -3,197 +3,271 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Дашборд | Брест-Моторс</title>
+    <title>Брест-Моторс | CRM Садовая Техника</title>
     <link rel="stylesheet" href="/static/style.css">
+    <style>
+        /* Быстрые стили для чистого отображения структуры */
+        body { font-family: 'Arial', sans-serif; background: #f4f6f9; margin: 0; padding: 0; color: #333; }
+        .navbar { background: #2c3e50; padding: 15px 20px; display: flex; justify-content: space-between; align-items: center; color: white; }
+        .navbar a { color: #ecf0f1; text-decoration: none; margin-right: 15px; font-weight: bold; }
+        .navbar a:hover, .navbar a.active { color: #2ecc71; }
+        .container { padding: 30px; max-width: 1200px; margin: 0 auto; }
+        .card-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 20px; margin-bottom: 30px; }
+        .card { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
+        .card h3 { margin: 0 0 10px 0; font-size: 14px; color: #7f8c8d; text-transform: uppercase; }
+        .card .value { font-size: 24px; font-weight: bold; color: #2c3e50; }
+        .table-container { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); margin-bottom: 30px; overflow-x: auto; }
+        table { width: 100%; border-collapse: collapse; text-align: left; }
+        th, td { padding: 12px 15px; border-bottom: 1px solid #e1e8ed; }
+        th { background: #f8f9fa; color: #34495e; }
+        .badge { padding: 4px 8px; border-radius: 4px; font-size: 12px; font-weight: bold; }
+        .badge-new { background: #3498db; color: white; }
+        .badge-process { background: #f1c40f; color: #333; }
+        .badge-done { background: #2ecc71; color: white; }
+        .priority-high { background-color: #ffeaea; }
+        .form-group { margin-bottom: 15px; display: flex; flex-direction: column; }
+        .form-group label { margin-bottom: 5px; font-weight: bold; color: #34495e; }
+        .form-group input, .form-group select, .form-group textarea { padding: 10px; border: 1px solid #ccc; border-radius: 4px; font-size: 14px; }
+        .btn { background: #2ecc71; color: white; border: none; padding: 12px 20px; border-radius: 4px; cursor: pointer; font-size: 16px; font-weight: bold; }
+        .btn:hover { background: #27ae60; }
+        .login-box { max-width: 400px; margin: 100px auto; background: white; padding: 30px; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); text-align: center; }
+    </style>
 </head>
 <body>
-    <div class="sidebar">
-        <div class="logo"><span>🔧</span> Брест-Моторс</div>
-        <a href="/" class="{{ 'active' if current_page=='dashboard' else '' }}"><span>📊</span> Дашборд</a>
-        <a href="/orders" class="{{ 'active' if current_page=='orders' else '' }}"><span>📋</span> Заказы</a>
-        <a href="/clients" class="{{ 'active' if current_page=='clients' else '' }}"><span>👥</span> Клиенты</a>
-        <a href="/orders/create" style="background: var(--primary); color: white; margin-top: 15px; border-radius: 6px;"><span>➕</span> Создать заказ</a>
-        <a href="/logout" class="logout"><span>🚪</span> Выйти</a>
-    </div>
-    <div class="main">
-        <div class="header">
-            <h1>
-                {% if current_page == 'create_order' %}
-                    📋 Новый заказ
-                {% else %}
-                    📊 Дашборд
-                {% endif %}
-            </h1>
-            <div class="user-info">👋 Добрый день!</div>
+
+    {% if current_page != 'login' %}
+    <!-- ВЕРХНЕЕ МЕНЮ НАВИГАЦИИ -->
+    <div class="navbar">
+        <div class="logo">🚜 Брест-Моторс CRM</div>
+        <div class="menu">
+            <a href="/" class="{% if current_page == 'dashboard' %}active{% endif %}">Главная</a>
+            <a href="/orders" class="{% if current_page == 'orders' %}active{% endif %}">Все заказы</a>
+            <a href="/orders/create" class="{% if current_page == 'create_order' %}active{% endif %}">➕ Новый заказ</a>
+            <a href="/clients" class="{% if current_page == 'clients' %}active{% endif %}">Клиенты</a>
+            <a href="/logout" style="color: #e74c3c; margin-left: 30px;">Выйти</a>
         </div>
+    </div>
+    {% endif %}
 
-        {% if current_page == 'create_order' %}
-        <!-- ФОРМА СОЗДАНИЯ ЗАКАЗА ПОД НОВУЮ СТРУКТУРУ -->
-        <div class="section" style="max-width: 700px; margin: 20px 0;">
-            <h3>Заполните данные заказа</h3>
-            <form method="POST" action="/orders/create" style="display: flex; flex-direction: column; gap: 15px; margin-top: 15px;">
-                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
-                    <div>
-                        <label style="display:block; margin-bottom: 5px; font-weight: bold;">Клиент (ФИО):</label>
-                        <input type="text" name="customer" placeholder="Иванов Иван Иванович" required style="width:100%; padding:10px; border-radius:6px; border:1px solid #ccc; box-sizing: border-box;">
+    <div class="container">
+        
+        <!-- ОТОБРАЖЕНИЕ ОШИБОК И ФЛЕШ-УВЕДОМЛЕНИЙ -->
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                {% for category, message in messages %}
+                    <div style="padding: 15px; margin-bottom: 20px; background: #f8d7da; color: #721c24; border-radius: 4px;">
+                        {{ message }}
                     </div>
-                    <div>
-                        <label style="display:block; margin-bottom: 5px; font-weight: bold;">Телефон:</label>
-                        <input type="text" name="phone" placeholder="+375 (29) XXX-XX-XX" style="width:100%; padding:10px; border-radius:6px; border:1px solid #ccc; box-sizing: border-box;">
-                    </div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
+
+        <!-- ЭКРАН 1: АВТОРИЗАЦИЯ -->
+        {% if current_page == 'login' %}
+        <div class="login-box">
+            <h2>Вход в систему</h2>
+            <p>Введите административный пароль доступа</p>
+            <form action="/login" method="POST">
+                <div class="form-group">
+                    <input type="password" name="password" placeholder="Пароль" required>
                 </div>
-
-                <div>
-                    <label style="display:block; margin-bottom: 5px; font-weight: bold;">Адрес:</label>
-                    <input type="text" name="address" placeholder="г. Брест, ул. Московская, д. 10" style="width:100%; padding:10px; border-radius:6px; border:1px solid #ccc; box-sizing: border-box;">
-                </div>
-
-                <div>
-                    <label style="display:block; margin-bottom: 5px; font-weight: bold;">Товар / Услуга:</label>
-                    <input type="text" name="product" placeholder="Замена комплекта ГРМ, ремонт генератора" required style="width:100%; padding:10px; border-radius:6px; border:1px solid #ccc; box-sizing: border-box;">
-                </div>
-
-                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
-                    <div>
-                        <label style="display:block; margin-bottom: 5px; font-weight: bold;">Стоимость (Br):</label>
-                        <input type="number" step="0.01" name="price" placeholder="0.00" required style="width:100%; padding:10px; border-radius:6px; border:1px solid #ccc; box-sizing: border-box;">
-                    </div>
-                    <div>
-                        <label style="display:block; margin-bottom: 5px; font-weight: bold;">Предоплата (Br):</label>
-                        <input type="number" step="0.01" name="prepaid" value="0" style="width:100%; padding:10px; border-radius:6px; border:1px solid #ccc; box-sizing: border-box;">
-                    </div>
-                </div>
-
-                <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 15px;">
-                    <div>
-                        <label style="display:block; margin-bottom: 5px; font-weight: bold;">Приоритет:</label>
-                        <select name="priority" style="width:100%; padding:10px; border-radius:6px; border:1px solid #ccc;">
-                            <option value="Обычный">Обычный</option>
-                            <option value="Низкий">Низкий</option>
-                            <option value="Высокий">Высокий</option>
-                            <option value="Критичный">Критичный</option>
-                        </select>
-                    </div>
-                    <div>
-                        <label style="display:block; margin-bottom: 5px; font-weight: bold;">Исполнитель:</label>
-                        <input type="text" name="executor" placeholder="Мастер Олег" value="Не назначен" style="width:100%; padding:10px; border-radius:6px; border:1px solid #ccc; box-sizing: border-box;">
-                    </div>
-                    <div>
-                        <label style="display:block; margin-bottom: 5px; font-weight: bold;">Статус:</label>
-                        <select name="status" style="width:100%; padding:10px; border-radius:6px; border:1px solid #ccc;">
-                            <option value="Новый">Новый</option>
-                            <option value="В работе">В работе</option>
-                            <option value="Готов">Готов</option>
-                            <option value="Завершен">Завершен</option>
-                        </select>
-                    </div>
-                </div>
-
-                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
-                    <div>
-                        <label style="display:block; margin-bottom: 5px; font-weight: bold;">Источник заказа:</label>
-                        <select name="source" style="width:100%; padding:10px; border-radius:6px; border:1px solid #ccc;">
-                            <option value="Сайт">Сайт</option>
-                            <option value="Телефон">Телефон</option>
-                            <option value="Рекомендация">Рекомендация</option>
-                            <option value="Реклама">Реклама</option>
-                        </select>
-                    </div>
-                    <div>
-                        <label style="display:block; margin-bottom: 5px; font-weight: bold;">Комментарий:</label>
-                        <input type="text" name="comment" placeholder="Дополнительные пожелания" style="width:100%; padding:10px; border-radius:6px; border:1px solid #ccc; box-sizing: border-box;">
-                    </div>
-                </div>
-
-                <button type="submit" class="btn btn-primary" style="padding: 12px; font-size: 16px; font-weight: bold; cursor: pointer; background: var(--primary); color: white; border: none; border-radius: 6px; margin-top: 10px;">Сохранить в PostgreSQL</button>
+                <button type="submit" class="btn" style="width: 100%;">Войти</button>
             </form>
         </div>
-        {% else %}
-        <!-- СТАТИСТИЧЕСКИЕ КАРТОЧКИ -->
-        <div class="cards">
-            <div class="card blue">
-                <div class="icon">📦</div>
-                <div class="value">{{ all_count }}</div>
-                <div class="label">Всего заказов</div>
-            </div>
-            <div class="card orange">
-                <div class="icon">🔄</div>
-                <div class="value">{{ active_count }}</div>
-                <div class="label">Активных</div>
-            </div>
-            <div class="card green">
-                <div class="icon">📅</div>
-                <div class="value">{{ today_count }}</div>
-                <div class="label">Сегодня</div>
-            </div>
-            <div class="card purple">
-                <div class="icon">💰</div>
-                <div class="value">{{ total_sum }} Br</div>
-                <div class="label">Оборот</div>
-            </div>
-            <div class="card red">
-                <div class="icon">📋</div>
-                <div class="value">{{ debt }} Br</div>
-                <div class="label">Остаток к оплате</div>
-            </div>
+
+        <!-- ЭКРАН 2: ГЛАВНЫЙ ДАШБОРД (АНАЛИТИКА) -->
+        {% elif current_page == 'dashboard' %}
+        <h2>Аналитика магазина</h2>
+        <div class="card-grid">
+            <div class="card"><h3>Всего заказов</h3><div class="value">{{ metrics.total_orders }}</div></div>
+            <div class="card"><h3>В работе (сборка/ожидание)</h3><div class="value" style="color: #f1c40f;">{{ metrics.active_orders }}</div></div>
+            <div class="card"><h3>Новые за сегодня</h3><div class="value" style="color: #3498db;">{{ metrics.today_orders }}</div></div>
+            <div class="card"><h3>Общий оборот</h3><div class="value" style="color: #2ecc71;">{{ metrics.total_revenue }} Br</div></div>
+            <div class="card"><h3>Остаток к оплате (Долг)</h3><div class="value" style="color: #e74c3c;">{{ metrics.pending_payment }} Br</div></div>
         </div>
-        <div class="grid-2">
-            <div class="section">
-                <h3>🔄 Последние заказы</h3>
-                <div class="table-wrapper">
-                    <table>
+
+        <div style="display: grid; grid-template-columns: 2fr 1fr; gap: 20px; min-width: 0;">
+            <div class="table-container">
+                <h3>Последние поступления</h3>
+                <table>
+                    <thead>
                         <tr>
                             <th>№</th>
-                            <th>Дата</th>
                             <th>Клиент</th>
-                            <th>Услуга/Товар</th>
-                            <th>Приоритет</th>
-                            <th>Исполнитель</th>
-                            <th>Стоимость</th>
+                            <th>Товар (Техника)</th>
+                            <th>Сумма</th>
                             <th>Статус</th>
                         </tr>
-                        {% for o in orders[-10:]|reverse %}
-                        <tr>
-                            <td><strong>№{{ o.id }}</strong></td>
-                            <td>{{ o.created_at.strftime('%Y-%m-%d %H:%M') if o.created_at and hasattr(o.created_at, 'strftime') else o.created_at }}</td>
+                    </thead>
+                    <tbody>
+                        {% for order in orders %}
+                        <tr class="{% if order.priority in ['Высокий', 'Критичный'] %}priority-high{% endif %}">
+                            <td>{{ order.id }}</td>
+                            <td><strong>{{ order.customer }}</strong><br><small>{{ order.phone }}</small></td>
+                            <td>{{ order.product }}</td>
+                            <td>{{ order.price }} Br {% if order.prepaid > 0 %}<br><small style="color: #27ae60;">Предоплата: {{ order.prepaid }}</small>{% endif %}</td>
                             <td>
-                                {{ o.customer }}<br>
-                                <small style="color: gray;">{{ o.phone if o.phone else '' }}</small>
-                            </td>
-                            <td>{{ o.product[:40] if o.product else '' }}</td>
-                            <td>
-                                <span style="font-size: 12px; padding: 2px 6px; border-radius: 4px; font-weight: bold;
-                                    {{ 'background: #ffebe6; color: #ff3b30;' if o.priority in ['Критичный', 'Высокий'] else 'background: #f0f0f0; color: #333;' }}">
-                                    {{ o.priority }}
+                                <span class="badge {% if order.status == 'Новый' %}badge-new{% elif order.status == 'Завершен' %}badge-done{% else %}badge-process{% endif %}">
+                                    {{ order.status }}
                                 </span>
                             </td>
-                            <td><small>{{ o.executor }}</small></td>
-                            <td>
-                                <strong>{{ o.price }} Br</strong>
-                                {% if o.prepaid and o.prepaid > 0 %}
-                                <br><small style="color: green;">Предоплата: {{ o.prepaid }}</small>
-                                {% endif %}
-                            </td>
-                            <td><span class="badge badge-{{ 'new' if o.status=='Новый' else 'progress' if o.status=='В работе' else 'ready' if o.status=='Готов' else 'done' }}">{{ o.status }}</span></td>
                         </tr>
                         {% endfor %}
-                    </table>
-                </div>
+                    </tbody>
+                </table>
             </div>
-            <div class="section">
-                <h3>👨‍🔧 Статистика исполнителей</h3>
-                {% for ex, data in exec_stats.items() %}
-                <div style="margin-bottom:12px;padding:12px;background:#f8f9fa;border-radius:8px;">
-                    <strong>{{ ex }}</strong>
-                    <div style="display:flex;justify-content:space-between;color:var(--text-light);margin-top:4px;">
-                        <span>{{ data.count }} заказов</span>
-                        <span><strong>{{ data.sum }} Br</strong></span>
-                    </div>
-                </div>
-                {% endfor %}
+
+            <div class="table-container">
+                <h3>Заказы у мастеров</h3>
+                <table>
+                    <thead>
+                        <tr><th>Сотрудник</th><th>Кол-во</th><th>Сумма чеков</th></tr>
+                    </thead>
+                    <tbody>
+                        {% for stat in exec_stats %}
+                        <tr>
+                            <td><strong>{{ stat.executor }}</strong></td>
+                            <td>{{ stat.count }} шт.</td>
+                            <td>{{ stat.total_sum }} Br</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
             </div>
         </div>
+
+        <!-- ЭКРАН 3: СПИСОК ВСЕХ ЗАКАЗОВ -->
+        {% elif current_page == 'orders' %}
+        <h2>Реестр заказов техники</h2>
+        <div class="table-container">
+            <table>
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Данные клиента</th>
+                        <th>Наименование техники</th>
+                        <th>Финансы</th>
+                        <th>Приоритет</th>
+                        <th>Ответственный</th>
+                        <th>Статус</th>
+                        <th>Комментарий</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for order in orders %}
+                    <tr class="{% if order.priority in ['Высокий', 'Критичный'] %}priority-high{% endif %}">
+                        <td>{{ order.id }}</td>
+                        <td><strong>{{ order.customer }}</strong><br>{{ order.phone }}<br><small>{{ order.address }}</small></td>
+                        <td>{{ order.product }}</td>
+                        <td>Стоимость: {{ order.price }} Br<br><small>Аванс: {{ order.prepaid }} Br</small></td>
+                        <td>{{ order.priority }}</td>
+                        <td>{{ order.executor }}</td>
+                        <td>
+                            <span class="badge {% if order.status == 'Новый' %}badge-new{% elif order.status == 'Завершен' %}badge-done{% else %}badge-process{% endif %}">
+                                {{ order.status }}
+                            </span>
+                        </td>
+                        <td><small>{{ order.comment or '' }}</small></td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        <!-- ЭКРАН 4: СОЗДАНИЕ НОВОГО ЗАКАЗА -->
+        {% elif current_page == 'create_order' %}
+        <h2>Оформление нового заказа садовой техники</h2>
+        <div class="table-container" style="max-width: 600px;">
+            <!-- ВАЖНО: action и метод POST прописаны строго для исключения ошибки 405 -->
+            <form action="/orders/create" method="POST">
+                <div class="form-group">
+                    <label>ФИО Клиента *</label>
+                    <input type="text" name="customer" placeholder="Иванов Иван Иванович" required>
+                </div>
+                <div class="form-group">
+                    <label>Номер телефона *</label>
+                    <input type="text" name="phone" placeholder="+375 (XX) XXX-XX-XX" required>
+                </div>
+                <div class="form-group">
+                    <label>Адрес доставки (если требуется)</label>
+                    <input type="text" name="address" placeholder="г. Брест, ул. Советская, д. 10">
+                </div>
+                <div class="form-group">
+                    <label>Какая техника приобретается *</label>
+                    <input type="text" name="product" placeholder="Газонокосилка бензиновая STIGA Combi / Мотоблок" required>
+                </div>
+                <div class="form-group">
+                    <label>Полная стоимость (Br) *</label>
+                    <input type="number" step="0.01" name="price" placeholder="0.00" required>
+                </div>
+                <div class="form-group">
+                    <label>Внесенная предоплата (Br)</label>
+                    <input type="number" step="0.01" name="prepaid" placeholder="0.00">
+                </div>
+                <div class="form-group">
+                    <label>Приоритет отгрузки/сборки</label>
+                    <select name="priority">
+                        <option value="Низкий">Низкий</option>
+                        <option value="Обычный" selected>Обычный</option>
+                        <option value="Высокий">Высокий</option>
+                        <option value="Критичный">Критичный</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Кто осуществляет сборку/подготовку</label>
+                    <select name="executor">
+                        <option value="Не назначен" selected>Не назначен</option>
+                        <option value="Мастер Олег">Мастер Олег</option>
+                        <option value="Мастер Дмитрий">Мастер Дмитрий</option>
+                        <option value="Прямая выдача со склада">Прямая выдача со склада</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Статус заказа</label>
+                    <select name="status">
+                        <option value="Новый" selected>Новый</option>
+                        <option value="На сборке">На сборке</option>
+                        <option value="Ждет выдачи">Ждет выдачи</option>
+                        <option value="В доставке">В доставке</option>
+                        <option value="Завершен">Завершен</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Примечание к заказу</label>
+                    <textarea name="comment" rows="3" placeholder="Дополнительная комплектация, масло в подарок, особенности сборки..."></textarea>
+                </div>
+                <button type="submit" class="btn">🚀 Создать и сохранить заказ</button>
+            </form>
+        </div>
+
+        <!-- ЭКРАН 5: КЛИЕНТСКАЯ БАЗА -->
+        {% elif current_page == 'clients' %}
+        <h2>База постоянных клиентов (Контрагенты)</h2>
+        <div class="table-container">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Клиент</th>
+                        <th>Телефон</th>
+                        <th>Всего покупок</th>
+                        <th>Общая сумма (Выручка)</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for client in clients %}
+                    <tr>
+                        <td><strong>{{ client.customer }}</strong></td>
+                        <td>{{ client.phone }}</td>
+                        <td>{{ client.total_orders }} шт.</td>
+                        <td><span style="color: #2ecc71; font-weight: bold;">{{ client.total_spent }} Br</span></td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
         {% endif %}
+
     </div>
+
 </body>
 </html>
