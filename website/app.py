@@ -101,7 +101,8 @@ def dashboard():
 def list_orders():
     conn = get_db_connection()
     cur = conn.cursor(cursor_factory=DictCursor)
-    cur.execute("SELECT * FROM orders ORDER BY DESC;")
+    # ИСПРАВЛЕНО: Добавлено поле created_at для правильной сортировки реестра
+    cur.execute("SELECT * FROM orders ORDER BY created_at DESC;")
     orders = cur.fetchall()
     cur.close()
     conn.close()
@@ -166,7 +167,6 @@ def list_clients():
     conn.close()
     return render_template('dashboard.html', current_page='clients', clients=clients, orders=[], exec_stats={})
 
-# Для gunicorn этот блок не важен, но оставим его для локальных тестов дома
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
     app.run(host='0.0.0.0', port=port)
