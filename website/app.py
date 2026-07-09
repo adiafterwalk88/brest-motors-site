@@ -6,31 +6,30 @@ from flask import Flask, render_template, request, redirect, url_for, session
 app = Flask(__name__)
 app.secret_key = "super_secret_flash_key_for_brest_motors"  # Ключ для работы сессий Flask
 
-# ============ ПРЯМОЕ ПОДКЛЮЧЕНИЕ К POSTGRESQL ============
-# Очищенный прямой адрес вашего проекта без лишних приставок
-DATABASE_URL = "postgresql://postgres:8026009Wall!@ophusgconubcufrzobzyc.supabase.co:5432/postgres?sslmode=require"
+# ============ ПРЯМОЕ ПОДКЛЮЧЕНИЕ К POSTGRESQL (ИСПРАВЛЕНО!) ============
+# Мы исправили опечатку в ID проекта: теперь ophusgconubcufrobzyc
+DATABASE_URL = "postgresql://postgres:8026009Wall!@db.ophusgconubcufrobzyc.supabase.co:5432/postgres?sslmode=require"
 
 def get_db_connection():
     return psycopg2.connect(DATABASE_URL, cursor_factory=RealDictCursor)
 
-# Класс-заглушка (эмулятор) для работы с базой
+# Класс-заглушка (эмулятор), чтобы методы .table().select().execute() не ломались
 class SupabaseDirectBackend:
     def table(self, table_name):
         class QueryBuilder:
             def select(self, *args): return self
             def order(self, *args, **kwargs): return self
             def execute(self):
-                conn = get_db_connection()
-                cur = conn.cursor()
                 try:
+                    conn = get_db_connection()
+                    cur = conn.cursor()
                     cur.execute(f"SELECT * FROM {table_name} ORDER BY id DESC;")
                     data = cur.fetchall()
-                except Exception as e:
-                    print(f"Ошибка при запросе к таблице {table_name}: {e}")
-                    data = []
-                finally:
                     cur.close()
                     conn.close()
+                except Exception as e:
+                    print(f"⚠️ Ошибка подключения к базе данных: {e}")
+                    data = []  # Подстраховка
                 
                 class Result:
                     def __init__(self, d): self.data = [dict(row) for row in d]
@@ -65,7 +64,6 @@ def login():
     if request.method == 'POST':
         password = request.form.get('password')
         
-        # Проверяем только пароль, логин больше не нужен!
         if password == '8026009Wall!':
             session['logged_in'] = True
             return redirect(url_for('dashboard'))
