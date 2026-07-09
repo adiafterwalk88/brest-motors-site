@@ -12,7 +12,7 @@ ADMIN_PASSWORD = os.environ.get('ADMIN_PASSWORD', 'BrestMotorsPassword')
 
 # Функция подключения к вашей базе данных PostgreSQL (Supabase)
 def get_db_connection():
-    # ВАЖНО: Вставьте вашу строку подключения вместо заглушки ниже, если не используете переменные окружения!
+    # На Render берется переменная DATABASE_URL. Локально можно вставить строку подключения вместо заглушки.
     db_url = os.environ.get('DATABASE_URL', 'your_supabase_postgresql_connection_string_here')
     conn = psycopg2.connect(db_url)
     return conn
@@ -112,7 +112,7 @@ def list_orders():
 @login_required
 def create_order():
     if request.method == 'POST':
-        # Сбор данных из полей формы (без источника заказа)
+        # Сбор данных из полей формы (БЕЗ источника заказа)
         customer = request.form.get('customer')
         phone = request.form.get('phone')
         address = request.form.get('address')
@@ -125,13 +125,13 @@ def create_order():
         prepaid = float(prepaid) if prepaid else 0.0
 
         priority = request.form.get('priority') or 'Обычный'
-        executor = request.form.get('executor') or 'Не назначен'  # Кто готовит/собирает технику к выдаче
+        executor = request.form.get('executor') or 'Не назначен'  # Кто готовит технику к выдаче
         status = request.form.get('status') or 'Новый'
         comment = request.form.get('comment')
 
         try:
             conn = get_db_connection()
-            conn.autocommit = True  # Мгновенное сохранение в Supabase без откатов транзакций
+            conn.autocommit = True  # Мгновенное сохранение в базу данных без отката транзакций
             cur = conn.cursor()
             
             # Ровно 10 полей (БЕЗ source)
@@ -148,7 +148,7 @@ def create_order():
             print(f"\n❌ [DB ERROR] Ошибка при сохранении заказа:\n{e}\n")
             return redirect(url_for('dashboard'))
 
-    # Срабатывает при обычном переходе (GET), открывая чистую форму
+    # Срабатывает при GET-запросе (просто открытие страницы создания)
     return render_template('dashboard.html', current_page='create_order', orders=[], exec_stats={})
 
 # --- ПРОСМОТР КЛИЕНТОВ ---
@@ -170,4 +170,11 @@ def list_clients():
     return render_template('dashboard.html', current_page='clients', clients=clients, orders=[], exec_stats={})
 
 if __name__ == '__main__':
-    app.run(host='127.0.0.1', port=5000, debug=True)
+    # Автоматически берем порт хостинга Render или 5000 для локального компьютера
+    port = int(os.environ.get('PORT', 5000))
+    
+    # Привязываемся к 0.0.0.0, чтобы Render видел открытый порт приложения снаружи
+    # Отладочный режим debug включается только если мы запускаем код дома (локально)
+    is_debug = os.environ.get('RENDER') is None 
+    
+    app.run(host='0.0.0.0', port=port, debug=is_debug)
