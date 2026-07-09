@@ -10,8 +10,6 @@ app.secret_key = os.environ.get('SECRET_KEY', 'BrestMotors2026_Secret_Key')
 ADMIN_PASSWORD = os.environ.get('ADMIN_PASSWORD', 'BrestMotorsPassword')
 
 def get_db_connection():
-    # ВНИМАНИЕ: Смени пароль в Supabase! Он утёк в логи/историю.
-    # Желательно полностью перенести эту строку в переменную окружения DATABASE_URL в панели Render.
     db_url = os.environ.get('DATABASE_URL', 'postgresql://postgres.ophusgconubcufrobzyc:8026009Wall!@aws-0-eu-central-1.pooler.supabase.com:6543/postgres?pgbouncer=true')
     conn = psycopg2.connect(db_url)
     return conn
@@ -25,7 +23,6 @@ def login_required(f):
     return decorated_function
 
 def safe_float(value, default=0.0):
-    """Безопасно конвертирует строку в float, предотвращая падение сервера при пустых полях."""
     if not value:
         return default
     try:
@@ -107,11 +104,8 @@ def create_order():
         phone = request.form.get('phone')
         address = request.form.get('address')
         product = request.form.get('product')
-        
-        # Безопасная конвертация цен вместо прямого float()
         price = safe_float(request.form.get('price'))
         prepaid = safe_float(request.form.get('prepaid'))
-        
         priority = request.form.get('priority') or 'Обычный'
         executor = request.form.get('executor') or 'Не назначен'
         status = request.form.get('status') or 'Новый'
@@ -128,29 +122,75 @@ def create_order():
             cur.execute(query, (customer, phone, address, product, price, prepaid, priority, executor, status, comment))
             cur.close()
             conn.close()
+            flash('Заказ успешно создан!', 'success')
             return redirect(url_for('dashboard'))
         except Exception as e:
             print(f"Ошибка БД: {e}")
-            return redirect(url_for('dashboard'))
+            flash(f'Ошибка при создании заказа: {e}', 'error')
+            return redirect(url_for('create_order'))
 
     return render_template('dashboard.html', current_page='create_order', orders=[], exec_stats={})
 
-@app.route('/clients')
+# ==========================================
+# РЕДАКТИРОВАНИЕ ЗАКАЗА
+# ==========================================
+@app.route('/orders/<int:order_id>/edit', methods=['GET', 'POST'])
 @login_required
-def list_clients():
+def edit_order(order_id):
     conn = get_db_connection()
     cur = conn.cursor(cursor_factory=DictCursor)
-    cur.execute("""
-        SELECT customer, phone, COUNT(*) as total_orders, SUM(price) as total_spent
-        FROM orders
-        GROUP BY customer, phone
-        ORDER BY total_spent DESC;
-    """)
-    clients = cur.fetchall()
+    
+    if request.method == 'POST':
+        # Получаем данные из формы
+        customer = request.form.get('customer')
+        phone = request.form.get('phone')
+        address = request.form.get('address')
+        product = request.form.get('product')
+        price = safe_float(request.form.get('price'))
+        prepaid = safe_float(request.form.get('prepaid'))
+        priority = request.form.get('priority') or 'Обычный'
+        executor = request.form.get('executor') or 'Не назначен'
+        status = request.form.get('status') or 'Новый'
+        comment = request.form.get('comment')
+        url = request.form.get('url')
+        
+        try:
+            query = """
+                UPDATE orders 
+                SET customer = %s, phone = %s, address = %s, product = %s, 
+                    price = %s, prepaid = %s, priority = %s, executor = %s, 
+                    status = %s, comment = %s, url = %s,
+                    updated_at = CURRENT_TIMESTAMP
+                WHERE id = %s;
+            """
+            cur.execute(query, (customer, phone, address, product, price, 
+                              prepaid, priority, executor, status, comment, url, order_id))
+            conn.commit()
+            flash('Заказ успешно обновлён!', 'success')
+            return redirect(url_for('list_orders'))
+        except Exception as e:
+            conn.rollback()
+            flash(f'Ошибка при обновлении: {e}', 'error')
+    
+    # GET-запрос — показываем форму
+    cur.execute("SELECT * FROM orders WHERE id = %s;", (order_id,))
+    order = cur.fetchone()
     cur.close()
     conn.close()
-    return render_template('dashboard.html', current_page='clients', clients=clients, orders=[], exec_stats={})
+    
+    if not order:
+        flash('Заказ не найден', 'error')
+        return redirect(url_for('list_orders'))
+    
+    return render_template('dashboard.html', 
+                         current_page='edit_order', 
+                         order=order, 
+                         orders=[], 
+                         exec_stats={})
 
+# ==========================================
+# API ДЛЯ ПРИЛОЖЕНИЯ (без изменений)
+# ==========================================
 @app.route('/api/orders')
 def api_orders():
     try:
@@ -168,6 +208,52 @@ def api_orders():
                     r[k] = v.isoformat()
             result.append(r)
         return jsonify(result)
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+# ==========================================
+# API: Обновление заказа из приложения
+# ==========================================
+@app.route('/api/orders/<int:order_id>', methods=['PUT', 'PATCH'])
+def api_update_order(order_id):
+    """API-endpoint для обновления заказа (можно вызывать из приложения)"""
+    try:
+        data = request.get_json()
+        if not data:
+            return jsonify({"error": "No data provided"}), 400
+        
+        conn = get_db_connection()
+        cur = conn.cursor()
+        
+        # Разрешаем обновлять только определённые поля
+        allowed_fields = ['customer', 'phone', 'address', 'product', 'price', 
+                         'prepaid', 'priority', 'executor', 'status', 'comment', 'url']
+        
+        updates = []
+        values = []
+        for field in allowed_fields:
+            if field in data:
+                updates.append(f"{field} = %s")
+                values.append(data[field])
+        
+        if not updates:
+            return jsonify({"error": "No valid fields to update"}), 400
+        
+        updates.append("updated_at = CURRENT_TIMESTAMP")
+        values.append(order_id)
+        
+        query = f"UPDATE orders SET {', '.join(updates)} WHERE id = %s;"
+        cur.execute(query, values)
+        conn.commit()
+        
+        # Получаем обновлённый заказ
+        cur.execute("SELECT * FROM orders WHERE id = %s;", (order_id,))
+        updated = cur.fetchone()
+        
+        cur.close()
+        conn.close()
+        
+        return jsonify({"success": True, "message": "Order updated"})
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
