@@ -2,16 +2,17 @@ from flask import Flask, render_template, request, jsonify, redirect, url_for, s
 from functools import wraps
 import time
 import requests
-import os  # <-- ИСПРАВЛЕНО: Добавлен импорт модуля для работы с окружением Render
+import os
 from supabase import create_client
 
 app = Flask(__name__)
 app.secret_key = 'brest-motors-secret-key-2026'
 
 # ============ ПОДКЛЮЧЕНИЕ К БАЗЕ ДАННЫХ ============
-# ============ ПОДКЛЮЧЕНИЕ К БАЗЕ ДАННЫХ ============
-SUPABASE_URL = "https://ophusgconubcufrzobzyc.supabase.co"
-SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9waHVzZ2NvbnViY3Vmcm9ienljIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODM1ODc5MjQsImV4cCI6MjA5OTE2MzkyNH0.a1DBm4PkDt1NHHyIDfF_xFqZd7qEhSGwUfdZbnvXKXs"
+# Исправлен URL (убрана опечатка в ID проекта) и добавлена поддержка переменных Render
+SUPABASE_URL = os.getenv("SUPABASE_URL", "https://ophusgconubcufrobzyc.supabase.co")
+SUPABASE_KEY = os.getenv("SUPABASE_KEY", "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9waHVzZ2NvbnViY3Vmcm9ienljIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODM1ODc5MjQsImV4cCI6MjA5OTE2MzkyNH0.a1DBm4PkDt1NHHyIDfF_xFqZd7qEhSGwUfdZbnvXKXs")
+
 supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
 
 PASSWORD = "brest2026"
@@ -32,7 +33,8 @@ def send_telegram(text):
         requests.post(f"https://api.telegram.org/bot{TOKEN}/sendMessage", json={
             "chat_id": "8171279171", "text": text, "parse_mode": "HTML"
         })
-    except: pass
+    except: 
+        pass
 
 # ============ АВТОРИЗАЦИЯ ============
 @app.route('/login', methods=['GET', 'POST'])
@@ -186,6 +188,5 @@ def api_stats():
 
 # ============ ЗАПУСК ПРИЛОЖЕНИЯ ============
 if __name__ == '__main__':
-    # ИСПРАВЛЕНО: Чистый запуск на динамическом порту Render (по умолчанию 10000)
     port = int(os.environ.get('PORT', 10000))
     app.run(host='0.0.0.0', port=port)
