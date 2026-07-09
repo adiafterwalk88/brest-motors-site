@@ -7,7 +7,8 @@ app = Flask(__name__)
 app.secret_key = "super_secret_flash_key_for_brest_motors"  # Ключ для работы сессий Flask
 
 # ============ ПРЯМОЕ ПОДКЛЮЧЕНИЕ К POSTGRESQL ============
-DATABASE_URL = "postgresql://postgres:8026009Wall!@db.ophusgconubcufrzobzyc.supabase.co:5432/postgres?sslmode=require"
+# Используем прямой адрес пулера Supabase с вашим паролем
+DATABASE_URL = "postgresql://postgres:8026009Wall!@aws-0-eu-central-1.pooler.supabase.com:5432/postgres?sslmode=require"
 
 def get_db_connection():
     return psycopg2.connect(DATABASE_URL, cursor_factory=RealDictCursor)
