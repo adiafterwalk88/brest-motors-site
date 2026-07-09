@@ -2,6 +2,7 @@ from flask import Flask, render_template, request, jsonify, redirect, url_for, s
 from functools import wraps
 import time
 import requests
+import os  # <-- ИСПРАВЛЕНО: Добавлен импорт модуля для работы с окружением Render
 from supabase import create_client
 
 app = Flask(__name__)
@@ -181,8 +182,8 @@ def api_stats():
         'debt': sum(o.get('price', 0) - o.get('prepaid', 0) for o in active)
     })
 
+# ============ ЗАПУСК ПРИЛОЖЕНИЯ ============
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=int(os.environ.get('PORT', 8000)))
-if __name__ == '__main__':
+    # ИСПРАВЛЕНО: Чистый запуск на динамическом порту Render (по умолчанию 10000)
     port = int(os.environ.get('PORT', 10000))
     app.run(host='0.0.0.0', port=port)
