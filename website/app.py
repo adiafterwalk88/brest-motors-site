@@ -8,8 +8,9 @@ from supabase import create_client
 app = Flask(__name__)
 app.secret_key = 'brest-motors-secret-key-2026'
 
-SUPABASE_URL = "https://oi1gbpcpcjfrZ6ZocysTuw.supabase.co"
-SUPABASE_KEY = "sb_publishable_Oi1gbpCpzhfrZ6ZocysTuw__bbAJRzA"
+# ============ ПОДКЛЮЧЕНИЕ К БАЗЕ ДАННЫХ ============
+SUPABASE_URL = "https://ophusgconubcufrzobzyc.supabase.co"
+SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9waHVzZ2NvbnViY3Vmcm9ienljIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODM1ODc5MjQsImV4cCI6MjA5OTE2MzkyNH0.a1DBm4PkDt1NHHyIDfF_xFqZd7qEhSGwUfdZbnvXKXs"
 supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
 
 PASSWORD = "brest2026"
