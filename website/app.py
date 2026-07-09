@@ -6,14 +6,13 @@ from flask import Flask, render_template, request, redirect, url_for, session
 app = Flask(__name__)
 app.secret_key = "super_secret_flash_key_for_brest_motors"  # Ключ для работы сессий Flask
 
-# ============ ПРЯМОЕ ПОДКЛЮЧЕНИЕ К POSTGRESQL (ИСПРАВЛЕНО!) ============
-# Мы исправили опечатку в ID проекта: теперь ophusgconubcufrobzyc
+# ============ ПРЯМОЕ ПОДКЛЮЧЕНИЕ К POSTGRESQL ============
 DATABASE_URL = "postgresql://postgres:8026009Wall!@db.ophusgconubcufrobzyc.supabase.co:5432/postgres?sslmode=require"
 
 def get_db_connection():
     return psycopg2.connect(DATABASE_URL, cursor_factory=RealDictCursor)
 
-# Класс-заглушка (эмулятор), чтобы методы .table().select().execute() не ломались
+# Класс-заглушка (эмулятор) для работы с базой
 class SupabaseDirectBackend:
     def table(self, table_name):
         class QueryBuilder:
@@ -28,8 +27,8 @@ class SupabaseDirectBackend:
                     cur.close()
                     conn.close()
                 except Exception as e:
-                    print(f"⚠️ Ошибка подключения к базе данных: {e}")
-                    data = []  # Подстраховка
+                    print(f"⚠️ Ошибка подключения к базе {table_name}: {e}")
+                    data = []
                 
                 class Result:
                     def __init__(self, d): self.data = [dict(row) for row in d]
@@ -50,15 +49,29 @@ def login_required(f):
 
 # ============ МАРШРУТЫ (ROUTES) ============
 
-# 1. Главная страница (Дашборд с заказами)
+# 1. Главная страница и Заказы (обрабатывают и / и /orders)
 @app.route('/')
+@app.route('/orders')
 @login_required
 def dashboard():
     all_orders = supabase.table('orders').select('*').order('id', desc=True).execute().data
+    return render_template('dashboard.html', orders=all_orders, current_page='orders', exec_stats={})
+
+# 2. Страница Клиентов
+@app.route('/clients')
+@login_required
+def clients():
+    # Загружаем клиентов из таблицы 'clients'. Если в HTML используется тот же шаблон, передаем их туда
+    all_clients = supabase.table('clients').select('*').order('id', desc=True).execute().data
     
-    # Добавляем пустой словарь exec_stats, чтобы шаблон dashboard.html не падал с ошибкой
-    return render_template('dashboard.html', orders=all_orders, exec_stats={})
-# 2. Страница авторизации (Вход только по ПАРОЛЮ)
+    # Пытаемся отрендерить специализированный шаблон clients.html, 
+    # а если его нет — используем dashboard.html, передав клиентов туда
+    try:
+        return render_template('clients.html', clients=all_clients, current_page='clients', exec_stats={})
+    except Exception:
+        return render_template('dashboard.html', clients=all_clients, orders=[], current_page='clients', exec_stats={})
+
+# 3. Страница авторизации (Вход только по ПАРОЛЮ)
 @app.route('/login', methods=['GET', 'POST'])
 def login():
     error = None
@@ -73,7 +86,7 @@ def login():
             
     return render_template('login.html', error=error)
 
-# 3. Выход из аккаунта
+# 4. Выход из аккаунта
 @app.route('/logout')
 def logout():
     session.clear()
