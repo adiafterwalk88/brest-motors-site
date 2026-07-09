@@ -5,9 +5,8 @@ from flask import Flask, render_template, request, redirect, url_for, session
 from datetime import datetime
 
 app = Flask(__name__)
-app.secret_key = "super_secret_flash_key_for_brest_motors"
+app.secret_key = "brest-motors-secret-key-2026"
 
-# Добавляем hasattr в контекст шаблонизатора Jinja2 для проверки даты
 app.jinja_env.globals.update(hasattr=hasattr)
 
 DATABASE_URL = "postgresql://postgres:8026009Wall!@db.ophusgconubcufrobzyc.supabase.co:5432/postgres?sslmode=require"
@@ -24,15 +23,13 @@ class SupabaseDirectBackend:
                 try:
                     conn = get_db_connection()
                     cur = conn.cursor()
-                    # Сортируем по ID по возрастанию, чтобы метод [-10:]|reverse в шаблоне брал последние добавленные
                     cur.execute(f"SELECT * FROM {table_name} ORDER BY id ASC;")
                     data = cur.fetchall()
                     cur.close()
                     conn.close()
                 except Exception as e:
-                    print(f"⚠️ Ошибка подключения к базе {table_name}: {e}")
+                    print(f"Ошибка БД: {e}")
                     data = []
-                
                 class Result:
                     def __init__(self, d): self.data = [dict(row) for row in d]
                 return Result(data)
@@ -49,7 +46,9 @@ def login_required(f):
         return f(*args, **kwargs)
     return decorated
 
-# ============ МАРШРУТЫ ============
+EXECUTORS = ['Не назначен', 'Иван', 'Петр', 'Сергей', 'Админ']
+STATUSES = ['Новый', 'В работе', 'Готов', 'Выдан']
+PRIORITIES = ['Обычный', 'Высокий', 'Низкий']
 
 @app.route('/')
 @app.route('/orders')
@@ -57,109 +56,109 @@ def login_required(f):
 def dashboard():
     all_orders = supabase.table('orders').select('*').execute().data
     
-    # 1. Расчет базовых показателей
     all_count = len(all_orders)
-    active_count = sum(1 for o in all_orders if o.get('status') in ['Новый', 'В работе', 'Готов'])
-    
-    # Расчет созданных за сегодня
+    active_count = sum(1 for o in all_orders if o.get('status') != 'Выдан')
     today_str = datetime.today().strftime('%Y-%m-%d')
-    today_count = 0
-    for o in all_orders:
-        created = o.get('created_at')
-        if created:
-            created_str = created.strftime('%Y-%m-%d') if hasattr(created, 'strftime') else str(created)
-            if created_str.startswith(today_str):
-                today_count += 1
-                
-    # Суммы оборота и остатка к оплате (Общая стоимость минус то, что уже внесли)
+    today_count = sum(1 for o in all_orders if str(o.get('created_at', '')).startswith(today_str))
     total_sum = sum(float(o.get('price') or 0) for o in all_orders)
-    
-    # Дебиторка/остаток: общая сумма незавершенных заказов за вычетом предоплаты
-    debt = sum(float(o.get('price') or 0) - float(o.get('prepaid') or 0) 
-               for o in all_orders if o.get('status') != 'Завершен')
+    debt = sum(float(o.get('price') or 0) - float(o.get('prepaid') or 0) for o in all_orders if o.get('status') != 'Выдан')
 
-    # 2. Динамический расчет статистики исполнителей
     exec_stats = {}
     for o in all_orders:
-        executor = o.get('executor') or 'Не назначен'
-        price = float(o.get('price') or 0)
-        if executor not in exec_stats:
-            exec_stats[executor] = {'count': 0, 'sum': 0.0}
-        exec_stats[executor]['count'] += 1
-        exec_stats[executor]['sum'] += price
-        
-    # Преобразуем суммы мастеров к целому числу для красоты
-    for ex in exec_stats:
-        exec_stats[ex]['sum'] = int(exec_stats[ex]['sum'])
+        ex = o.get('executor') or 'Не назначен'
+        if ex not in exec_stats: exec_stats[ex] = {'count': 0, 'sum': 0}
+        exec_stats[ex]['count'] += 1
+        exec_stats[ex]['sum'] += float(o.get('price') or 0)
 
-    return render_template(
-        'dashboard.html', 
-        orders=all_orders, 
-        current_page='dashboard',
-        all_count=all_count,
-        active_count=active_count,
-        today_count=today_count,
-        total_sum=int(total_sum),
-        debt=int(max(0, debt)), # исключаем отрицательные значения
-        exec_stats=exec_stats
-    )
+    return render_template('dashboard.html', orders=all_orders, all_count=all_count,
+        active_count=active_count, today_count=today_count, total_sum=int(total_sum),
+        debt=int(max(0, debt)), exec_stats=exec_stats, current_page='orders',
+        executors=EXECUTORS, statuses=STATUSES, priorities=PRIORITIES)
 
-@app.route('/orders/create', methods=['GET', 'POST'])
+@app.route('/orders/create', methods=['POST'])
 @login_required
 def create_order():
-    if request.method == 'POST':
-        # Забираем абсолютно все поля формы
-        customer = request.form.get('customer')
-        phone = request.form.get('phone')
-        address = request.form.get('address')
-        product = request.form.get('product')
-        price = request.form.get('price') or 0
-        prepaid = request.form.get('prepaid') or 0
-        priority = request.form.get('priority') or 'Обычный'
-        executor = request.form.get('executor') or 'Не назначен'
-        status = request.form.get('status') or 'Новый'
-        comment = request.form.get('comment')
-        source = request.form.get('source') or 'Сайт'
+    try:
+        conn = get_db_connection()
+        cur = conn.cursor()
+        cur.execute("""
+            INSERT INTO orders (customer, phone, address, product, price, prepaid, priority, executor, status, comment)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s);
+        """, (
+            request.form.get('customer', ''),
+            request.form.get('phone', ''),
+            request.form.get('address', ''),
+            request.form.get('product', ''),
+            float(request.form.get('price', 0)),
+            float(request.form.get('prepaid', 0)),
+            request.form.get('priority', 'Обычный'),
+            request.form.get('executor', 'Не назначен'),
+            request.form.get('status', 'Новый'),
+            request.form.get('comment', '')
+        ))
+        conn.commit()
+        cur.close()
+        conn.close()
+    except Exception as e:
+        print(f"Ошибка сохранения: {e}")
+    return redirect(url_for('dashboard'))
 
-        # Прямая параметризованная вставка в PostgreSQL
-        try:
-            conn = get_db_connection()
-            cur = conn.cursor()
-            query = """
-                INSERT INTO orders (customer, phone, address, product, price, prepaid, priority, executor, status, comment, source)
-                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s);
-            """
-            cur.execute(query, (customer, phone, address, product, price, prepaid, priority, executor, status, comment, source))
-            conn.commit()
-            cur.close()
-            conn.close()
-            print("[DB] Заказ успешно сохранен со всеми дополнительными параметрами!")
-        except Exception as e:
-            print(f"[DB] Ошибка при сохранении заказа: {e}")
+@app.route('/orders/<int:order_id>/edit', methods=['POST'])
+@login_required
+def edit_order(order_id):
+    try:
+        conn = get_db_connection()
+        cur = conn.cursor()
+        cur.execute("""
+            UPDATE orders SET status=%s, executor=%s, customer=%s, phone=%s,
+            product=%s, price=%s, prepaid=%s, comment=%s
+            WHERE id=%s
+        """, (
+            request.form.get('status'),
+            request.form.get('executor'),
+            request.form.get('customer'),
+            request.form.get('phone'),
+            request.form.get('product'),
+            float(request.form.get('price', 0)),
+            float(request.form.get('prepaid', 0)),
+            request.form.get('comment', ''),
+            order_id
+        ))
+        conn.commit()
+        cur.close()
+        conn.close()
+    except Exception as e:
+        print(f"Ошибка обновления: {e}")
+    return redirect(url_for('dashboard'))
 
-        return redirect(url_for('dashboard'))
-
-    return render_template('dashboard.html', current_page='create_order', orders=[], exec_stats={})
+@app.route('/orders/<int:order_id>/delete', methods=['POST'])
+@login_required
+def delete_order(order_id):
+    try:
+        conn = get_db_connection()
+        cur = conn.cursor()
+        cur.execute("DELETE FROM orders WHERE id=%s", (order_id,))
+        conn.commit()
+        cur.close()
+        conn.close()
+    except Exception as e:
+        print(f"Ошибка удаления: {e}")
+    return redirect(url_for('dashboard'))
 
 @app.route('/clients')
 @login_required
 def clients():
     all_clients = supabase.table('clients').select('*').execute().data
-    try:
-        return render_template('clients.html', clients=all_clients, current_page='clients', exec_stats={})
-    except Exception:
-        return render_template('dashboard.html', clients=all_clients, orders=[], current_page='clients', exec_stats={})
+    return render_template('clients.html', clients=all_clients or [], current_page='clients', exec_stats={})
 
 @app.route('/login', methods=['GET', 'POST'])
 def login():
     error = None
     if request.method == 'POST':
-        password = request.form.get('password')
-        if password == '8026009Wall!':
+        if request.form.get('password') == '8026009Wall!':
             session['logged_in'] = True
             return redirect(url_for('dashboard'))
-        else:
-            error = 'Неверный пароль доступа'
+        error = 'Неверный пароль'
     return render_template('login.html', error=error)
 
 @app.route('/logout')
