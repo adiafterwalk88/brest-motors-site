@@ -8,7 +8,7 @@ app = Flask(__name__)
 app.secret_key = "super_secret_flash_key_for_brest_motors"  # Ключ для работы сессий Flask
 
 # ============ ПРЯМОЕ ПОДКЛЮЧЕНИЕ К POSTGRESQL ============
-# Добавили ?sslmode=require в конец, чтобы Supabase не блокировала запрос
+# Используем ваш пароль и корректный адрес базы данных Supabase напрямую с sslmode=require
 DATABASE_URL = "postgresql://postgres:8026009Wall!@db.ophusgconubcufrzobzyc.supabase.co:5432/postgres?sslmode=require"
 
 def get_db_connection():
@@ -65,14 +65,19 @@ def dashboard():
 @app.route('/login', methods=['GET', 'POST'])
 def login():
     if request.method == 'POST':
-        username = request.form.get('username')
-        password = request.form.get('password')
+        # Подстраховка на случай, если в HTML форме поля названы по-разному
+        username = request.form.get('username') or request.form.get('email') or request.form.get('login')
+        password = request.form.get('password') or request.form.get('pass')
         
-        # Простая проверка админа (можете изменить под свои нужды)
-        if username == 'admin' and password == 'Brest2026!':
+        print(f"[AUTH] Попытка входа с логином: '{username}'") # Отобразится в логах Render
+        
+        # Сверяем данные админа
+        if username == 'admin' and password == '8026009Wall!':
             session['logged_in'] = True
+            print("[AUTH] Успешный вход! Перенаправляем на дашборд...")
             return redirect(url_for('dashboard'))
         else:
+            print(f"[AUTH] Ошибка: неверные данные. Получено: login='{username}', password='{password}'")
             flash('Неверное имя пользователя или пароль', 'danger')
             
     return render_template('login.html')
