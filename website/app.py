@@ -55,8 +55,9 @@ def login_required(f):
 @login_required
 def dashboard():
     all_orders = supabase.table('orders').select('*').order('id', desc=True).execute().data
-    return render_template('dashboard.html', orders=all_orders)
-
+    
+    # Добавляем пустой словарь exec_stats, чтобы шаблон dashboard.html не падал с ошибкой
+    return render_template('dashboard.html', orders=all_orders, exec_stats={})
 # 2. Страница авторизации (Вход только по ПАРОЛЮ)
 @app.route('/login', methods=['GET', 'POST'])
 def login():
