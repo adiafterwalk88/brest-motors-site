@@ -207,7 +207,18 @@ def dashboard():
 def employee_dashboard():
     if session.get('is_admin'):
         return redirect(url_for('dashboard'))
-    
+    # Чат - с обработкой ошибки, если таблица не существует
+try:
+    cur.execute("""
+        SELECT * FROM chat_messages 
+        ORDER BY created_at DESC 
+        LIMIT 50
+    """)
+    chat_messages = cur.fetchall()
+    chat_messages = list(reversed(chat_messages))
+except Exception as e:
+    print(f"Ошибка загрузки чата: {e}")
+    chat_messages = []
     try:
         user_id = session.get('user_id')
         user_name = session.get('user_name')
