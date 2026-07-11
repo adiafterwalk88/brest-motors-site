@@ -1,44 +1,91 @@
-<!DOCTYPE html>
-<html lang="ru">
-<head>
-    <meta charset="UTF-8">
-    <title>Клиенты | Брест-Моторс</title>
-    <style>
-        *{margin:0;padding:0;box-sizing:border-box}
-        body{font-family:'Segoe UI',sans-serif;background:#f0f2f5;display:flex}
-        .sidebar{width:220px;background:#1a1a2e;color:white;min-height:100vh;padding:20px}
-        .sidebar h2{font-size:1.2em;margin-bottom:24px}
-        .sidebar a{display:block;color:#aaa;text-decoration:none;padding:10px;border-radius:8px;margin-bottom:4px}
-        .sidebar a:hover,.sidebar a.active{background:rgba(255,255,255,.1);color:white}
-        .main{flex:1;padding:20px}
-        table{width:100%;border-collapse:collapse;background:white;border-radius:12px;overflow:hidden}
-        th,td{padding:12px;text-align:left;border-bottom:1px solid #eee;font-size:14px}
-        th{background:#f8f9fa}
-    </style>
-</head>
-<body>
+{% extends "base.html" %}
+
+{% block title %}Клиенты | InTarget Brest Motors{% endblock %}
+
+{% block extra_css %}
+<style>
+    .admin-layout { display: flex; min-height: 100vh; }
+    .sidebar { width: 240px; background: #1a1a2e; color: white; padding: 20px 0; position: fixed; height: 100vh; overflow-y: auto; }
+    .sidebar .logo { font-size: 20px; font-weight: 700; padding: 0 20px 20px; border-bottom: 1px solid rgba(255,255,255,0.1); display: flex; align-items: center; gap: 10px; }
+    .sidebar .menu { list-style: none; padding: 0; margin-top: 20px; }
+    .sidebar .menu a { display: flex; align-items: center; gap: 12px; padding: 12px 20px; color: rgba(255,255,255,0.7); text-decoration: none; transition: all .2s; border-left: 3px solid transparent; }
+    .sidebar .menu a:hover, .sidebar .menu a.active { background: rgba(255,255,255,0.05); color: white; border-left-color: #2ecc71; }
+    .sidebar .menu a.logout { margin-top: 40px; color: #e74c3c; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 20px; }
+    .main-content { margin-left: 240px; flex: 1; padding: 24px; background: #f0f2f5; }
+    .page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; }
+    .page-header h1 { font-size: 28px; font-weight: 700; color: #1a1a2e; }
+    
+    .client-card { background: white; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); padding: 16px 20px; margin-bottom: 12px; display: flex; justify-content: space-between; align-items: center; transition: all .2s; }
+    .client-card:hover { transform: translateX(4px); box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
+    .client-card .client-info { display: flex; align-items: center; gap: 16px; }
+    .client-card .client-icon { font-size: 32px; }
+    .client-card .client-name { font-weight: 600; font-size: 16px; }
+    .client-card .client-phone { color: #666; font-size: 14px; }
+    .client-card .client-stats { display: flex; gap: 20px; }
+    .client-card .client-stats span { background: #f0f4f8; padding: 4px 12px; border-radius: 20px; font-size: 13px; }
+    .client-card .client-stats .total { color: #2ecc71; font-weight: 700; }
+    
+    .empty-state { text-align: center; padding: 40px; color: #999; background: white; border-radius: 12px; }
+    .empty-state .icon { font-size: 48px; }
+    
+    @media (max-width: 768px) {
+        .sidebar { display: none; }
+        .main-content { margin-left: 0; }
+        .client-card { flex-direction: column; gap: 12px; text-align: center; }
+        .client-card .client-stats { justify-content: center; }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="admin-layout">
     <div class="sidebar">
-        <h2>🔧 Брест-Моторс</h2>
-        <a href="/">📊 Дашборд</a>
-        <a href="/orders">📋 Заказы</a>
-        <a href="/clients" class="active">👥 Клиенты</a>
-        <a href="/logout" style="color:#e74c3c">🚪 Выйти</a>
+        <div class="logo">🎯 InTarget</div>
+        <ul class="menu">
+            <li><a href="/">📊 Дашборд</a></li>
+            <li><a href="/orders">📋 Заказы</a></li>
+            <li><a href="/clients" class="active">👥 Клиенты</a></li>
+            <li><a href="/employee">👨‍🔧 Сотрудники</a></li>
+            <li><a href="/logout" class="logout">🚪 Выйти</a></li>
+        </ul>
     </div>
-    <div class="main">
-        <h1>👥 Клиенты</h1>
-        <table>
-            <tr><th>ID</th><th>Имя</th><th>Телефон</th><th>Адрес</th><th>Заказов</th><th>Сумма</th></tr>
-            {% for c in clients %}
-            <tr>
-                <td>{{ c.id }}</td>
-                <td>{{ c.name }}</td>
-                <td>{{ c.phone }}</td>
-                <td>{{ c.address }}</td>
-                <td>{{ c.order_count }}</td>
-                <td>{{ c.total_sum }} Br</td>
-            </tr>
+    <div class="main-content">
+        <div class="page-header">
+            <div>
+                <h1>👥 Клиентская база</h1>
+                <span style="color:#666;font-size:14px;">Общая база клиентов всех магазинов</span>
+            </div>
+            <div style="display:flex;gap:12px;align-items:center;">
+                <span style="background:white;padding:8px 16px;border-radius:8px;font-weight:600;">👤 {{ session.user_name }}</span>
+                <span style="background:white;padding:8px 16px;border-radius:8px;">{{ clients|length }} клиентов</span>
+            </div>
+        </div>
+        
+        {% if clients %}
+            {% for client in clients %}
+            <div class="client-card">
+                <div class="client-info">
+                    <div class="client-icon">👤</div>
+                    <div>
+                        <div class="client-name">{{ client.customer }}</div>
+                        <div class="client-phone">📱 {{ client.phone }}</div>
+                        {% if client.shops %}
+                            <div style="font-size:12px;color:#666;margin-top:4px;">🏪 Магазины: {{ client.shops }}</div>
+                        {% endif %}
+                    </div>
+                </div>
+                <div class="client-stats">
+                    <span>📦 {{ client.total_orders }} заказов</span>
+                    <span class="total">💰 {{ "%.2f"|format(client.total_spent) }} Br</span>
+                </div>
+            </div>
             {% endfor %}
-        </table>
+        {% else %}
+            <div class="empty-state">
+                <div class="icon">📭</div>
+                <p>Нет клиентов</p>
+            </div>
+        {% endif %}
     </div>
-</body>
-</html>
+</div>
+{% endblock %}
