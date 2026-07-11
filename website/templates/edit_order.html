@@ -1,0 +1,127 @@
+{% extends "base.html" %}
+
+{% block extra_css %}
+<style>
+    .admin-layout { display: flex; min-height: 100vh; }
+    .sidebar { width: 240px; background: #1a1a2e; color: white; padding: 20px 0; position: fixed; height: 100vh; overflow-y: auto; }
+    .sidebar .logo { font-size: 20px; font-weight: 700; padding: 0 20px 20px; border-bottom: 1px solid rgba(255,255,255,0.1); display: flex; align-items: center; gap: 10px; }
+    .sidebar .menu { list-style: none; padding: 0; margin-top: 20px; }
+    .sidebar .menu a { display: flex; align-items: center; gap: 12px; padding: 12px 20px; color: rgba(255,255,255,0.7); text-decoration: none; transition: all .2s; border-left: 3px solid transparent; }
+    .sidebar .menu a:hover, .sidebar .menu a.active { background: rgba(255,255,255,0.05); color: white; border-left-color: #2ecc71; }
+    .sidebar .menu a.logout { margin-top: 40px; color: #e74c3c; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 20px; }
+    .main-content { margin-left: 240px; flex: 1; padding: 24px; background: #f0f2f5; }
+    .page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; }
+    .page-header h1 { font-size: 28px; font-weight: 700; color: #1a1a2e; }
+    .form-container { background: white; padding: 30px; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); max-width: 700px; margin: 0 auto; }
+    .form-group { margin-bottom: 16px; }
+    .form-group label { display: block; font-weight: 600; margin-bottom: 6px; color: #333; font-size: 14px; }
+    .form-control { width: 100%; padding: 10px 14px; border: 2px solid #e0e0e0; border-radius: 8px; font-size: 14px; transition: border-color .2s; background: #fafafa; box-sizing: border-box; }
+    .form-control:focus { border-color: #2ecc71; outline: none; background: white; }
+    .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+    .btn { padding: 12px 24px; background: #2ecc71; color: white; border: none; border-radius: 8px; font-size: 16px; font-weight: 600; cursor: pointer; transition: all .2s; width: 100%; }
+    .btn:hover { background: #27ae60; transform: translateY(-2px); box-shadow: 0 4px 12px rgba(46,204,113,0.3); }
+    .btn-danger { background: #e74c3c; }
+    .btn-danger:hover { background: #c0392b; }
+    .btn-secondary { background: #95a5a6; margin-top: 8px; }
+    .btn-secondary:hover { background: #7f8c8d; }
+    .btn-row { display: flex; gap: 12px; }
+    .btn-row .btn { width: auto; flex: 1; }
+    @media (max-width: 768px) { .sidebar { display: none; } .main-content { margin-left: 0; } .form-row { grid-template-columns: 1fr; } .btn-row { flex-direction: column; } }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="admin-layout">
+    <div class="sidebar">
+        <div class="logo">🎯 InTarget</div>
+        <ul class="menu">
+            <li><a href="/">📊 Дашборд</a></li>
+            <li><a href="/orders" class="active">📋 Заказы</a></li>
+            <li><a href="/clients">👥 Клиенты</a></li>
+            <li><a href="/employee">👨‍🔧 Сотрудники</a></li>
+            <li><a href="/logout" class="logout">🚪 Выйти</a></li>
+        </ul>
+    </div>
+    <div class="main-content">
+        <div class="page-header">
+            <h1>✏️ Редактирование заказа #{{ order.id }}</h1>
+            <div><span style="background:white;padding:8px 16px;border-radius:8px;font-weight:600;">👤 {{ session.user_name }}</span></div>
+        </div>
+        
+        <div class="form-container">
+            <form method="POST" action="/orders/{{ order.id }}/edit">
+                <div class="form-group">
+                    <label>👤 Клиент *</label>
+                    <input type="text" name="customer" class="form-control" value="{{ order.customer }}" required>
+                </div>
+                
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>📱 Телефон *</label>
+                        <input type="tel" name="phone" class="form-control" value="{{ order.phone }}" required>
+                    </div>
+                    <div class="form-group">
+                        <label>📍 Адрес</label>
+                        <input type="text" name="address" class="form-control" value="{{ order.address or '' }}">
+                    </div>
+                </div>
+                
+                <div class="form-group">
+                    <label>📝 Товар / Услуга *</label>
+                    <input type="text" name="product" class="form-control" value="{{ order.product }}" required>
+                </div>
+                
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>💰 Цена (Br)</label>
+                        <input type="number" name="price" class="form-control" value="{{ order.price }}" min="0" step="0.01">
+                    </div>
+                    <div class="form-group">
+                        <label>💳 Предоплата (Br)</label>
+                        <input type="number" name="prepaid" class="form-control" value="{{ order.prepaid }}" min="0" step="0.01">
+                    </div>
+                </div>
+                
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>⭐ Приоритет</label>
+                        <select name="priority" class="form-control">
+                            <option value="Низкий" {% if order.priority == 'Низкий' %}selected{% endif %}>🟢 Низкий</option>
+                            <option value="Обычный" {% if order.priority == 'Обычный' %}selected{% endif %}>🟡 Обычный</option>
+                            <option value="Высокий" {% if order.priority == 'Высокий' %}selected{% endif %}>🔴 Высокий</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>📊 Статус</label>
+                        <select name="status" class="form-control">
+                            <option value="Новый" {% if order.status == 'Новый' %}selected{% endif %}>🆕 Новый</option>
+                            <option value="В работе" {% if order.status == 'В работе' %}selected{% endif %}>🔄 В работе</option>
+                            <option value="Выдан" {% if order.status == 'Выдан' %}selected{% endif %}>✅ Выдан</option>
+                        </select>
+                    </div>
+                </div>
+                
+                <div class="form-group">
+                    <label>👨‍🔧 Исполнитель</label>
+                    <select name="executor" class="form-control">
+                        <option value="Не назначен" {% if order.executor == 'Не назначен' %}selected{% endif %}>Не назначен</option>
+                        {% for emp in employees %}
+                            <option value="{{ emp.name }}" {% if order.executor == emp.name %}selected{% endif %}>{{ emp.name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                
+                <div class="form-group">
+                    <label>💬 Комментарий</label>
+                    <input type="text" name="comment" class="form-control" value="{{ order.comment or '' }}">
+                </div>
+                
+                <div class="btn-row">
+                    <button type="submit" class="btn">💾 Сохранить изменения</button>
+                    <a href="/orders" class="btn btn-secondary" style="text-align:center;text-decoration:none;">← Отмена</a>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
