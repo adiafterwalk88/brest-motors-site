@@ -306,6 +306,18 @@ def employee_dashboard():
 @app.route('/orders')
 @login_required
 def orders_page():
+    @app.route('/orders/create', methods=['GET'])
+@login_required
+def create_order_form():
+    """Страница создания нового заказа"""
+    try:
+        return render_template('create_order.html',
+                             shops=Config.SHOPS,
+                             employees=get_employees())
+    except Exception as e:
+        print(f"Ошибка: {e}")
+        flash('Ошибка загрузки формы', 'error')
+        return redirect(url_for('orders_page'))
     try:
         shop_id = get_user_shop()
         search = request.args.get('search', '')
