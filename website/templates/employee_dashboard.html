@@ -1,7 +1,16 @@
 {% extends "base.html" %}
 
 {% block title %}Мой кабинет | InTarget Brest Motors{% endblock %}
-
+<!-- Уведомления о новых заказах -->
+{% if new_orders_count > 0 %}
+<div class="notification-banner" style="background: #e74c3c; color: white; padding: 12px 20px; border-radius: 12px; margin-bottom: 16px; display: flex; justify-content: space-between; align-items: center;">
+    <div>
+        <span style="font-size: 20px;">🔔</span>
+        <span style="font-weight: 600; margin-left: 8px;">У вас {{ new_orders_count }} новых заказов!</span>
+    </div>
+    <a href="/orders?status=Новый" style="background: white; color: #e74c3c; padding: 6px 16px; border-radius: 8px; text-decoration: none; font-weight: 600;">Посмотреть →</a>
+</div>
+{% endif %}
 {% block extra_css %}
 <style>
     * {
@@ -530,5 +539,24 @@ setInterval(function() {
             }
         });
 }, 10000);
+   <script>
+// Проверка новых заказов каждые 30 секунд
+setInterval(() => {
+    fetch('/api/notifications/check')
+        .then(res => res.json())
+        .then(data => {
+            const banner = document.querySelector('.notification-banner');
+            if (data.new_orders > 0) {
+                if (!banner) {
+                    location.reload(); // Перезагружаем страницу для показа уведомления
+                }
+            } else {
+                if (banner) {
+                    banner.remove();
+                }
+            }
+        })
+        .catch(err => console.error('Ошибка проверки уведомлений:', err));
+}, 30000);
 </script>
 {% endblock %}
