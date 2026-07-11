@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}InTarget Brest Motors{% endblock %}</title>
+    <link rel="stylesheet" href="/static/style.css">
+    {% block extra_css %}{% endblock %}
+</head>
+<body>
+    {% block content %}{% endblock %}
+    <script>
+        // Глобальные функции
+        function confirmAction(message) {
+            return confirm(message);
+        }
+        
+        // Автообновление чата
+        function loadChatMessages() {
+            fetch('/api/chat/messages')
+                .then(res => res.json())
+                .then(data => {
+                    const container = document.getElementById('chatMessages');
+                    if (container) {
+                        container.innerHTML = data.map(msg => `
+                            <div class="chat-message ${msg.user_id === '{{ session.user_id }}' ? 'own' : ''}">
+                                <span class="chat-user">${msg.user_name}</span>
+                                <span class="chat-text">${msg.message}</span>
+                                <span class="chat-time">${new Date(msg.created_at).toLocaleTimeString()}</span>
+                            </div>
+                        `).join('');
+                        container.scrollTop = container.scrollHeight;
+                    }
+                });
+        }
+        
+        // Интервал обновления чата
+        setInterval(loadChatMessages, 5000);
+    </script>
+    {% block extra_js %}{% endblock %}
+</body>
+</html>
