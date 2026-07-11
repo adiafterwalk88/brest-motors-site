@@ -88,6 +88,23 @@ def get_employee_by_id(emp_id):
             return emp
     return None
 
+def check_new_orders(user_name):
+    """Проверяет наличие новых заказов для сотрудника"""
+    try:
+        conn = get_db_connection()
+        cur = conn.cursor()
+        cur.execute("""
+            SELECT COUNT(*) FROM orders 
+            WHERE executor = %s AND status = 'Новый' AND is_archived = FALSE
+        """, (user_name,))
+        count = cur.fetchone()[0]
+        cur.close()
+        conn.close()
+        return count
+    except Exception as e:
+        print(f"Ошибка проверки новых заказов: {e}")
+        return 0
+
 # ==========================================
 # МАРШРУТЫ АВТОРИЗАЦИИ
 # ==========================================
@@ -207,18 +224,7 @@ def dashboard():
 def employee_dashboard():
     if session.get('is_admin'):
         return redirect(url_for('dashboard'))
-    # Чат - с обработкой ошибки, если таблица не существует
-try:
-    cur.execute("""
-        SELECT * FROM chat_messages 
-        ORDER BY created_at DESC 
-        LIMIT 50
-    """)
-    chat_messages = cur.fetchall()
-    chat_messages = list(reversed(chat_messages))
-except Exception as e:
-    print(f"Ошибка загрузки чата: {e}")
-    chat_messages = []
+    
     try:
         user_id = session.get('user_id')
         user_name = session.get('user_name')
@@ -278,14 +284,21 @@ except Exception as e:
         """, (user_name,))
         stats = cur.fetchone()
         
-        # Чат
-        cur.execute("""
-            SELECT * FROM chat_messages 
-            ORDER BY created_at DESC 
-            LIMIT 50
-        """)
-        chat_messages = cur.fetchall()
-        chat_messages = list(reversed(chat_messages))
+        # Количество новых заказов
+        new_orders_count = check_new_orders(user_name)
+        
+        # Чат - с обработкой ошибки
+        try:
+            cur.execute("""
+                SELECT * FROM chat_messages 
+                ORDER BY created_at DESC 
+                LIMIT 50
+            """)
+            chat_messages = cur.fetchall()
+            chat_messages = list(reversed(chat_messages))
+        except Exception as e:
+            print(f"Ошибка загрузки чата: {e}")
+            chat_messages = []
         
         cur.close()
         conn.close()
@@ -296,6 +309,7 @@ except Exception as e:
                              today_tasks=today_tasks,
                              stats=stats,
                              chat_messages=chat_messages,
+                             new_orders_count=new_orders_count,
                              shops=Config.SHOPS,
                              employees=get_employees(),
                              now=datetime.now())
@@ -307,6 +321,8 @@ except Exception as e:
                              order_history=[], 
                              today_tasks=[],
                              chat_messages=[],
+                             stats={'total': 0, 'active': 0, 'completed_today': 0},
+                             new_orders_count=0,
                              shops=Config.SHOPS,
                              employees=get_employees(),
                              now=datetime.now())
@@ -320,6 +336,7 @@ def orders_page():
     try:
         shop_id = get_user_shop()
         search = request.args.get('search', '')
+        order_id_search = request.args.get('order_id', '')
         status_filter = request.args.get('status', '')
         executor_filter = request.args.get('executor', '')
         show_archived = request.args.get('show_archived', 'false') == 'true'
@@ -333,6 +350,12 @@ def orders_page():
         if not show_archived:
             query += " AND is_archived = FALSE"
         
+        # Поиск по номеру заказа
+        if order_id_search and order_id_search.isdigit():
+            query += " AND id = %s"
+            params.append(int(order_id_search))
+        
+        # Общий поиск
         if search:
             query += " AND (customer ILIKE %s OR phone ILIKE %s OR product ILIKE %s)"
             search_pattern = f"%{search}%"
@@ -369,6 +392,7 @@ def orders_page():
                              executors=executors,
                              employees=get_employees(),
                              search=search,
+                             order_id_search=order_id_search,
                              current_status=status_filter,
                              current_executor=executor_filter,
                              show_archived=show_archived,
@@ -433,6 +457,93 @@ def add_order():
         return redirect(url_for('orders_page'))
     except Exception as e:
         print(f"Ошибка создания: {e}")
+        flash(f'❌ Ошибка: {e}', 'error')
+        return redirect(url_for('orders_page'))
+
+@app.route('/orders/<int:order_id>/edit', methods=['GET'])
+@login_required
+def edit_order_form(order_id):
+    """Страница редактирования заказа"""
+    try:
+        shop_id = get_user_shop()
+        conn = get_db_connection()
+        cur = conn.cursor(cursor_factory=DictCursor)
+        
+        cur.execute("SELECT * FROM orders WHERE id = %s AND shop_id = %s;", (order_id, shop_id))
+        order = cur.fetchone()
+        cur.close()
+        conn.close()
+        
+        if not order:
+            flash('❌ Заказ не найден!', 'error')
+            return redirect(url_for('orders_page'))
+        
+        return render_template('edit_order.html',
+                             order=order,
+                             shops=Config.SHOPS,
+                             employees=get_employees())
+    except Exception as e:
+        print(f"Ошибка: {e}")
+        flash('Ошибка загрузки заказа', 'error')
+        return redirect(url_for('orders_page'))
+
+@app.route('/orders/<int:order_id>/edit', methods=['POST'])
+@login_required
+def edit_order(order_id):
+    """Сохранение изменений заказа"""
+    try:
+        shop_id = get_user_shop()
+        
+        # Получаем данные из формы
+        customer = request.form.get('customer')
+        phone = request.form.get('phone')
+        address = request.form.get('address')
+        product = request.form.get('product')
+        price = safe_float(request.form.get('price'))
+        prepaid = safe_float(request.form.get('prepaid'))
+        priority = request.form.get('priority') or 'Обычный'
+        executor = request.form.get('executor') or 'Не назначен'
+        status = request.form.get('status') or 'Новый'
+        comment = request.form.get('comment')
+        
+        conn = get_db_connection()
+        cur = conn.cursor()
+        
+        # Проверяем существование заказа
+        cur.execute("SELECT id FROM orders WHERE id = %s AND shop_id = %s;", (order_id, shop_id))
+        if not cur.fetchone():
+            flash('❌ Доступ запрещен!', 'error')
+            cur.close()
+            conn.close()
+            return redirect(url_for('orders_page'))
+        
+        # Обновляем все поля
+        query = """
+            UPDATE orders 
+            SET customer = %s, 
+                phone = %s, 
+                address = %s, 
+                product = %s, 
+                price = %s, 
+                prepaid = %s, 
+                priority = %s, 
+                executor = %s, 
+                status = %s, 
+                comment = %s,
+                updated_at = CURRENT_TIMESTAMP
+            WHERE id = %s AND shop_id = %s
+            RETURNING id;
+        """
+        cur.execute(query, (customer, phone, address, product, price, prepaid, 
+                           priority, executor, status, comment, order_id, shop_id))
+        conn.commit()
+        cur.close()
+        conn.close()
+        
+        flash(f'✅ Заказ #{order_id} успешно обновлен!', 'success')
+        return redirect(url_for('orders_page'))
+    except Exception as e:
+        print(f"Ошибка редактирования: {e}")
         flash(f'❌ Ошибка: {e}', 'error')
         return redirect(url_for('orders_page'))
 
@@ -606,6 +717,20 @@ def delete_order(order_id):
         print(f"Ошибка удаления: {e}")
         flash(f'❌ Ошибка: {e}', 'error')
         return redirect(url_for('orders_page'))
+
+# ==========================================
+# API УВЕДОМЛЕНИЙ
+# ==========================================
+@app.route('/api/notifications/check')
+@login_required
+def check_notifications():
+    """API для проверки новых заказов"""
+    try:
+        user_name = session.get('user_name')
+        count = check_new_orders(user_name)
+        return jsonify({'new_orders': count})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
 
 # ==========================================
 # КЛИЕНТЫ
