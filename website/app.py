@@ -123,7 +123,6 @@ def login():
                 session['is_admin'] = False
                 session['user_id'] = employee['id']
                 session['user_name'] = employee['name']
-                session['user_role'] = employee['role']
                 session['shop_id'] = 'all'
                 session['shop_name'] = 'Все магазины'
                 flash(f'✅ Добро пожаловать, {employee["name"]}!', 'success')
