@@ -27,11 +27,11 @@ class Config:
     }
     
     EMPLOYEES = [
-        {'id': 'pavel_ivanovich', 'name': 'Павел Иванович', 'role': 'Старший мастер', 'password': 'pavel123'},
-        {'id': 'pavel', 'name': 'Павел', 'role': 'Мастер', 'password': 'pavel123'},
-        {'id': 'dmitry', 'name': 'Дмитрий', 'role': 'Мастер', 'password': 'dmitry123'},
-        {'id': 'alexander', 'name': 'Александр', 'role': 'Мастер', 'password': 'alexander123'}
-    ]
+    {'id': 'pavel_ivanovich', 'name': 'Павел Иванович', 'password': 'pavel123'},
+    {'id': 'pavel', 'name': 'Павел', 'password': 'pavel123'},
+    {'id': 'dmitry', 'name': 'Дмитрий', 'password': 'dmitry123'},
+    {'id': 'alexander', 'name': 'Александр', 'password': 'alexander123'}
+]
 
 if not Config.ADMIN_PASSWORD:
     raise ValueError("❌ ADMIN_PASSWORD не найден!")
