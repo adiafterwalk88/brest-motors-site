@@ -178,7 +178,7 @@
             <label>👨‍🔧 Сотрудник</label>
             <select name="employee_id" required>
                 {% for emp in employees %}
-                    <option value="{{ emp.id }}">{{ emp.name }} ({{ emp.role }})</option>
+                    <option value="{{ emp.id }}">{{ emp.name }}</option>
                 {% endfor %}
             </select>
         </div>
