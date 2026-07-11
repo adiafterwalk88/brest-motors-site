@@ -1,30 +1,12 @@
 {% extends "base.html" %}
 
 {% block title %}Мой кабинет | InTarget Brest Motors{% endblock %}
-<!-- Уведомления о новых заказах -->
-{% if new_orders_count > 0 %}
-<div class="notification-banner" style="background: #e74c3c; color: white; padding: 12px 20px; border-radius: 12px; margin-bottom: 16px; display: flex; justify-content: space-between; align-items: center;">
-    <div>
-        <span style="font-size: 20px;">🔔</span>
-        <span style="font-weight: 600; margin-left: 8px;">У вас {{ new_orders_count }} новых заказов!</span>
-    </div>
-    <a href="/orders?status=Новый" style="background: white; color: #e74c3c; padding: 6px 16px; border-radius: 8px; text-decoration: none; font-weight: 600;">Посмотреть →</a>
-</div>
-{% endif %}
+
 {% block extra_css %}
 <style>
-    * {
-        margin: 0;
-        padding: 0;
-        box-sizing: border-box;
-    }
-    body {
-        font-family: 'Segoe UI', Arial, sans-serif;
-        background: #f0f2f5;
-        color: #1a1a2e;
-    }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: 'Segoe UI', Arial, sans-serif; background: #f0f2f5; color: #1a1a2e; }
     
-    /* Шапка */
     .top-bar {
         background: linear-gradient(135deg, #1a1a2e, #16213e);
         padding: 16px 24px;
@@ -36,51 +18,17 @@
         top: 0;
         z-index: 100;
         box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        flex-wrap: wrap;
+        gap: 8px;
     }
-    .top-bar .logo {
-        font-size: 20px;
-        font-weight: 700;
-        display: flex;
-        align-items: center;
-        gap: 10px;
-    }
-    .top-bar .user-info {
-        display: flex;
-        align-items: center;
-        gap: 16px;
-    }
-    .top-bar .user-name {
-        font-weight: 600;
-    }
-    .top-bar .user-role {
-        background: rgba(255,255,255,0.1);
-        padding: 4px 12px;
-        border-radius: 20px;
-        font-size: 12px;
-    }
-    .top-bar .logout-btn {
-        background: rgba(231,76,60,0.2);
-        color: #e74c3c;
-        border: none;
-        padding: 6px 16px;
-        border-radius: 8px;
-        cursor: pointer;
-        font-weight: 600;
-        transition: all .2s;
-    }
-    .top-bar .logout-btn:hover {
-        background: #e74c3c;
-        color: white;
-    }
+    .top-bar .logo { font-size: 20px; font-weight: 700; display: flex; align-items: center; gap: 10px; }
+    .top-bar .user-info { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; }
+    .top-bar .user-name { font-weight: 600; }
+    .top-bar .logout-btn { background: rgba(231,76,60,0.2); color: #e74c3c; border: none; padding: 6px 16px; border-radius: 8px; cursor: pointer; font-weight: 600; transition: all .2s; }
+    .top-bar .logout-btn:hover { background: #e74c3c; color: white; }
     
-    /* Основной контент */
-    .main-content {
-        max-width: 1400px;
-        margin: 0 auto;
-        padding: 20px;
-    }
+    .main-content { max-width: 1400px; margin: 0 auto; padding: 20px; }
     
-    /* Приветствие */
     .welcome-section {
         background: linear-gradient(135deg, #2ecc71, #27ae60);
         color: white;
@@ -90,11 +38,42 @@
         display: flex;
         justify-content: space-between;
         align-items: center;
+        flex-wrap: wrap;
+        gap: 12px;
     }
     .welcome-section h2 { font-size: 22px; }
     .welcome-section .date { opacity: 0.8; font-size: 14px; }
     
-    /* Статистика */
+    /* Уведомления */
+    .notification-banner {
+        background: #e74c3c;
+        color: white;
+        padding: 12px 20px;
+        border-radius: 12px;
+        margin-bottom: 16px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 12px;
+        animation: pulse 2s infinite;
+    }
+    @keyframes pulse {
+        0% { opacity: 1; }
+        50% { opacity: 0.8; }
+        100% { opacity: 1; }
+    }
+    .notification-banner a {
+        background: white;
+        color: #e74c3c;
+        padding: 6px 16px;
+        border-radius: 8px;
+        text-decoration: none;
+        font-weight: 600;
+        transition: all .2s;
+    }
+    .notification-banner a:hover { transform: scale(1.05); }
+    
     .stats-grid {
         display: grid;
         grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
@@ -117,7 +96,6 @@
     .stat-card .stat-change.up { background: #d4edda; color: #155724; }
     .stat-card .stat-change.down { background: #f8d7da; color: #721c24; }
     
-    /* Две колонки */
     .two-col {
         display: grid;
         grid-template-columns: 2fr 1fr;
@@ -126,7 +104,6 @@
     }
     .col { min-width: 0; }
     
-    /* Карточки заказов */
     .card {
         background: white;
         border-radius: 12px;
@@ -145,20 +122,21 @@
     }
     .card-body { padding: 16px 20px; }
     
-    /* Элементы заказа */
     .order-item {
         display: flex;
         justify-content: space-between;
         align-items: center;
         padding: 12px 0;
         border-bottom: 1px solid #f0f0f0;
+        gap: 12px;
+        flex-wrap: wrap;
     }
     .order-item:last-child { border-bottom: none; }
     .order-item .order-info { flex: 1; }
     .order-item .order-id { font-weight: 700; color: #1a1a2e; }
-    .order-item .order-customer { color: #666; font-size: 14px; }
-    .order-item .order-product { font-size: 13px; color: #999; }
-    .order-item .order-meta { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+    .order-item .order-customer { color: #666; font-size: 14px; margin-left: 8px; }
+    .order-item .order-product { font-size: 13px; color: #999; display: block; }
+    .order-item .order-meta { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; margin-top: 4px; }
     .order-item .order-priority {
         padding: 2px 10px;
         border-radius: 12px;
@@ -177,7 +155,7 @@
         color: #0d47a1;
     }
     .order-item .order-status.done { background: #e8f5e9; color: #27ae60; }
-    .order-item .order-actions { display: flex; gap: 6px; }
+    .order-item .order-actions { display: flex; gap: 6px; flex-wrap: wrap; }
     
     .btn-sm {
         padding: 4px 12px;
@@ -198,7 +176,6 @@
     .btn-sm.danger { background: #e74c3c; color: white; }
     .btn-sm.danger:hover { background: #c0392b; }
     
-    /* Чат */
     .chat-container {
         background: white;
         border-radius: 12px;
@@ -270,7 +247,6 @@
     }
     .chat-input button:hover { background: #27ae60; }
     
-    /* Пустое состояние */
     .empty-state {
         text-align: center;
         padding: 30px;
@@ -278,22 +254,30 @@
     }
     .empty-state .empty-icon { font-size: 40px; }
     
-    /* Адаптив */
+    .unread-badge {
+        background: #e74c3c;
+        color: white;
+        padding: 2px 8px;
+        border-radius: 10px;
+        font-size: 11px;
+        margin-left: 8px;
+    }
+    
     @media (max-width: 1024px) {
         .two-col { grid-template-columns: 1fr; }
     }
     @media (max-width: 640px) {
         .top-bar { flex-direction: column; gap: 8px; text-align: center; }
         .welcome-section { flex-direction: column; text-align: center; gap: 8px; }
-        .order-item { flex-direction: column; gap: 8px; align-items: stretch; }
+        .order-item { flex-direction: column; align-items: stretch; gap: 8px; }
         .order-item .order-actions { justify-content: center; }
         .stats-grid { grid-template-columns: 1fr 1fr; }
+        .notification-banner { flex-direction: column; text-align: center; }
     }
 </style>
 {% endblock %}
 
 {% block content %}
-<!-- Верхняя панель -->
 <div class="top-bar">
     <div class="logo">🎯 InTarget Brest Motors</div>
     <div class="user-info">
@@ -310,27 +294,38 @@
             <p style="opacity:0.8; margin-top:4px;">Сегодня {{ now.strftime('%d.%m.%Y') }}</p>
         </div>
         <div style="text-align: right;">
-            <div style="font-size: 14px; opacity:0.8;">🏪 {{ shops[session.shop_id] if session.shop_id != 'all' else 'Все магазины' }}</div>
+            <div style="font-size: 14px; opacity:0.8;">🏪 {{ session.shop_name }}</div>
         </div>
     </div>
+    
+    <!-- Уведомления о новых заказах -->
+    {% if new_orders_count and new_orders_count > 0 %}
+    <div class="notification-banner">
+        <div>
+            <span style="font-size: 20px;">🔔</span>
+            <span style="font-weight: 600; margin-left: 8px;">У вас {{ new_orders_count }} новых заказов!</span>
+        </div>
+        <a href="/orders?status=Новый">Посмотреть →</a>
+    </div>
+    {% endif %}
     
     <!-- Статистика -->
     <div class="stats-grid">
         <div class="stat-card">
             <div class="stat-icon">📋</div>
-            <div class="stat-value">{{ stats.total or 0 }}</div>
+            <div class="stat-value">{{ stats.total if stats else 0 }}</div>
             <div class="stat-label">Всего заказов</div>
         </div>
         <div class="stat-card">
             <div class="stat-icon">🔄</div>
-            <div class="stat-value">{{ stats.active or 0 }}</div>
+            <div class="stat-value">{{ stats.active if stats else 0 }}</div>
             <div class="stat-label">В работе</div>
         </div>
         <div class="stat-card">
             <div class="stat-icon">✅</div>
-            <div class="stat-value">{{ stats.completed_today or 0 }}</div>
+            <div class="stat-value">{{ stats.completed_today if stats else 0 }}</div>
             <div class="stat-label">Выполнено сегодня</div>
-            <div class="stat-change up">↑ +{{ stats.completed_today or 0 }}</div>
+            <div class="stat-change up">↑ +{{ stats.completed_today if stats else 0 }}</div>
         </div>
         <div class="stat-card">
             <div class="stat-icon">⏱️</div>
@@ -339,7 +334,7 @@
         </div>
     </div>
     
-    <!-- Две колонки: Заказы + Чат -->
+    <!-- Две колонки -->
     <div class="two-col">
         <!-- Левая колонка: Заказы -->
         <div class="col">
@@ -352,13 +347,17 @@
                 <div class="card-body">
                     {% if my_orders %}
                         {% for order in my_orders %}
-                        <div class="order-item">
+                        <div class="order-item" style="border-left: 3px solid 
+                            {% if order.priority == 'Высокий' %}#e74c3c
+                            {% elif order.priority == 'Обычный' %}#f39c12
+                            {% else %}#2ecc71{% endif %};
+                            padding-left: 12px;">
                             <div class="order-info">
                                 <div>
                                     <span class="order-id">#{{ order.id }}</span>
                                     <span class="order-customer">{{ order.customer }}</span>
                                 </div>
-                                <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:4px;">
+                                <div class="order-meta">
                                     <span class="order-priority 
                                         {% if order.priority == 'Высокий' %}high
                                         {% elif order.priority == 'Обычный' %}normal
@@ -407,7 +406,7 @@
                                     <span class="order-id">#{{ task.id }}</span>
                                     <span class="order-customer">{{ task.customer }}</span>
                                 </div>
-                                <div style="font-size:13px;color:#666;">
+                                <div style="font-size:13px;color:#666;margin-top:4px;">
                                     {{ task.product }} — {{ task.phone }}
                                 </div>
                             </div>
@@ -443,13 +442,13 @@
                                 <div>
                                     <span class="order-id">#{{ order.id }}</span>
                                     <span class="order-customer">{{ order.customer }}</span>
-                                    <span style="font-size:12px;color:#999;">
+                                    <span style="font-size:12px;color:#999;margin-left:8px;">
                                         {% if order.completed_at %}
                                             ({{ order.completed_at.strftime('%d.%m.%Y %H:%M') }})
                                         {% endif %}
                                     </span>
                                 </div>
-                                <div style="font-size:13px;color:#666;">
+                                <div style="font-size:13px;color:#666;margin-top:4px;">
                                     {{ order.product }} — {{ order.price }} Br
                                 </div>
                             </div>
@@ -471,18 +470,25 @@
             <div class="chat-container">
                 <div style="padding:12px 16px;background:#f8f9fa;border-bottom:1px solid #e9ecef;font-weight:600;">
                     💬 Общий чат
-                    {% if unread_chat > 0 %}
-                        <span style="background:#e74c3c;color:white;padding:2px 8px;border-radius:10px;font-size:11px;margin-left:8px;">{{ unread_chat }} новых</span>
+                    {% if unread_chat and unread_chat > 0 %}
+                        <span class="unread-badge">{{ unread_chat }} новых</span>
                     {% endif %}
                 </div>
                 <div class="chat-messages" id="chatMessages">
-                    {% for msg in chat_messages %}
-                        <div class="chat-message {% if msg.user_id == session.user_id %}own{% endif %}">
-                            <span class="chat-user">{{ msg.user_name }}</span>
-                            <span class="chat-text">{{ msg.message }}</span>
-                            <span class="chat-time">{{ msg.created_at.strftime('%H:%M') }}</span>
+                    {% if chat_messages %}
+                        {% for msg in chat_messages %}
+                            <div class="chat-message {% if msg.user_id == session.user_id %}own{% endif %}">
+                                <span class="chat-user">{{ msg.user_name }}</span>
+                                <span class="chat-text">{{ msg.message }}</span>
+                                <span class="chat-time">{{ msg.created_at.strftime('%H:%M') }}</span>
+                            </div>
+                        {% endfor %}
+                    {% else %}
+                        <div class="empty-state">
+                            <div class="empty-icon">💬</div>
+                            <p>Сообщений пока нет</p>
                         </div>
-                    {% endfor %}
+                    {% endif %}
                 </div>
                 <div class="chat-input">
                     <input type="text" id="chatInput" placeholder="Написать сообщение..." 
@@ -516,6 +522,32 @@ function sendMessage() {
     .catch(err => console.error('Ошибка:', err));
 }
 
+// Загрузка сообщений чата
+function loadChatMessages() {
+    fetch('/api/chat/messages')
+        .then(res => res.json())
+        .then(data => {
+            const container = document.getElementById('chatMessages');
+            if (container && data.length > 0) {
+                // Проверяем, есть ли новые сообщения
+                const currentLast = container.querySelector('.chat-message:last-child .chat-text');
+                const lastMsg = data[data.length - 1];
+                
+                if (!currentLast || currentLast.textContent !== lastMsg.message) {
+                    container.innerHTML = data.map(msg => `
+                        <div class="chat-message ${msg.user_id === '{{ session.user_id }}' ? 'own' : ''}">
+                            <span class="chat-user">${msg.user_name}</span>
+                            <span class="chat-text">${msg.message}</span>
+                            <span class="chat-time">${new Date(msg.created_at).toLocaleTimeString()}</span>
+                        </div>
+                    `).join('');
+                    container.scrollTop = container.scrollHeight;
+                }
+            }
+        })
+        .catch(err => console.error('Ошибка загрузки чата:', err));
+}
+
 // Прокрутка чата вниз при загрузке
 document.addEventListener('DOMContentLoaded', function() {
     const container = document.getElementById('chatMessages');
@@ -524,22 +556,9 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 });
 
-// Обновление уведомлений о чате
-setInterval(function() {
-    fetch('/api/chat/messages?limit=1')
-        .then(res => res.json())
-        .then(data => {
-            if (data.length > 0) {
-                // Проверяем, новое ли сообщение
-                const lastMsg = data[0];
-                const currentLast = document.querySelector('.chat-message:last-child .chat-text');
-                if (currentLast && currentLast.textContent !== lastMsg.message) {
-                    loadChatMessages();
-                }
-            }
-        });
-}, 10000);
-   <script>
+// Обновление чата каждые 5 секунд
+setInterval(loadChatMessages, 5000);
+
 // Проверка новых заказов каждые 30 секунд
 setInterval(() => {
     fetch('/api/notifications/check')
@@ -548,7 +567,7 @@ setInterval(() => {
             const banner = document.querySelector('.notification-banner');
             if (data.new_orders > 0) {
                 if (!banner) {
-                    location.reload(); // Перезагружаем страницу для показа уведомления
+                    location.reload();
                 }
             } else {
                 if (banner) {
