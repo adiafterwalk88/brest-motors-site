@@ -296,9 +296,17 @@ def employee_dashboard():
             """)
             chat_messages = cur.fetchall()
             chat_messages = list(reversed(chat_messages))
+            
+            # Считаем непрочитанные сообщения (за последний час)
+            cur.execute("""
+                SELECT COUNT(*) FROM chat_messages 
+                WHERE created_at > NOW() - INTERVAL '1 hour'
+            """)
+            unread_chat = cur.fetchone()[0]
         except Exception as e:
             print(f"Ошибка загрузки чата: {e}")
             chat_messages = []
+            unread_chat = 0
         
         cur.close()
         conn.close()
@@ -310,6 +318,7 @@ def employee_dashboard():
                              stats=stats,
                              chat_messages=chat_messages,
                              new_orders_count=new_orders_count,
+                             unread_chat=unread_chat,
                              shops=Config.SHOPS,
                              employees=get_employees(),
                              now=datetime.now())
@@ -323,6 +332,7 @@ def employee_dashboard():
                              chat_messages=[],
                              stats={'total': 0, 'active': 0, 'completed_today': 0},
                              new_orders_count=0,
+                             unread_chat=0,
                              shops=Config.SHOPS,
                              employees=get_employees(),
                              now=datetime.now())
@@ -494,7 +504,6 @@ def edit_order(order_id):
     try:
         shop_id = get_user_shop()
         
-        # Получаем данные из формы
         customer = request.form.get('customer')
         phone = request.form.get('phone')
         address = request.form.get('address')
@@ -509,7 +518,6 @@ def edit_order(order_id):
         conn = get_db_connection()
         cur = conn.cursor()
         
-        # Проверяем существование заказа
         cur.execute("SELECT id FROM orders WHERE id = %s AND shop_id = %s;", (order_id, shop_id))
         if not cur.fetchone():
             flash('❌ Доступ запрещен!', 'error')
@@ -517,7 +525,6 @@ def edit_order(order_id):
             conn.close()
             return redirect(url_for('orders_page'))
         
-        # Обновляем все поля
         query = """
             UPDATE orders 
             SET customer = %s, 
@@ -723,7 +730,7 @@ def delete_order(order_id):
 # ==========================================
 @app.route('/api/notifications/check')
 @login_required
-def check_notifications():
+def check_notifications_api():
     """API для проверки новых заказов"""
     try:
         user_name = session.get('user_name')
