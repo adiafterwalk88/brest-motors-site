@@ -1,12 +1,11 @@
 import os
 from dotenv import load_dotenv
-from flask import Flask, render_template, request, redirect, url_for, session, flash, jsonify, Response
+from flask import Flask, render_template, request, redirect, url_for, session, flash, jsonify
 from functools import wraps
 import psycopg2
 from psycopg2.extras import DictCursor
 import secrets
-from datetime import datetime, timedelta
-import json
+from datetime import datetime
 
 load_dotenv()
 
@@ -27,11 +26,11 @@ class Config:
     }
     
     EMPLOYEES = [
-    {'id': 'pavel_ivanovich', 'name': 'Павел Иванович', 'password': 'pavel123'},
-    {'id': 'pavel', 'name': 'Павел', 'password': 'pavel123'},
-    {'id': 'dmitry', 'name': 'Дмитрий', 'password': 'dmitry123'},
-    {'id': 'alexander', 'name': 'Александр', 'password': 'alexander123'}
-]
+        {'id': 'pavel_ivanovich', 'name': 'Павел Иванович', 'password': 'pavel123'},
+        {'id': 'pavel', 'name': 'Павел', 'password': 'pavel123'},
+        {'id': 'dmitry', 'name': 'Дмитрий', 'password': 'dmitry123'},
+        {'id': 'alexander', 'name': 'Александр', 'password': 'alexander123'}
+    ]
 
 if not Config.ADMIN_PASSWORD:
     raise ValueError("❌ ADMIN_PASSWORD не найден!")
@@ -140,6 +139,15 @@ def logout():
     flash('Вы вышли из системы', 'info')
     return redirect(url_for('login'))
 
+@app.route('/switch-shop/<shop_id>')
+@login_required
+def switch_shop(shop_id):
+    if shop_id in Config.SHOPS:
+        session['shop_id'] = shop_id
+        session['shop_name'] = Config.SHOPS[shop_id]
+        flash(f'🔄 Переключено на {session["shop_name"]}', 'success')
+    return redirect(request.referrer or url_for('dashboard'))
+
 # ==========================================
 # АДМИН-ПАНЕЛЬ
 # ==========================================
@@ -184,9 +192,12 @@ def dashboard():
                              shops=Config.SHOPS,
                              employees=get_employees())
     except Exception as e:
-        print(f"Ошибка: {e}")
+        print(f"Ошибка дашборда: {e}")
         flash('Ошибка загрузки данных', 'error')
-        return render_template('dashboard.html', orders=[], shops=Config.SHOPS, employees=get_employees())
+        return render_template('dashboard.html', 
+                             orders=[], 
+                             shops=Config.SHOPS, 
+                             employees=get_employees())
 
 # ==========================================
 # КАБИНЕТ СОТРУДНИКА
@@ -204,7 +215,7 @@ def employee_dashboard():
         conn = get_db_connection()
         cur = conn.cursor(cursor_factory=DictCursor)
         
-        # 1. Мои заказы (активные)
+        # Мои заказы
         cur.execute("""
             SELECT * FROM orders 
             WHERE executor = %s AND status != 'Выдан' AND is_archived = FALSE
@@ -218,7 +229,7 @@ def employee_dashboard():
         """, (user_name,))
         my_orders = cur.fetchall()
         
-        # 2. Моя история заказов (завершенные)
+        # Моя история
         cur.execute("""
             SELECT * FROM orders 
             WHERE executor = %s AND status = 'Выдан'
@@ -227,7 +238,7 @@ def employee_dashboard():
         """, (user_name,))
         order_history = cur.fetchall()
         
-        # 3. Задачи на сегодня
+        # Задачи на сегодня
         today = datetime.now().date()
         cur.execute("""
             SELECT * FROM orders 
@@ -245,7 +256,7 @@ def employee_dashboard():
         """, (user_name, today))
         today_tasks = cur.fetchall()
         
-        # 4. Статистика
+        # Статистика
         cur.execute("""
             SELECT 
                 COUNT(*) as total,
@@ -256,22 +267,14 @@ def employee_dashboard():
         """, (user_name,))
         stats = cur.fetchone()
         
-        # 5. Последние сообщения чата
+        # Чат
         cur.execute("""
             SELECT * FROM chat_messages 
             ORDER BY created_at DESC 
             LIMIT 50
         """)
         chat_messages = cur.fetchall()
-        chat_messages = list(reversed(chat_messages))  # В обратном порядке для отображения
-        
-        # 6. Непрочитанные уведомления (для чата)
-        cur.execute("""
-            SELECT COUNT(*) FROM chat_messages 
-            WHERE created_at > (SELECT COALESCE(MAX(last_read), CURRENT_TIMESTAMP - INTERVAL '1 day') 
-                               FROM user_read_status WHERE user_id = %s)
-        """, (user_id,))
-        unread_chat = cur.fetchone()[0]
+        chat_messages = list(reversed(chat_messages))
         
         cur.close()
         conn.close()
@@ -282,20 +285,23 @@ def employee_dashboard():
                              today_tasks=today_tasks,
                              stats=stats,
                              chat_messages=chat_messages,
-                             unread_chat=unread_chat,
                              shops=Config.SHOPS,
-                             employees=get_employees())
+                             employees=get_employees(),
+                             now=datetime.now())
     except Exception as e:
-        print(f"Ошибка кабинета сотрудника: {e}")
+        print(f"Ошибка кабинета: {e}")
         flash('Ошибка загрузки данных', 'error')
         return render_template('employee_dashboard.html', 
                              my_orders=[], 
                              order_history=[], 
                              today_tasks=[],
-                             chat_messages=[])
+                             chat_messages=[],
+                             shops=Config.SHOPS,
+                             employees=get_employees(),
+                             now=datetime.now())
 
 # ==========================================
-# УПРАВЛЕНИЕ ЗАКАЗАМИ
+# ЗАКАЗЫ
 # ==========================================
 @app.route('/orders')
 @login_required
@@ -358,11 +364,16 @@ def orders_page():
                              archived_count=archived_count,
                              shops=Config.SHOPS)
     except Exception as e:
-        print(f"Ошибка: {e}")
+        print(f"Ошибка заказов: {e}")
         flash('Ошибка загрузки данных', 'error')
-        return render_template('orders.html', orders=[], all_orders=[], statuses=[], executors=[], employees=[])
+        return render_template('orders.html', 
+                             orders=[], 
+                             all_orders=[], 
+                             statuses=[], 
+                             executors=[],
+                             employees=[],
+                             shops=Config.SHOPS)
 
-# --- Добавление заказа ---
 @app.route('/orders/add', methods=['POST'])
 @login_required
 def add_order():
@@ -397,11 +408,10 @@ def add_order():
         flash(f'✅ Заказ #{order_id} успешно создан!', 'success')
         return redirect(url_for('orders_page'))
     except Exception as e:
-        print(f"Ошибка: {e}")
+        print(f"Ошибка создания: {e}")
         flash(f'❌ Ошибка: {e}', 'error')
         return redirect(url_for('orders_page'))
 
-# --- Обновление статуса заказа ---
 @app.route('/orders/<int:order_id>/update', methods=['POST'])
 @login_required
 def update_order(order_id):
@@ -414,7 +424,6 @@ def update_order(order_id):
         conn = get_db_connection()
         cur = conn.cursor()
         
-        # Проверяем доступ
         cur.execute("SELECT id FROM orders WHERE id = %s AND shop_id = %s;", (order_id, shop_id))
         if not cur.fetchone():
             flash('❌ Доступ запрещен!', 'error')
@@ -422,7 +431,6 @@ def update_order(order_id):
             conn.close()
             return redirect(url_for('orders_page'))
         
-        # Если статус 'Выдан' - записываем время завершения
         completed_at = 'CURRENT_TIMESTAMP' if status == 'Выдан' else 'NULL'
         
         query = f"""
@@ -442,11 +450,10 @@ def update_order(order_id):
         flash(f'✅ Заказ #{order_id} обновлен!', 'success')
         return redirect(request.referrer or url_for('orders_page'))
     except Exception as e:
-        print(f"Ошибка: {e}")
+        print(f"Ошибка обновления: {e}")
         flash(f'❌ Ошибка: {e}', 'error')
         return redirect(request.referrer or url_for('orders_page'))
 
-# --- Завершение заказа (для сотрудников) ---
 @app.route('/orders/<int:order_id>/complete', methods=['POST'])
 @login_required
 def complete_order(order_id):
@@ -457,7 +464,6 @@ def complete_order(order_id):
         conn = get_db_connection()
         cur = conn.cursor()
         
-        # Проверяем, что заказ принадлежит сотруднику
         cur.execute("""
             SELECT id FROM orders 
             WHERE id = %s AND executor = %s AND status != 'Выдан'
@@ -484,11 +490,10 @@ def complete_order(order_id):
         flash(f'✅ Заказ #{order_id} завершен!', 'success')
         return redirect(url_for('employee_dashboard'))
     except Exception as e:
-        print(f"Ошибка: {e}")
+        print(f"Ошибка завершения: {e}")
         flash(f'❌ Ошибка: {e}', 'error')
         return redirect(url_for('employee_dashboard'))
 
-# --- Архивация ---
 @app.route('/orders/<int:order_id>/archive', methods=['POST'])
 @login_required
 def archive_order(order_id):
@@ -516,11 +521,10 @@ def archive_order(order_id):
         flash(f'📦 Заказ #{order_id} перемещен в архив!', 'success')
         return redirect(url_for('orders_page'))
     except Exception as e:
-        print(f"Ошибка: {e}")
+        print(f"Ошибка архивации: {e}")
         flash(f'❌ Ошибка: {e}', 'error')
         return redirect(url_for('orders_page'))
 
-# --- Восстановление из архива ---
 @app.route('/orders/<int:order_id>/unarchive', methods=['POST'])
 @login_required
 def unarchive_order(order_id):
@@ -548,11 +552,10 @@ def unarchive_order(order_id):
         flash(f'📤 Заказ #{order_id} восстановлен!', 'success')
         return redirect(url_for('orders_page'))
     except Exception as e:
-        print(f"Ошибка: {e}")
+        print(f"Ошибка восстановления: {e}")
         flash(f'❌ Ошибка: {e}', 'error')
         return redirect(url_for('orders_page'))
 
-# --- Удаление ---
 @app.route('/orders/<int:order_id>/delete', methods=['POST'])
 @login_required
 def delete_order(order_id):
@@ -576,12 +579,12 @@ def delete_order(order_id):
         flash(f'🗑️ Заказ #{order_id} удален!', 'success')
         return redirect(url_for('orders_page'))
     except Exception as e:
-        print(f"Ошибка: {e}")
+        print(f"Ошибка удаления: {e}")
         flash(f'❌ Ошибка: {e}', 'error')
         return redirect(url_for('orders_page'))
 
 # ==========================================
-# КЛИЕНТЫ (ОБЩАЯ БАЗА)
+# КЛИЕНТЫ
 # ==========================================
 @app.route('/clients')
 @login_required
@@ -608,12 +611,15 @@ def clients_page():
                              shops=Config.SHOPS,
                              employees=get_employees())
     except Exception as e:
-        print(f"Ошибка: {e}")
+        print(f"Ошибка клиентов: {e}")
         flash('Ошибка загрузки клиентов', 'error')
-        return render_template('clients.html', clients=[])
+        return render_template('clients.html', 
+                             clients=[],
+                             shops=Config.SHOPS,
+                             employees=get_employees())
 
 # ==========================================
-# ВНУТРЕННИЙ ЧАТ (API)
+# API ЧАТА
 # ==========================================
 @app.route('/api/chat/messages', methods=['GET'])
 @login_required
@@ -647,15 +653,14 @@ def send_chat_message():
         
         user_id = session.get('user_id')
         user_name = session.get('user_name')
-        user_role = session.get('user_role', 'Сотрудник')
         
         conn = get_db_connection()
         cur = conn.cursor()
         cur.execute("""
-            INSERT INTO chat_messages (user_id, user_name, user_role, message)
-            VALUES (%s, %s, %s, %s)
+            INSERT INTO chat_messages (user_id, user_name, message)
+            VALUES (%s, %s, %s)
             RETURNING id, created_at
-        """, (user_id, user_name, user_role, message))
+        """, (user_id, user_name, message))
         result = cur.fetchone()
         conn.commit()
         cur.close()
@@ -667,7 +672,7 @@ def send_chat_message():
             "created_at": result[1].isoformat()
         })
     except Exception as e:
-        print(f"Ошибка отправки сообщения: {e}")
+        print(f"Ошибка чата: {e}")
         return jsonify({"error": str(e)}), 500
 
 # ==========================================
@@ -701,7 +706,7 @@ def api_employee_stats():
         return jsonify({"error": str(e)}), 500
 
 # ==========================================
-# ЗАПУСК ПРИЛОЖЕНИЯ
+# ЗАПУСК
 # ==========================================
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=Config.PORT, debug=Config.DEBUG)
