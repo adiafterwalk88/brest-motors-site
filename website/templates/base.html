@@ -5,31 +5,143 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% block title %}InTarget Brest Motors{% endblock %}</title>
     
-    <!-- ========== ФАВИКОНЫ ========== -->
-    <!-- Основной фавикон (BM - Brest Motors) -->
+    <!-- Фавиконы -->
     <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%231a1a2e'/><text x='50' y='68' font-size='48' font-family='Arial' font-weight='bold' text-anchor='middle' fill='%232ecc71'>BM</text></svg>">
-    
-    <!-- Для Safari на iOS -->
     <link rel="apple-touch-icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%231a1a2e'/><text x='50' y='68' font-size='48' font-family='Arial' font-weight='bold' text-anchor='middle' fill='%232ecc71'>BM</text></svg>">
-    
-    <!-- Для Windows Phone -->
-    <meta name="msapplication-TileImage" content="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%231a1a2e'/><text x='50' y='68' font-size='48' font-family='Arial' font-weight='bold' text-anchor='middle' fill='%232ecc71'>BM</text></svg>">
-    <meta name="msapplication-TileColor" content="#1a1a2e">
-    
-    <!-- Цвет темы для браузера -->
     <meta name="theme-color" content="#1a1a2e">
     
-    <!-- ========== СТИЛИ ========== -->
     <link rel="stylesheet" href="/static/style.css">
+    <style>
+        /* Дополнительные стили для уведомлений в шапке */
+        .header-notifications {
+            position: relative;
+            display: inline-block;
+            cursor: pointer;
+        }
+        .header-notifications .badge {
+            position: absolute;
+            top: -8px;
+            right: -8px;
+            background: #e74c3c;
+            color: white;
+            border-radius: 50%;
+            padding: 2px 8px;
+            font-size: 11px;
+            font-weight: 600;
+            animation: pulse-badge 2s infinite;
+        }
+        @keyframes pulse-badge {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.1); }
+        }
+        .header-notifications .badge.zero {
+            display: none;
+        }
+        /* Мини-выпадашка уведомлений */
+        .notif-dropdown {
+            display: none;
+            position: absolute;
+            right: 0;
+            top: 100%;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.15);
+            width: 380px;
+            max-height: 400px;
+            overflow-y: auto;
+            z-index: 1000;
+            padding: 8px 0;
+        }
+        .notif-dropdown.show {
+            display: block;
+        }
+        .notif-dropdown .notif-item {
+            padding: 10px 16px;
+            border-bottom: 1px solid #f0f0f0;
+            cursor: pointer;
+            transition: background .2s;
+        }
+        .notif-dropdown .notif-item:hover {
+            background: #f8f9fa;
+        }
+        .notif-dropdown .notif-item .title {
+            font-weight: 600;
+            font-size: 14px;
+        }
+        .notif-dropdown .notif-item .msg {
+            font-size: 13px;
+            color: #666;
+        }
+        .notif-dropdown .notif-item .time {
+            font-size: 11px;
+            color: #999;
+        }
+        .notif-dropdown .notif-item.unread {
+            background: #f0fff4;
+            border-left: 3px solid #2ecc71;
+        }
+        .notif-dropdown .notif-empty {
+            padding: 20px;
+            text-align: center;
+            color: #999;
+        }
+        .notif-dropdown .notif-footer {
+            padding: 8px 16px;
+            text-align: center;
+            border-top: 1px solid #f0f0f0;
+        }
+        .notif-dropdown .notif-footer a {
+            color: #2ecc71;
+            text-decoration: none;
+            font-weight: 600;
+            font-size: 13px;
+        }
+    </style>
     {% block extra_css %}{% endblock %}
 </head>
 <body>
-    <!-- Уведомления (flash-сообщения) -->
+    <!-- Шапка с меню -->
+    <nav style="background:#1a1a2e;padding:12px 24px;display:flex;justify-content:space-between;align-items:center;color:white;position:sticky;top:0;z-index:999;">
+        <div style="display:flex;align-items:center;gap:20px;">
+            <a href="/" style="color:white;text-decoration:none;font-weight:700;font-size:18px;">🎯 InTarget</a>
+            <div style="display:flex;gap:16px;font-size:14px;">
+                <a href="/" style="color:rgba(255,255,255,0.7);text-decoration:none;">Дашборд</a>
+                <a href="/orders" style="color:rgba(255,255,255,0.7);text-decoration:none;">Заказы</a>
+                <a href="/calendar" style="color:rgba(255,255,255,0.7);text-decoration:none;">📅 Календарь</a>
+                <a href="/chat" style="color:rgba(255,255,255,0.7);text-decoration:none;">💬 Чат</a>
+                <a href="/clients" style="color:rgba(255,255,255,0.7);text-decoration:none;">Клиенты</a>
+                {% if session.is_admin %}
+                <a href="/employee" style="color:rgba(255,255,255,0.7);text-decoration:none;">Сотрудники</a>
+                {% endif %}
+            </div>
+        </div>
+        <div style="display:flex;align-items:center;gap:16px;">
+            <!-- Уведомления -->
+            <div class="header-notifications" id="notifToggle">
+                <span style="font-size:20px;">🔔</span>
+                <span class="badge zero" id="notifBadge">0</span>
+                <div class="notif-dropdown" id="notifDropdown">
+                    <div id="notifDropdownContent">
+                        <div class="notif-empty">Загрузка...</div>
+                    </div>
+                    <div class="notif-footer">
+                        <a href="/notifications">Все уведомления →</a>
+                    </div>
+                </div>
+            </div>
+            <span style="font-size:14px;background:rgba(255,255,255,0.1);padding:4px 12px;border-radius:6px;">
+                👤 {{ session.user_name }}
+            </span>
+            <a href="/logout" style="color:#e74c3c;text-decoration:none;font-size:14px;">🚪</a>
+        </div>
+    </nav>
+
+    <!-- Flash-сообщения -->
     {% with messages = get_flashed_messages(with_categories=true) %}
         {% if messages %}
-            <div style="position:fixed;top:20px;right:20px;z-index:9999;max-width:400px;">
+            <div style="position:fixed;top:80px;right:20px;z-index:9999;max-width:400px;">
                 {% for category, message in messages %}
-                    <div class="flash-message {{ category }}" style="margin-bottom:8px;padding:12px 16px;border-radius:8px;box-shadow:0 4px 12px rgba(0,0,0,0.15);animation:slideIn 0.3s ease-out;">
+                    <div class="flash-message {{ category }}" style="margin-bottom:8px;padding:12px 16px;border-radius:8px;box-shadow:0 4px 12px rgba(0,0,0,0.15);animation:slideIn 0.3s ease-out;background:{% if category == 'success' %}#d4edda{% elif category == 'error' %}#f8d7da{% elif category == 'warning' %}#fff3cd{% else %}#d1ecf1{% endif %};color:{% if category == 'success' %}#155724{% elif category == 'error' %}#721c24{% elif category == 'warning' %}#856404{% else %}#0c5460{% endif %};">
                         {{ message }}
                     </div>
                 {% endfor %}
@@ -37,25 +149,89 @@
         {% endif %}
     {% endwith %}
 
-    {% block content %}{% endblock %}
-    
-    <!-- ========== СКРИПТЫ ========== -->
+    <!-- Основной контент -->
+    <div style="padding:20px;">
+        {% block content %}{% endblock %}
+    </div>
+
+    <!-- Скрипты -->
     <script>
-        // Автоматическое скрытие уведомлений через 5 секунд
+        // ==========================================
+        // УВЕДОМЛЕНИЯ В ШАПКЕ
+        // ==========================================
+        
+        function fetchNotifications() {
+            fetch('/api/notifications/check')
+                .then(r => r.json())
+                .then(data => {
+                    const badge = document.getElementById('notifBadge');
+                    if (data.unread > 0) {
+                        badge.textContent = data.unread;
+                        badge.className = 'badge';
+                    } else {
+                        badge.className = 'badge zero';
+                    }
+                    
+                    // Загружаем последние 5 уведомлений для выпадашки
+                    fetch('/api/notifications/latest?limit=5')
+                        .then(r => r.json())
+                        .then(notifs => {
+                            renderDropdown(notifs);
+                        })
+                        .catch(() => {});
+                })
+                .catch(err => console.error('Ошибка уведомлений:', err));
+        }
+
+        function renderDropdown(notifs) {
+            const container = document.getElementById('notifDropdownContent');
+            if (!notifs || notifs.length === 0) {
+                container.innerHTML = '<div class="notif-empty">📭 Нет уведомлений</div>';
+                return;
+            }
+            let html = '';
+            notifs.forEach(n => {
+                const isUnread = !n.is_read ? 'unread' : '';
+                const time = new Date(n.created_at).toLocaleString('ru-RU', {
+                    day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit'
+                });
+                html += `
+                    <div class="notif-item ${isUnread}" onclick="location.href='${n.action_url || '/notifications'}'">
+                        <div class="title">${n.title}</div>
+                        <div class="msg">${n.message}</div>
+                        <div class="time">${time}</div>
+                    </div>
+                `;
+            });
+            container.innerHTML = html;
+        }
+
+        // Открытие/закрытие выпадашки
+        document.getElementById('notifToggle').addEventListener('click', function(e) {
+            e.stopPropagation();
+            document.getElementById('notifDropdown').classList.toggle('show');
+        });
+        document.addEventListener('click', function() {
+            document.getElementById('notifDropdown').classList.remove('show');
+        });
+
+        // Автообновление уведомлений каждые 30 секунд
+        setInterval(fetchNotifications, 30000);
+        fetchNotifications();
+
+        // Автоскрытие flash-сообщений
         document.addEventListener('DOMContentLoaded', function() {
             const flashMessages = document.querySelectorAll('.flash-message');
             flashMessages.forEach(function(msg) {
                 setTimeout(function() {
                     msg.style.opacity = '0';
                     msg.style.transition = 'opacity 0.5s';
-                    setTimeout(function() {
-                        msg.remove();
-                    }, 500);
+                    setTimeout(function() { msg.remove(); }, 500);
                 }, 5000);
             });
         });
 
-        // Добавляем стиль для анимации
+        // Стиль для анимации
         const style = document.createElement('style');
         style.textContent = `
             @keyframes slideIn {
@@ -65,7 +241,7 @@
         `;
         document.head.appendChild(style);
     </script>
-    
+
     {% block extra_js %}{% endblock %}
 </body>
 </html>
