@@ -232,7 +232,54 @@ def employee_dashboard():
         conn = get_db_connection()
         cur = conn.cursor(cursor_factory=DictCursor)
         
-        # Мои заказы
+        # Получаем заказы по магазинам
+        orders_by_shop = {}
+        for shop_id, shop_name in Config.SHOPS.items():
+            # Активные заказы для магазина
+            cur.execute("""
+                SELECT *, 
+                       CASE WHEN created_by = %s THEN TRUE ELSE FALSE END as is_own_order
+                FROM orders 
+                WHERE shop_id = %s AND status != 'Выдан' AND is_archived = FALSE
+                ORDER BY 
+                    CASE priority 
+                        WHEN 'Высокий' THEN 1 
+                        WHEN 'Обычный' THEN 2 
+                        ELSE 3 
+                    END,
+                    created_at ASC
+            """, (user_name, shop_id))
+            active_orders = cur.fetchall()
+            
+            # Выполненные заказы для магазина
+            cur.execute("""
+                SELECT * FROM orders 
+                WHERE shop_id = %s AND status = 'Выдан'
+                ORDER BY completed_at DESC NULLS LAST, created_at DESC
+                LIMIT 10
+            """, (shop_id,))
+            completed_orders = cur.fetchall()
+            
+            # Статистика по магазину
+            cur.execute("""
+                SELECT 
+                    COUNT(*) as total,
+                    COUNT(*) FILTER (WHERE status != 'Выдан') as active,
+                    COUNT(*) FILTER (WHERE executor = %s AND status != 'Выдан') as my_active,
+                    COUNT(*) FILTER (WHERE status = 'Выдан' AND completed_at::date = CURRENT_DATE) as completed_today
+                FROM orders 
+                WHERE shop_id = %s
+            """, (user_name, shop_id))
+            shop_stats = cur.fetchone()
+            
+            orders_by_shop[shop_id] = {
+                'name': shop_name,
+                'active_orders': active_orders,
+                'completed_orders': completed_orders,
+                'stats': shop_stats
+            }
+        
+        # Мои личные заказы (все магазины)
         cur.execute("""
             SELECT *, 
                    CASE WHEN created_by = %s THEN TRUE ELSE FALSE END as is_own_order
@@ -248,14 +295,17 @@ def employee_dashboard():
         """, (user_name, user_name))
         my_orders = cur.fetchall()
         
-        # Моя история
+        # Моя статистика
         cur.execute("""
-            SELECT * FROM orders 
-            WHERE executor = %s AND status = 'Выдан'
-            ORDER BY completed_at DESC NULLS LAST, created_at DESC
-            LIMIT 20
+            SELECT 
+                COUNT(*) as total,
+                COUNT(*) FILTER (WHERE status != 'Выдан') as active,
+                COUNT(*) FILTER (WHERE status = 'Выдан' AND completed_at::date = CURRENT_DATE) as completed_today,
+                COUNT(*) FILTER (WHERE status = 'Новый') as new_orders
+            FROM orders 
+            WHERE executor = %s
         """, (user_name,))
-        order_history = cur.fetchall()
+        my_stats = cur.fetchone()
         
         # Задачи на сегодня
         today = datetime.now().date()
@@ -277,21 +327,7 @@ def employee_dashboard():
         """, (user_name, user_name, today))
         today_tasks = cur.fetchall()
         
-        # Статистика
-        cur.execute("""
-            SELECT 
-                COUNT(*) as total,
-                COUNT(*) FILTER (WHERE status != 'Выдан') as active,
-                COUNT(*) FILTER (WHERE status = 'Выдан' AND completed_at::date = CURRENT_DATE) as completed_today
-            FROM orders 
-            WHERE executor = %s
-        """, (user_name,))
-        stats = cur.fetchone()
-        
-        # Количество новых заказов
-        new_orders_count = check_new_orders(user_name)
-        
-        # Чат - с обработкой ошибки
+        # Чат
         try:
             cur.execute("""
                 SELECT * FROM chat_messages 
@@ -301,7 +337,6 @@ def employee_dashboard():
             chat_messages = cur.fetchall()
             chat_messages = list(reversed(chat_messages))
             
-            # Считаем непрочитанные сообщения (за последний час)
             cur.execute("""
                 SELECT COUNT(*) FROM chat_messages 
                 WHERE created_at > NOW() - INTERVAL '1 hour'
@@ -316,12 +351,11 @@ def employee_dashboard():
         conn.close()
         
         return render_template('employee_dashboard.html',
+                             orders_by_shop=orders_by_shop,
                              my_orders=my_orders,
-                             order_history=order_history,
+                             my_stats=my_stats,
                              today_tasks=today_tasks,
-                             stats=stats,
                              chat_messages=chat_messages,
-                             new_orders_count=new_orders_count,
                              unread_chat=unread_chat,
                              shops=Config.SHOPS,
                              employees=get_employees(),
@@ -330,12 +364,11 @@ def employee_dashboard():
         print(f"Ошибка кабинета: {e}")
         flash('Ошибка загрузки данных', 'error')
         return render_template('employee_dashboard.html', 
+                             orders_by_shop={},
                              my_orders=[], 
-                             order_history=[], 
                              today_tasks=[],
                              chat_messages=[],
-                             stats={'total': 0, 'active': 0, 'completed_today': 0},
-                             new_orders_count=0,
+                             my_stats={'total': 0, 'active': 0, 'completed_today': 0, 'new_orders': 0},
                              unread_chat=0,
                              shops=Config.SHOPS,
                              employees=get_employees(),
@@ -361,15 +394,15 @@ def employee_create_order():
             prepaid = safe_float(request.form.get('prepaid'))
             priority = request.form.get('priority') or 'Обычный'
             comment = request.form.get('comment')
+            shop_id = request.form.get('shop_id')
             
             # Сотрудник ЖЕСТКО назначается исполнителем, статус всегда "Новый"
             executor = session.get('user_name')
             executor_id = session.get('user_id')
-            status = 'Новый'  # Всегда "Новый" при создании
-            shop_id = get_user_shop()
+            status = 'Новый'
             
-            # Если у сотрудника shop_id = 'all', используем первый магазин
-            if shop_id == 'all':
+            # Если магазин не выбран, используем первый доступный
+            if not shop_id or shop_id == 'all':
                 shop_id = list(Config.SHOPS.keys())[0]
             
             conn = get_db_connection()
@@ -389,7 +422,7 @@ def employee_create_order():
             cur.close()
             conn.close()
             
-            flash(f'✅ Заказ #{order_id} успешно создан! Вы закреплены как исполнитель.', 'success')
+            flash(f'✅ Заказ #{order_id} успешно создан в магазине {Config.SHOPS.get(shop_id, shop_id)}!', 'success')
             return redirect(url_for('employee_dashboard'))
         except Exception as e:
             print(f"Ошибка создания заказа сотрудником: {e}")
@@ -420,8 +453,8 @@ def employee_edit_order(order_id):
         # Проверяем, что заказ принадлежит этому сотруднику
         cur.execute("""
             SELECT * FROM orders 
-            WHERE id = %s AND executor = %s AND created_by = %s
-        """, (order_id, user_name, user_name))
+            WHERE id = %s AND created_by = %s
+        """, (order_id, user_name))
         order = cur.fetchone()
         
         if not order:
@@ -431,7 +464,6 @@ def employee_edit_order(order_id):
             return redirect(url_for('employee_dashboard'))
         
         if request.method == 'POST':
-            # Обновление заказа
             customer = request.form.get('customer')
             phone = request.form.get('phone')
             address = request.form.get('address')
@@ -442,26 +474,16 @@ def employee_edit_order(order_id):
             status = request.form.get('status') or order['status']
             comment = request.form.get('comment')
             
-            # Исполнитель остается тем же
-            executor = user_name
-            
             query = """
                 UPDATE orders 
-                SET customer = %s, 
-                    phone = %s, 
-                    address = %s, 
-                    product = %s, 
-                    price = %s, 
-                    prepaid = %s, 
-                    priority = %s, 
-                    status = %s, 
-                    comment = %s,
-                    updated_at = CURRENT_TIMESTAMP
-                WHERE id = %s AND executor = %s AND created_by = %s
+                SET customer = %s, phone = %s, address = %s, product = %s, 
+                    price = %s, prepaid = %s, priority = %s, status = %s, 
+                    comment = %s, updated_at = CURRENT_TIMESTAMP
+                WHERE id = %s AND created_by = %s
                 RETURNING id;
             """
             cur.execute(query, (customer, phone, address, product, price, prepaid, 
-                               priority, status, comment, order_id, user_name, user_name))
+                               priority, status, comment, order_id, user_name))
             
             if cur.fetchone():
                 conn.commit()
