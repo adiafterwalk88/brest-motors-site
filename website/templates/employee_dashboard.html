@@ -1,106 +1,114 @@
 {% extends "base.html" %}
 
-{% block title %}Кабинет сотрудника - {{ config.SITE_NAME }}{% endblock %}
+{% block extra_css %}
+<style>
+    body { font-family: 'Segoe UI', Arial, sans-serif; background: #f0f2f5; margin: 0; padding: 0; }
+    .employee-layout { display: flex; min-height: 100vh; }
+    .sidebar { width: 240px; background: #1a1a2e; color: white; padding: 20px 0; position: fixed; height: 100vh; overflow-y: auto; }
+    .sidebar .logo { font-size: 20px; font-weight: 700; padding: 0 20px 20px; border-bottom: 1px solid rgba(255,255,255,0.1); display: flex; align-items: center; gap: 10px; }
+    .sidebar .menu { list-style: none; padding: 0; margin-top: 20px; }
+    .sidebar .menu a { display: flex; align-items: center; gap: 12px; padding: 12px 20px; color: rgba(255,255,255,0.7); text-decoration: none; transition: all .2s; border-left: 3px solid transparent; }
+    .sidebar .menu a:hover, .sidebar .menu a.active { background: rgba(255,255,255,0.05); color: white; border-left-color: #3498db; }
+    .sidebar .menu a.logout { margin-top: 40px; color: #e74c3c; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 20px; }
+    .main-content { margin-left: 240px; flex: 1; padding: 24px; }
+    .page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; }
+    .page-header h1 { font-size: 28px; font-weight: 700; color: #1a1a2e; }
+    .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; margin-bottom: 24px; }
+    .stat-card { background: white; padding: 20px; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); text-align: center; }
+    .stat-card .stat-icon { font-size: 32px; }
+    .stat-card .stat-value { font-size: 28px; font-weight: 700; color: #1a1a2e; }
+    .stat-card .stat-label { font-size: 13px; color: #666; }
+    .card { background: white; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); padding: 20px; margin-bottom: 20px; }
+    .card-title { font-weight: 600; font-size: 18px; margin-bottom: 16px; display: flex; justify-content: space-between; align-items: center; }
+    table { width: 100%; border-collapse: collapse; }
+    table th, table td { padding: 10px 12px; text-align: left; border-bottom: 1px solid #f0f0f0; }
+    table th { background: #f8f9fa; font-weight: 600; color: #333; }
+    .badge-status { padding: 2px 10px; border-radius: 12px; font-size: 12px; font-weight: 600; }
+    .badge-new { background: #e3f2fd; color: #0d47a1; }
+    .badge-process { background: #fff3e0; color: #e65100; }
+    .badge-waiting { background: #f3e5f5; color: #6a1b9a; }
+    .badge-working { background: #e8f5e9; color: #2e7d32; }
+    .badge-done { background: #e8f5e9; color: #27ae60; }
+    .badge-high { background: #ffebee; color: #c62828; }
+    .badge-normal { background: #e3f2fd; color: #1565c0; }
+    .badge-low { background: #f5f5f5; color: #616161; }
+    .btn-sm { padding: 4px 12px; border: none; border-radius: 6px; font-size: 12px; font-weight: 600; cursor: pointer; text-decoration: none; display: inline-block; }
+    .btn-edit { background: #3498db; color: white; }
+    .btn-complete { background: #27ae60; color: white; }
+    .btn-create { background: #2ecc71; color: white; padding: 10px 20px; border: none; border-radius: 8px; font-size: 14px; font-weight: 600; cursor: pointer; text-decoration: none; display: inline-block; }
+    .grid-2col { display: grid; grid-template-columns: 2fr 1fr; gap: 20px; }
+    .chat-messages { max-height: 400px; overflow-y: auto; }
+    .chat-message { padding: 8px 0; border-bottom: 1px solid #f0f0f0; }
+    .chat-input-group { display: flex; gap: 8px; margin-top: 12px; }
+    .chat-input-group input { flex: 1; padding: 8px 12px; border: 1px solid #ddd; border-radius: 6px; }
+    .chat-input-group button { padding: 8px 16px; background: #3498db; color: white; border: none; border-radius: 6px; cursor: pointer; }
+    @media (max-width: 768px) { 
+        .sidebar { display: none; } 
+        .main-content { margin-left: 0; } 
+        .grid-2col { grid-template-columns: 1fr; }
+    }
+</style>
+{% endblock %}
 
 {% block content %}
-<div class="container-fluid mt-4">
-    <!-- Верхняя панель с кнопками -->
-    <div class="row mb-4">
-        <div class="col-12">
-            <div class="card">
-                <div class="card-body">
-                    <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
-                        <h4 class="mb-0">
-                            <i class="fas fa-user-circle"></i> 
-                            {{ session.get('user_name') }}
-                        </h4>
-                        <div>
-                            <a href="{{ url_for('employee_create_order') }}" class="btn btn-success">
-                                <i class="fas fa-plus-circle"></i> Создать заказ
-                            </a>
-                            <a href="{{ url_for('logout') }}" class="btn btn-outline-danger ms-2">
-                                <i class="fas fa-sign-out-alt"></i> Выйти
-                            </a>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
+<div class="employee-layout">
+    <div class="sidebar">
+        <div class="logo">🎯 InTarget</div>
+        <ul class="menu">
+            <li><a href="/employee" class="active">👨‍🔧 Мой кабинет</a></li>
+            <li><a href="/employee/orders/create">➕ Создать заказ</a></li>
+            <li><a href="/logout" class="logout">🚪 Выйти</a></li>
+        </ul>
     </div>
-
-    <!-- Статистика -->
-    <div class="row mb-4">
-        <div class="col-md-3 mb-3">
-            <div class="card bg-primary text-white h-100">
-                <div class="card-body">
-                    <div class="d-flex justify-content-between align-items-center">
-                        <div>
-                            <h6 class="card-title">Всего заказов</h6>
-                            <h2 class="mb-0">{{ stats.total if stats else 0 }}</h2>
-                        </div>
-                        <i class="fas fa-shopping-cart fa-3x opacity-50"></i>
-                    </div>
-                </div>
+    <div class="main-content">
+        <div class="page-header">
+            <div>
+                <h1>👨‍🔧 Кабинет сотрудника</h1>
+                <span style="color:#666;font-size:14px;">{{ session.user_name }} — InTarget Brest Motors</span>
+            </div>
+            <div>
+                <a href="/employee/orders/create" class="btn-create">➕ Создать заказ</a>
             </div>
         </div>
-        <div class="col-md-3 mb-3">
-            <div class="card bg-warning text-dark h-100">
-                <div class="card-body">
-                    <div class="d-flex justify-content-between align-items-center">
-                        <div>
-                            <h6 class="card-title">Активные заказы</h6>
-                            <h2 class="mb-0">{{ stats.active if stats else 0 }}</h2>
-                        </div>
-                        <i class="fas fa-clock fa-3x opacity-50"></i>
-                    </div>
-                </div>
+        
+        <!-- Статистика -->
+        <div class="stats-grid">
+            <div class="stat-card">
+                <div class="stat-icon">📦</div>
+                <div class="stat-value">{{ stats.total if stats else 0 }}</div>
+                <div class="stat-label">Всего заказов</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon">🔄</div>
+                <div class="stat-value">{{ stats.active if stats else 0 }}</div>
+                <div class="stat-label">Активных</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon">✅</div>
+                <div class="stat-value">{{ stats.completed_today if stats else 0 }}</div>
+                <div class="stat-label">Выдано сегодня</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon">🔔</div>
+                <div class="stat-value">{{ new_orders_count }}</div>
+                <div class="stat-label">Новых заказов</div>
             </div>
         </div>
-        <div class="col-md-3 mb-3">
-            <div class="card bg-success text-white h-100">
-                <div class="card-body">
-                    <div class="d-flex justify-content-between align-items-center">
-                        <div>
-                            <h6 class="card-title">Выдано сегодня</h6>
-                            <h2 class="mb-0">{{ stats.completed_today if stats else 0 }}</h2>
-                        </div>
-                        <i class="fas fa-check-circle fa-3x opacity-50"></i>
+        
+        <div class="grid-2col">
+            <!-- Левая колонка -->
+            <div>
+                <!-- Активные заказы -->
+                <div class="card">
+                    <div class="card-title">
+                        <span>📋 Мои активные заказы</span>
+                        <a href="/employee/orders/create" style="font-size:14px;color:#2ecc71;text-decoration:none;">+ Новый заказ</a>
                     </div>
-                </div>
-            </div>
-        </div>
-        <div class="col-md-3 mb-3">
-            <div class="card bg-info text-white h-100">
-                <div class="card-body">
-                    <div class="d-flex justify-content-between align-items-center">
-                        <div>
-                            <h6 class="card-title">Новых заказов</h6>
-                            <h2 class="mb-0">{{ new_orders_count }}</h2>
-                        </div>
-                        <i class="fas fa-bell fa-3x opacity-50"></i>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <div class="row">
-        <!-- Активные заказы -->
-        <div class="col-lg-8">
-            <div class="card mb-4">
-                <div class="card-header d-flex justify-content-between align-items-center">
-                    <h5 class="mb-0"><i class="fas fa-tasks"></i> Мои активные заказы</h5>
-                    <a href="{{ url_for('employee_create_order') }}" class="btn btn-success btn-sm">
-                        <i class="fas fa-plus"></i> Новый заказ
-                    </a>
-                </div>
-                <div class="card-body">
                     {% if my_orders %}
-                    <div class="table-responsive">
-                        <table class="table table-hover">
+                        <table>
                             <thead>
                                 <tr>
-                                    <th>ID</th>
+                                    <th>#</th>
                                     <th>Клиент</th>
                                     <th>Товар</th>
                                     <th>Приоритет</th>
@@ -115,52 +123,45 @@
                                     <td>{{ order.customer }}</td>
                                     <td>{{ order.product[:50] }}{% if order.product|length > 50 %}...{% endif %}</td>
                                     <td>
-                                        <span class="badge {% if order.priority == 'Высокий' %}bg-danger{% elif order.priority == 'Низкий' %}bg-secondary{% else %}bg-primary{% endif %}">
+                                        <span class="badge-status {% if order.priority == 'Высокий' %}badge-high{% elif order.priority == 'Низкий' %}badge-low{% else %}badge-normal{% endif %}">
                                             {{ order.priority }}
                                         </span>
                                     </td>
                                     <td>
-                                        <span class="badge bg-{{ 'success' if order.status == 'Выдан' else 'warning' }}">
+                                        <span class="badge-status {% if order.status == 'Новый' %}badge-new{% elif order.status == 'В обработке' %}badge-process{% elif order.status == 'Ожидает клиента' %}badge-waiting{% elif order.status == 'Выполняется' %}badge-working{% elif order.status == 'Выдан' %}badge-done{% endif %}">
                                             {{ order.status }}
                                         </span>
                                     </td>
                                     <td>
-                                        <form method="POST" action="{{ url_for('complete_order', order_id=order.id) }}" class="d-inline">
+                                        {% if order.created_by == session.get('user_name') %}
+                                        <a href="/employee/orders/{{ order.id }}/edit" class="btn-sm btn-edit">✏️</a>
+                                        {% endif %}
+                                        <form method="POST" action="/orders/{{ order.id }}/complete" style="display:inline;">
                                             <input type="hidden" name="notes" value="">
-                                            <button type="submit" class="btn btn-success btn-sm" title="Завершить заказ">
-                                                <i class="fas fa-check"></i>
-                                            </button>
+                                            <button type="submit" class="btn-sm btn-complete">✅</button>
                                         </form>
                                     </td>
                                 </tr>
                                 {% endfor %}
                             </tbody>
                         </table>
-                    </div>
                     {% else %}
-                    <div class="text-center py-4">
-                        <i class="fas fa-inbox fa-3x text-muted mb-3"></i>
-                        <p class="text-muted">У вас нет активных заказов</p>
-                        <a href="{{ url_for('employee_create_order') }}" class="btn btn-success">
-                            <i class="fas fa-plus-circle"></i> Создать первый заказ
-                        </a>
-                    </div>
+                        <p style="text-align:center;color:#999;padding:20px;">
+                            У вас нет активных заказов
+                            <br>
+                            <a href="/employee/orders/create" style="color:#2ecc71;text-decoration:none;">Создать первый заказ →</a>
+                        </p>
                     {% endif %}
                 </div>
-            </div>
-
-            <!-- История заказов -->
-            <div class="card mb-4">
-                <div class="card-header">
-                    <h5 class="mb-0"><i class="fas fa-history"></i> История выполненных заказов</h5>
-                </div>
-                <div class="card-body">
+                
+                <!-- История заказов -->
+                <div class="card">
+                    <div class="card-title">📜 История выполненных заказов</div>
                     {% if order_history %}
-                    <div class="table-responsive">
-                        <table class="table table-hover">
+                        <table>
                             <thead>
                                 <tr>
-                                    <th>ID</th>
+                                    <th>#</th>
                                     <th>Клиент</th>
                                     <th>Товар</th>
                                     <th>Дата завершения</th>
@@ -177,77 +178,67 @@
                                 {% endfor %}
                             </tbody>
                         </table>
-                    </div>
                     {% else %}
-                    <p class="text-muted text-center">История пуста</p>
+                        <p style="text-align:center;color:#999;padding:20px;">История пуста</p>
                     {% endif %}
                 </div>
             </div>
-        </div>
-
-        <!-- Боковая панель -->
-        <div class="col-lg-4">
-            <!-- Задачи на сегодня -->
-            <div class="card mb-4">
-                <div class="card-header">
-                    <h5 class="mb-0"><i class="fas fa-calendar-day"></i> Задачи на сегодня</h5>
-                </div>
-                <div class="card-body">
+            
+            <!-- Правая колонка -->
+            <div>
+                <!-- Задачи на сегодня -->
+                <div class="card">
+                    <div class="card-title">📅 Задачи на сегодня</div>
                     {% if today_tasks %}
-                    <div class="list-group">
                         {% for task in today_tasks %}
-                        <div class="list-group-item">
-                            <div class="d-flex justify-content-between align-items-center">
+                        <div style="padding:10px 0;border-bottom:1px solid #f0f0f0;">
+                            <div style="display:flex;justify-content:space-between;align-items:center;">
                                 <div>
                                     <strong>#{{ task.id }}</strong> - {{ task.customer }}
                                     <br>
-                                    <small class="text-muted">{{ task.product[:30] }}...</small>
+                                    <small style="color:#666;">{{ task.product[:30] }}...</small>
                                 </div>
-                                <span class="badge bg-{{ 'danger' if task.priority == 'Высокий' else 'primary' }}">
-                                    {{ task.priority }}
-                                </span>
+                                <div style="display:flex;align-items:center;gap:8px;">
+                                    {% if task.created_by == session.get('user_name') %}
+                                    <a href="/employee/orders/{{ task.id }}/edit" class="btn-sm btn-edit">✏️</a>
+                                    {% endif %}
+                                    <span class="badge-status {% if task.priority == 'Высокий' %}badge-high{% else %}badge-normal{% endif %}">
+                                        {{ task.priority }}
+                                    </span>
+                                </div>
                             </div>
                         </div>
                         {% endfor %}
-                    </div>
                     {% else %}
-                    <p class="text-muted text-center">Нет задач на сегодня</p>
+                        <p style="text-align:center;color:#999;padding:20px;">Нет задач на сегодня</p>
                     {% endif %}
                 </div>
-            </div>
-
-            <!-- Чат -->
-            <div class="card">
-                <div class="card-header d-flex justify-content-between align-items-center">
-                    <h5 class="mb-0">
-                        <i class="fas fa-comments"></i> Чат 
+                
+                <!-- Чат -->
+                <div class="card">
+                    <div class="card-title">
+                        <span>💬 Чат</span>
                         {% if unread_chat > 0 %}
-                        <span class="badge bg-danger">{{ unread_chat }}</span>
+                        <span style="background:#e74c3c;color:white;padding:2px 8px;border-radius:12px;font-size:12px;">{{ unread_chat }}</span>
                         {% endif %}
-                    </h5>
-                </div>
-                <div class="card-body" style="max-height: 400px; overflow-y: auto;" id="chatMessages">
-                    {% if chat_messages %}
-                    {% for msg in chat_messages %}
-                    <div class="mb-2">
-                        <strong>{{ msg.user_name }}:</strong>
-                        <small class="text-muted">{{ msg.created_at.strftime('%H:%M') }}</small>
-                        <br>
-                        {{ msg.message }}
                     </div>
-                    {% endfor %}
-                    {% else %}
-                    <p class="text-muted text-center">Нет сообщений</p>
-                    {% endif %}
-                </div>
-                <div class="card-footer">
-                    <form id="chatForm">
-                        <div class="input-group">
-                            <input type="text" class="form-control" id="chatInput" placeholder="Введите сообщение...">
-                            <button class="btn btn-primary" type="submit">
-                                <i class="fas fa-paper-plane"></i>
-                            </button>
-                        </div>
+                    <div class="chat-messages" id="chatMessages">
+                        {% if chat_messages %}
+                            {% for msg in chat_messages %}
+                            <div class="chat-message">
+                                <strong>{{ msg.user_name }}:</strong>
+                                <small style="color:#999;">{{ msg.created_at.strftime('%H:%M') }}</small>
+                                <br>
+                                {{ msg.message }}
+                            </div>
+                            {% endfor %}
+                        {% else %}
+                            <p style="text-align:center;color:#999;">Нет сообщений</p>
+                        {% endif %}
+                    </div>
+                    <form id="chatForm" class="chat-input-group">
+                        <input type="text" id="chatInput" placeholder="Введите сообщение...">
+                        <button type="submit">Отправить</button>
                     </form>
                 </div>
             </div>
@@ -256,51 +247,37 @@
 </div>
 
 <script>
-document.addEventListener('DOMContentLoaded', function() {
-    // Проверка новых заказов каждые 30 секунд
-    function checkNotifications() {
-        fetch('/api/notifications/check')
-            .then(response => response.json())
-            .then(data => {
-                if (data.new_orders > 0) {
-                    // Обновляем счетчик
-                    const badge = document.querySelector('.bg-info h2');
-                    if (badge) {
-                        badge.textContent = data.new_orders;
-                    }
-                }
-            });
-    }
-    
-    setInterval(checkNotifications, 30000);
-
-    // Чат функционал
-    const chatForm = document.getElementById('chatForm');
-    const chatInput = document.getElementById('chatInput');
-    
-    if (chatForm) {
-        chatForm.addEventListener('submit', function(e) {
-            e.preventDefault();
-            const message = chatInput.value.trim();
-            if (!message) return;
-            
-            fetch('/api/chat/send', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({ message: message })
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (data.success) {
-                    chatInput.value = '';
-                    // Перезагружаем страницу для обновления чата
-                    location.reload();
-                }
-            });
+// Проверка новых заказов каждые 30 секунд
+setInterval(function() {
+    fetch('/api/notifications/check')
+        .then(response => response.json())
+        .then(data => {
+            if (data.new_orders > 0) {
+                const badge = document.querySelector('.stat-card:last-child .stat-value');
+                if (badge) badge.textContent = data.new_orders;
+            }
         });
-    }
+}, 30000);
+
+// Чат
+document.getElementById('chatForm').addEventListener('submit', function(e) {
+    e.preventDefault();
+    const input = document.getElementById('chatInput');
+    const message = input.value.trim();
+    if (!message) return;
+    
+    fetch('/api/chat/send', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({ message: message })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            input.value = '';
+            location.reload();
+        }
+    });
 });
 </script>
 {% endblock %}
