@@ -1021,7 +1021,511 @@ def api_employee_stats():
         return jsonify(dict(stats))
     except Exception as e:
         return jsonify({"error": str(e)}), 500
+# ==========================================
+# НОВЫЕ МАРШРУТЫ - УВЕДОМЛЕНИЯ, ЧАТ, КАЛЕНДАРЬ
+# ==========================================
 
+# ------------------------------------------
+# ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ ДЛЯ УВЕДОМЛЕНИЙ
+# ------------------------------------------
+
+def create_notification(user_id, user_name, title, message, order_id=None, 
+                        notification_type='reminder', priority='Обычный', 
+                        scheduled_for=None, action_url=None, metadata=None):
+    """Создание уведомления"""
+    try:
+        conn = get_db_connection()
+        cur = conn.cursor()
+        
+        cur.execute("""
+            INSERT INTO notifications 
+            (user_id, user_name, order_id, notification_type, title, message, 
+             priority, scheduled_for, action_url, metadata)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+            RETURNING id
+        """, (user_id, user_name, order_id, notification_type, title, message,
+              priority, scheduled_for, action_url, metadata or '{}'))
+        
+        notif_id = cur.fetchone()[0]
+        conn.commit()
+        cur.close()
+        conn.close()
+        return notif_id
+    except Exception as e:
+        print(f"Ошибка создания уведомления: {e}")
+        return None
+
+def get_unread_count(user_id):
+    """Количество непрочитанных уведомлений"""
+    try:
+        conn = get_db_connection()
+        cur = conn.cursor()
+        cur.execute("""
+            SELECT COUNT(*) FROM notifications 
+            WHERE user_id = %s AND is_read = FALSE AND is_archived = FALSE
+        """, (user_id,))
+        count = cur.fetchone()[0]
+        cur.close()
+        conn.close()
+        return count
+    except Exception as e:
+        print(f"Ошибка подсчета уведомлений: {e}")
+        return 0
+
+def check_order_overdue(order):
+    """Проверка просрочки заказа (старше 48 часов)"""
+    if order['status'] == 'Выдан':
+        return False
+    from datetime import datetime, timedelta
+    created_at = order['created_at']
+    if isinstance(created_at, str):
+        created_at = datetime.fromisoformat(created_at)
+    if datetime.now() - created_at > timedelta(hours=48):
+        return True
+    return False
+
+# ------------------------------------------
+# ЧАТ
+# ------------------------------------------
+
+@app.route('/chat')
+@login_required
+def chat_page():
+    """Страница чата"""
+    try:
+        conn = get_db_connection()
+        cur = conn.cursor(cursor_factory=DictCursor)
+        
+        cur.execute("""
+            SELECT * FROM chat_messages 
+            ORDER BY created_at DESC 
+            LIMIT 50
+        """)
+        chat_messages = cur.fetchall()
+        chat_messages = list(reversed(chat_messages))
+        
+        cur.close()
+        conn.close()
+        
+        return render_template('chat.html',
+                             chat_messages=chat_messages,
+                             employees=get_employees(),
+                             shops=Config.SHOPS)
+    except Exception as e:
+        print(f"Ошибка чата: {e}")
+        flash('Ошибка загрузки чата', 'error')
+        return render_template('chat.html',
+                             chat_messages=[],
+                             employees=get_employees(),
+                             shops=Config.SHOPS)
+
+# ------------------------------------------
+# УВЕДОМЛЕНИЯ
+# ------------------------------------------
+
+@app.route('/notifications')
+@login_required
+def notifications_page():
+    """Страница всех уведомлений"""
+    try:
+        user_id = session.get('user_id')
+        user_name = session.get('user_name')
+        
+        filter_type = request.args.get('type', 'all')
+        search = request.args.get('search', '')
+        
+        conn = get_db_connection()
+        cur = conn.cursor(cursor_factory=DictCursor)
+        
+        query = """
+            SELECT n.*, 
+                   o.customer as order_customer,
+                   o.product as order_product,
+                   o.status as order_status
+            FROM notifications n
+            LEFT JOIN orders o ON n.order_id = o.id
+            WHERE n.user_id = %s
+        """
+        params = [user_id]
+        
+        if filter_type == 'unread':
+            query += " AND n.is_read = FALSE AND n.is_archived = FALSE"
+        elif filter_type == 'read':
+            query += " AND n.is_read = TRUE AND n.is_archived = FALSE"
+        elif filter_type == 'archived':
+            query += " AND n.is_archived = TRUE"
+        
+        if search:
+            query += " AND (n.title ILIKE %s OR n.message ILIKE %s)"
+            search_pattern = f"%{search}%"
+            params.extend([search_pattern, search_pattern])
+        
+        query += " ORDER BY n.created_at DESC LIMIT 100"
+        
+        cur.execute(query, params)
+        notifications = cur.fetchall()
+        
+        cur.execute("""
+            SELECT 
+                COUNT(*) as total,
+                COUNT(*) FILTER (WHERE is_read = FALSE AND is_archived = FALSE) as unread,
+                COUNT(*) FILTER (WHERE is_archived = TRUE) as archived
+            FROM notifications 
+            WHERE user_id = %s
+        """, (user_id,))
+        stats = cur.fetchone()
+        
+        cur.close()
+        conn.close()
+        
+        return render_template('notifications.html',
+                             notifications=notifications,
+                             stats=stats,
+                             filter_type=filter_type,
+                             search=search,
+                             shops=Config.SHOPS,
+                             employees=get_employees())
+    except Exception as e:
+        print(f"Ошибка уведомлений: {e}")
+        flash('Ошибка загрузки уведомлений', 'error')
+        return render_template('notifications.html',
+                             notifications=[],
+                             stats={'total': 0, 'unread': 0, 'archived': 0},
+                             shops=Config.SHOPS,
+                             employees=get_employees())
+
+@app.route('/api/notifications/mark-read/<int:notif_id>', methods=['POST'])
+@login_required
+def mark_notification_read(notif_id):
+    try:
+        user_id = session.get('user_id')
+        conn = get_db_connection()
+        cur = conn.cursor()
+        cur.execute("""
+            UPDATE notifications 
+            SET is_read = TRUE, read_at = CURRENT_TIMESTAMP
+            WHERE id = %s AND user_id = %s
+        """, (notif_id, user_id))
+        conn.commit()
+        cur.close()
+        conn.close()
+        return jsonify({'success': True})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/notifications/mark-all-read', methods=['POST'])
+@login_required
+def mark_all_notifications_read():
+    try:
+        user_id = session.get('user_id')
+        conn = get_db_connection()
+        cur = conn.cursor()
+        cur.execute("""
+            UPDATE notifications 
+            SET is_read = TRUE, read_at = CURRENT_TIMESTAMP
+            WHERE user_id = %s AND is_read = FALSE
+        """, (user_id,))
+        conn.commit()
+        cur.close()
+        conn.close()
+        return jsonify({'success': True})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/notifications/archive/<int:notif_id>', methods=['POST'])
+@login_required
+def archive_notification(notif_id):
+    try:
+        user_id = session.get('user_id')
+        conn = get_db_connection()
+        cur = conn.cursor()
+        cur.execute("""
+            UPDATE notifications 
+            SET is_archived = TRUE
+            WHERE id = %s AND user_id = %s
+        """, (notif_id, user_id))
+        conn.commit()
+        cur.close()
+        conn.close()
+        return jsonify({'success': True})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+# ------------------------------------------
+# КАЛЕНДАРЬ
+# ------------------------------------------
+
+@app.route('/calendar')
+@login_required
+def calendar_page():
+    """Страница календаря с заказами"""
+    try:
+        user_id = session.get('user_id')
+        user_name = session.get('user_name')
+        is_admin = session.get('is_admin', False)
+        
+        conn = get_db_connection()
+        cur = conn.cursor(cursor_factory=DictCursor)
+        
+        # Получаем настройки уведомлений
+        cur.execute("""
+            SELECT * FROM notification_settings 
+            WHERE user_id = %s
+        """, (user_id,))
+        settings = cur.fetchone()
+        
+        if not settings:
+            cur.execute("""
+                INSERT INTO notification_settings (user_id, user_name)
+                VALUES (%s, %s)
+                RETURNING *
+            """, (user_id, user_name))
+            settings = cur.fetchone()
+            conn.commit()
+        
+        cur.close()
+        conn.close()
+        
+        return render_template('calendar.html',
+                             settings=settings,
+                             shops=Config.SHOPS,
+                             employees=get_employees())
+    except Exception as e:
+        print(f"Ошибка календаря: {e}")
+        flash('Ошибка загрузки календаря', 'error')
+        return render_template('calendar.html',
+                             settings=None,
+                             shops=Config.SHOPS,
+                             employees=get_employees())
+
+@app.route('/api/calendar/events')
+@login_required
+def calendar_events_api():
+    """API для событий календаря"""
+    try:
+        user_name = session.get('user_name')
+        is_admin = session.get('is_admin', False)
+        
+        conn = get_db_connection()
+        cur = conn.cursor(cursor_factory=DictCursor)
+        
+        if is_admin:
+            cur.execute("""
+                SELECT id, customer, product, status, priority, created_at, 
+                       completed_at, executor, shop_id
+                FROM orders
+                WHERE is_archived = FALSE
+            """)
+        else:
+            cur.execute("""
+                SELECT id, customer, product, status, priority, created_at, 
+                       completed_at, executor, shop_id
+                FROM orders
+                WHERE executor = %s AND is_archived = FALSE
+            """, (user_name,))
+        
+        orders = cur.fetchall()
+        cur.close()
+        conn.close()
+        
+        events = []
+        status_colors = {
+            'Новый': '#3498db',
+            'В работе': '#f39c12',
+            'Выдан': '#2ecc71'
+        }
+        
+        for order in orders:
+            if order['created_at']:
+                events.append({
+                    'id': f"order_{order['id']}",
+                    'title': f"#{order['id']} {order['customer'][:20]}",
+                    'start': order['created_at'].isoformat() if order['created_at'] else None,
+                    'color': status_colors.get(order['status'], '#95a5a6'),
+                    'textColor': 'white',
+                    'extendedProps': {
+                        'order_id': order['id'],
+                        'customer': order['customer'],
+                        'product': order['product'],
+                        'status': order['status'],
+                        'priority': order['priority'],
+                        'executor': order['executor'],
+                        'shop_id': order['shop_id']
+                    }
+                })
+            
+            if order['status'] == 'Выдан' and order['completed_at']:
+                events.append({
+                    'id': f"completed_{order['id']}",
+                    'title': f"✅ #{order['id']} {order['customer'][:15]}",
+                    'start': order['completed_at'].isoformat() if order['completed_at'] else None,
+                    'color': '#2ecc71',
+                    'textColor': 'white',
+                    'extendedProps': {
+                        'order_id': order['id'],
+                        'status': 'Выдан'
+                    }
+                })
+        
+        return jsonify(events)
+    except Exception as e:
+        print(f"Ошибка API календаря: {e}")
+        return jsonify([]), 500
+
+# ------------------------------------------
+# НАСТРОЙКИ УВЕДОМЛЕНИЙ
+# ------------------------------------------
+
+@app.route('/api/notifications/settings', methods=['GET', 'POST'])
+@login_required
+def notification_settings_api():
+    """Получение и обновление настроек уведомлений"""
+    try:
+        user_id = session.get('user_id')
+        conn = get_db_connection()
+        cur = conn.cursor(cursor_factory=DictCursor)
+        
+        if request.method == 'GET':
+            cur.execute("""
+                SELECT * FROM notification_settings 
+                WHERE user_id = %s
+            """, (user_id,))
+            settings = cur.fetchone()
+            
+            if not settings:
+                cur.execute("""
+                    INSERT INTO notification_settings (user_id, user_name)
+                    VALUES (%s, %s)
+                    RETURNING *
+                """, (user_id, session.get('user_name')))
+                settings = cur.fetchone()
+                conn.commit()
+            
+            cur.close()
+            conn.close()
+            return jsonify(dict(settings))
+        
+        elif request.method == 'POST':
+            data = request.get_json()
+            
+            cur.execute("""
+                UPDATE notification_settings 
+                SET 
+                    notify_new_orders = %s,
+                    notify_status_changes = %s,
+                    notify_mentions = %s,
+                    notify_overdue = %s,
+                    notify_chat_messages = %s,
+                    notify_assignments = %s,
+                    reminder_frequency = %s,
+                    reminder_start_hour = %s,
+                    reminder_end_hour = %s,
+                    email_notifications = %s,
+                    browser_notifications = %s,
+                    telegram_notifications = %s,
+                    updated_at = CURRENT_TIMESTAMP
+                WHERE user_id = %s
+                RETURNING *
+            """, (
+                data.get('notify_new_orders', True),
+                data.get('notify_status_changes', True),
+                data.get('notify_mentions', True),
+                data.get('notify_overdue', True),
+                data.get('notify_chat_messages', True),
+                data.get('notify_assignments', True),
+                data.get('reminder_frequency', 60),
+                data.get('reminder_start_hour', 9),
+                data.get('reminder_end_hour', 20),
+                data.get('email_notifications', False),
+                data.get('browser_notifications', True),
+                data.get('telegram_notifications', False),
+                user_id
+            ))
+            
+            settings = cur.fetchone()
+            conn.commit()
+            cur.close()
+            conn.close()
+            
+            return jsonify({'success': True, 'settings': dict(settings)})
+            
+    except Exception as e:
+        print(f"Ошибка настроек: {e}")
+        return jsonify({'error': str(e)}), 500
+
+# ------------------------------------------
+# ОНЛАЙН-СТАТУС (дополнение к чату)
+# ------------------------------------------
+
+@app.route('/api/online/update', methods=['POST'])
+@login_required
+def update_online_status():
+    try:
+        user_id = session.get('user_id')
+        user_name = session.get('user_name')
+        
+        conn = get_db_connection()
+        cur = conn.cursor()
+        cur.execute("""
+            INSERT INTO user_sessions (user_id, user_name, last_seen, is_online)
+            VALUES (%s, %s, CURRENT_TIMESTAMP, TRUE)
+            ON CONFLICT (user_id) 
+            DO UPDATE SET 
+                last_seen = CURRENT_TIMESTAMP,
+                is_online = TRUE,
+                user_name = EXCLUDED.user_name
+        """, (user_id, user_name))
+        conn.commit()
+        cur.close()
+        conn.close()
+        return jsonify({'success': True})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/online/users')
+@login_required
+def get_online_users():
+    try:
+        conn = get_db_connection()
+        cur = conn.cursor(cursor_factory=DictCursor)
+        cur.execute("""
+            SELECT 
+                user_id,
+                user_name,
+                last_seen,
+                CASE 
+                    WHEN NOW() - last_seen < INTERVAL '2 minutes' THEN TRUE
+                    ELSE FALSE
+                END as is_online
+            FROM user_sessions
+            WHERE NOW() - last_seen < INTERVAL '5 minutes'
+            ORDER BY user_name
+        """)
+        users = cur.fetchall()
+        cur.close()
+        conn.close()
+        return jsonify([dict(user) for user in users])
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/online/leave', methods=['POST'])
+@login_required
+def leave_online():
+    try:
+        user_id = session.get('user_id')
+        conn = get_db_connection()
+        cur = conn.cursor()
+        cur.execute("""
+            UPDATE user_sessions 
+            SET is_online = FALSE, last_seen = CURRENT_TIMESTAMP
+            WHERE user_id = %s
+        """, (user_id,))
+        conn.commit()
+        cur.close()
+        conn.close()
+        return jsonify({'success': True})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
 # ==========================================
 # ЗАПУСК
 # ==========================================
