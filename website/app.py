@@ -234,7 +234,9 @@ def employee_dashboard():
         
         # Мои заказы
         cur.execute("""
-            SELECT * FROM orders 
+            SELECT *, 
+                   CASE WHEN created_by = %s THEN TRUE ELSE FALSE END as is_own_order
+            FROM orders 
             WHERE executor = %s AND status != 'Выдан' AND is_archived = FALSE
             ORDER BY 
                 CASE priority 
@@ -243,7 +245,7 @@ def employee_dashboard():
                     ELSE 3 
                 END,
                 created_at ASC
-        """, (user_name,))
+        """, (user_name, user_name))
         my_orders = cur.fetchall()
         
         # Моя история
@@ -258,7 +260,9 @@ def employee_dashboard():
         # Задачи на сегодня
         today = datetime.now().date()
         cur.execute("""
-            SELECT * FROM orders 
+            SELECT *, 
+                   CASE WHEN created_by = %s THEN TRUE ELSE FALSE END as is_own_order
+            FROM orders 
             WHERE executor = %s 
             AND status != 'Выдан' 
             AND is_archived = FALSE
@@ -270,7 +274,7 @@ def employee_dashboard():
                     ELSE 3 
                 END,
                 created_at ASC
-        """, (user_name, today))
+        """, (user_name, user_name, today))
         today_tasks = cur.fetchall()
         
         # Статистика
@@ -356,11 +360,12 @@ def employee_create_order():
             price = safe_float(request.form.get('price'))
             prepaid = safe_float(request.form.get('prepaid'))
             priority = request.form.get('priority') or 'Обычный'
-            status = request.form.get('status') or 'Новый'
             comment = request.form.get('comment')
             
-            # Сотрудник автоматически назначается исполнителем
+            # Сотрудник ЖЕСТКО назначается исполнителем, статус всегда "Новый"
             executor = session.get('user_name')
+            executor_id = session.get('user_id')
+            status = 'Новый'  # Всегда "Новый" при создании
             shop_id = get_user_shop()
             
             # Если у сотрудника shop_id = 'all', используем первый магазин
@@ -371,18 +376,20 @@ def employee_create_order():
             cur = conn.cursor()
             query = """
                 INSERT INTO orders (customer, phone, address, product, price, prepaid, 
-                                   priority, executor, status, comment, shop_id)
-                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                                   priority, executor, executor_id, status, comment, shop_id,
+                                   created_by)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
                 RETURNING id;
             """
             cur.execute(query, (customer, phone, address, product, price, prepaid, 
-                               priority, executor, status, comment, shop_id))
+                               priority, executor, executor_id, status, comment, shop_id,
+                               executor))
             order_id = cur.fetchone()[0]
             conn.commit()
             cur.close()
             conn.close()
             
-            flash(f'✅ Заказ #{order_id} успешно создан! Вы назначены исполнителем.', 'success')
+            flash(f'✅ Заказ #{order_id} успешно создан! Вы закреплены как исполнитель.', 'success')
             return redirect(url_for('employee_dashboard'))
         except Exception as e:
             print(f"Ошибка создания заказа сотрудником: {e}")
@@ -393,6 +400,91 @@ def employee_create_order():
                          shops=Config.SHOPS,
                          employees=get_employees(),
                          user_name=session.get('user_name'))
+
+# ==========================================
+# РЕДАКТИРОВАНИЕ ЗАКАЗА СОТРУДНИКОМ
+# ==========================================
+@app.route('/employee/orders/<int:order_id>/edit', methods=['GET', 'POST'])
+@login_required
+def employee_edit_order(order_id):
+    """Редактирование заказа сотрудником (только своих заказов)"""
+    if session.get('is_admin'):
+        return redirect(url_for('edit_order_form', order_id=order_id))
+    
+    user_name = session.get('user_name')
+    
+    try:
+        conn = get_db_connection()
+        cur = conn.cursor(cursor_factory=DictCursor)
+        
+        # Проверяем, что заказ принадлежит этому сотруднику
+        cur.execute("""
+            SELECT * FROM orders 
+            WHERE id = %s AND executor = %s AND created_by = %s
+        """, (order_id, user_name, user_name))
+        order = cur.fetchone()
+        
+        if not order:
+            flash('❌ Вы не можете редактировать этот заказ!', 'error')
+            cur.close()
+            conn.close()
+            return redirect(url_for('employee_dashboard'))
+        
+        if request.method == 'POST':
+            # Обновление заказа
+            customer = request.form.get('customer')
+            phone = request.form.get('phone')
+            address = request.form.get('address')
+            product = request.form.get('product')
+            price = safe_float(request.form.get('price'))
+            prepaid = safe_float(request.form.get('prepaid'))
+            priority = request.form.get('priority') or 'Обычный'
+            status = request.form.get('status') or order['status']
+            comment = request.form.get('comment')
+            
+            # Исполнитель остается тем же
+            executor = user_name
+            
+            query = """
+                UPDATE orders 
+                SET customer = %s, 
+                    phone = %s, 
+                    address = %s, 
+                    product = %s, 
+                    price = %s, 
+                    prepaid = %s, 
+                    priority = %s, 
+                    status = %s, 
+                    comment = %s,
+                    updated_at = CURRENT_TIMESTAMP
+                WHERE id = %s AND executor = %s AND created_by = %s
+                RETURNING id;
+            """
+            cur.execute(query, (customer, phone, address, product, price, prepaid, 
+                               priority, status, comment, order_id, user_name, user_name))
+            
+            if cur.fetchone():
+                conn.commit()
+                flash(f'✅ Заказ #{order_id} успешно обновлен!', 'success')
+            else:
+                flash('❌ Ошибка обновления заказа', 'error')
+            
+            cur.close()
+            conn.close()
+            return redirect(url_for('employee_dashboard'))
+        
+        cur.close()
+        conn.close()
+        
+        return render_template('employee_edit_order.html',
+                             order=order,
+                             user_name=user_name,
+                             shops=Config.SHOPS)
+                             
+    except Exception as e:
+        print(f"Ошибка редактирования заказа сотрудником: {e}")
+        flash(f'❌ Ошибка: {e}', 'error')
+        return redirect(url_for('employee_dashboard'))
 
 # ==========================================
 # ЗАКАЗЫ
@@ -568,19 +660,29 @@ def edit_order(order_id):
         price = safe_float(request.form.get('price'))
         prepaid = safe_float(request.form.get('prepaid'))
         priority = request.form.get('priority') or 'Обычный'
-        executor = request.form.get('executor') or 'Не назначен'
         status = request.form.get('status') or 'Новый'
         comment = request.form.get('comment')
         
         conn = get_db_connection()
-        cur = conn.cursor()
+        cur = conn.cursor(cursor_factory=DictCursor)
         
-        cur.execute("SELECT id FROM orders WHERE id = %s AND shop_id = %s;", (order_id, shop_id))
-        if not cur.fetchone():
+        # Получаем информацию о заказе
+        cur.execute("SELECT * FROM orders WHERE id = %s AND shop_id = %s;", (order_id, shop_id))
+        order = cur.fetchone()
+        
+        if not order:
             flash('❌ Доступ запрещен!', 'error')
             cur.close()
             conn.close()
             return redirect(url_for('orders_page'))
+        
+        # Проверяем, создан ли заказ сотрудником (есть created_by)
+        if order['created_by']:
+            # Если заказ создан сотрудником, нельзя менять исполнителя
+            executor = order['executor']
+        else:
+            # Если заказ создан админом, можно менять исполнителя
+            executor = request.form.get('executor') or 'Не назначен'
         
         query = """
             UPDATE orders 
@@ -617,18 +719,27 @@ def update_order(order_id):
     try:
         shop_id = get_user_shop()
         status = request.form.get('status')
-        executor = request.form.get('executor')
         employee_notes = request.form.get('employee_notes', '')
         
         conn = get_db_connection()
-        cur = conn.cursor()
+        cur = conn.cursor(cursor_factory=DictCursor)
         
-        cur.execute("SELECT id FROM orders WHERE id = %s AND shop_id = %s;", (order_id, shop_id))
-        if not cur.fetchone():
+        cur.execute("SELECT * FROM orders WHERE id = %s AND shop_id = %s;", (order_id, shop_id))
+        order = cur.fetchone()
+        
+        if not order:
             flash('❌ Доступ запрещен!', 'error')
             cur.close()
             conn.close()
             return redirect(url_for('orders_page'))
+        
+        # Проверяем, создан ли заказ сотрудником
+        if order['created_by']:
+            # Если заказ создан сотрудником, нельзя менять исполнителя
+            executor = order['executor']
+        else:
+            # Если заказ создан админом, можно менять исполнителя
+            executor = request.form.get('executor') or order['executor']
         
         completed_at = 'CURRENT_TIMESTAMP' if status == 'Выдан' else 'NULL'
         
