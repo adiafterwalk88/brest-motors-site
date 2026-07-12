@@ -1,193 +1,134 @@
 {% extends "base.html" %}
 
-{% block title %}Редактировать заказ #{{ order.id }} - {{ config.SITE_NAME }}{% endblock %}
+{% block extra_css %}
+<style>
+    body { font-family: 'Segoe UI', Arial, sans-serif; background: #f0f2f5; margin: 0; padding: 0; }
+    .employee-layout { display: flex; min-height: 100vh; }
+    .sidebar { width: 240px; background: #1a1a2e; color: white; padding: 20px 0; position: fixed; height: 100vh; overflow-y: auto; }
+    .sidebar .logo { font-size: 20px; font-weight: 700; padding: 0 20px 20px; border-bottom: 1px solid rgba(255,255,255,0.1); display: flex; align-items: center; gap: 10px; }
+    .sidebar .menu { list-style: none; padding: 0; margin-top: 20px; }
+    .sidebar .menu a { display: flex; align-items: center; gap: 12px; padding: 12px 20px; color: rgba(255,255,255,0.7); text-decoration: none; transition: all .2s; border-left: 3px solid transparent; }
+    .sidebar .menu a:hover, .sidebar .menu a.active { background: rgba(255,255,255,0.05); color: white; border-left-color: #3498db; }
+    .sidebar .menu a.logout { margin-top: 40px; color: #e74c3c; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 20px; }
+    .main-content { margin-left: 240px; flex: 1; padding: 24px; }
+    .page-header { margin-bottom: 24px; }
+    .page-header h1 { font-size: 28px; font-weight: 700; color: #1a1a2e; }
+    .breadcrumb { margin-bottom: 16px; color: #666; font-size: 14px; }
+    .breadcrumb a { color: #3498db; text-decoration: none; }
+    .form-card { background: white; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); padding: 30px; max-width: 800px; margin: 0 auto; }
+    .form-group { margin-bottom: 20px; }
+    .form-group label { display: block; margin-bottom: 6px; font-weight: 600; color: #333; }
+    .form-group input, .form-group textarea, .form-group select { width: 100%; padding: 10px 12px; border: 1px solid #ddd; border-radius: 8px; font-size: 14px; font-family: inherit; }
+    .form-group textarea { resize: vertical; min-height: 80px; }
+    .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+    .input-group { display: flex; }
+    .input-group input { border-radius: 8px 0 0 8px; }
+    .input-group span { padding: 10px 16px; background: #f0f0f0; border: 1px solid #ddd; border-left: none; border-radius: 0 8px 8px 0; display: flex; align-items: center; color: #666; }
+    .alert { padding: 16px; border-radius: 8px; margin-bottom: 20px; }
+    .alert-info { background: #e3f2fd; color: #1565c0; border-left: 4px solid #1565c0; }
+    .alert-warning { background: #fff3e0; color: #e65100; border-left: 4px solid #e65100; }
+    .btn-primary { padding: 12px 24px; background: #3498db; color: white; border: none; border-radius: 8px; font-size: 16px; font-weight: 600; cursor: pointer; text-decoration: none; display: inline-block; }
+    .btn-secondary { padding: 12px 24px; background: #95a5a6; color: white; border: none; border-radius: 8px; font-size: 16px; font-weight: 600; cursor: pointer; text-decoration: none; display: inline-block; }
+    .btn-group { display: flex; gap: 12px; }
+    @media (max-width: 768px) { 
+        .sidebar { display: none; } 
+        .main-content { margin-left: 0; } 
+        .form-row { grid-template-columns: 1fr; }
+        .form-card { padding: 20px; }
+    }
+</style>
+{% endblock %}
 
 {% block content %}
-<div class="container mt-4">
-    <div class="row">
-        <div class="col-12">
-            <nav aria-label="breadcrumb">
-                <ol class="breadcrumb">
-                    <li class="breadcrumb-item"><a href="{{ url_for('employee_dashboard') }}">Мой кабинет</a></li>
-                    <li class="breadcrumb-item active">Редактировать заказ #{{ order.id }}</li>
-                </ol>
-            </nav>
-        </div>
+<div class="employee-layout">
+    <div class="sidebar">
+        <div class="logo">🎯 InTarget</div>
+        <ul class="menu">
+            <li><a href="/employee">👨‍🔧 Мой кабинет</a></li>
+            <li><a href="/employee/orders/create">➕ Создать заказ</a></li>
+            <li><a href="/logout" class="logout">🚪 Выйти</a></li>
+        </ul>
     </div>
-
-    <div class="row">
-        <div class="col-md-8 mx-auto">
-            <div class="card shadow">
-                <div class="card-header bg-primary text-white">
-                    <h5 class="card-title mb-0">
-                        <i class="fas fa-edit"></i> Редактировать заказ #{{ order.id }}
-                    </h5>
-                </div>
-                <div class="card-body">
-                    <form method="POST" action="{{ url_for('employee_edit_order', order_id=order.id) }}" id="editOrderForm">
-                        <div class="row">
-                            <div class="col-md-6 mb-3">
-                                <label for="customer" class="form-label">
-                                    <i class="fas fa-user"></i> Имя клиента *
-                                </label>
-                                <input type="text" class="form-control" id="customer" name="customer" required
-                                       value="{{ order.customer }}">
-                            </div>
-                            
-                            <div class="col-md-6 mb-3">
-                                <label for="phone" class="form-label">
-                                    <i class="fas fa-phone"></i> Телефон *
-                                </label>
-                                <input type="tel" class="form-control" id="phone" name="phone" required
-                                       value="{{ order.phone }}">
-                            </div>
-                        </div>
-
-                        <div class="mb-3">
-                            <label for="address" class="form-label">
-                                <i class="fas fa-map-marker-alt"></i> Адрес доставки
-                            </label>
-                            <input type="text" class="form-control" id="address" name="address"
-                                   value="{{ order.address or '' }}">
-                        </div>
-
-                        <div class="mb-3">
-                            <label for="product" class="form-label">
-                                <i class="fas fa-box"></i> Товар/Услуга *
-                            </label>
-                            <textarea class="form-control" id="product" name="product" rows="3" required>{{ order.product }}</textarea>
-                        </div>
-
-                        <div class="row">
-                            <div class="col-md-6 mb-3">
-                                <label for="price" class="form-label">
-                                    <i class="fas fa-money-bill-wave"></i> Стоимость
-                                </label>
-                                <div class="input-group">
-                                    <input type="number" class="form-control" id="price" name="price" 
-                                           step="0.01" min="0" value="{{ order.price if order.price else '' }}">
-                                    <span class="input-group-text">руб.</span>
-                                </div>
-                            </div>
-                            
-                            <div class="col-md-6 mb-3">
-                                <label for="prepaid" class="form-label">
-                                    <i class="fas fa-hand-holding-usd"></i> Предоплата
-                                </label>
-                                <div class="input-group">
-                                    <input type="number" class="form-control" id="prepaid" name="prepaid" 
-                                           step="0.01" min="0" value="{{ order.prepaid if order.prepaid else '' }}">
-                                    <span class="input-group-text">руб.</span>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div class="row">
-                            <div class="col-md-6 mb-3">
-                                <label for="priority" class="form-label">
-                                    <i class="fas fa-flag"></i> Приоритет
-                                </label>
-                                <select class="form-select" id="priority" name="priority">
-                                    <option value="Обычный" {% if order.priority == 'Обычный' %}selected{% endif %}>Обычный</option>
-                                    <option value="Высокий" {% if order.priority == 'Высокий' %}selected{% endif %}>Высокий</option>
-                                    <option value="Низкий" {% if order.priority == 'Низкий' %}selected{% endif %}>Низкий</option>
-                                </select>
-                            </div>
-                            
-                            <div class="col-md-6 mb-3">
-                                <label for="status" class="form-label">
-                                    <i class="fas fa-info-circle"></i> Статус
-                                </label>
-                                <select class="form-select" id="status" name="status">
-                                    <option value="Новый" {% if order.status == 'Новый' %}selected{% endif %}>Новый</option>
-                                    <option value="В обработке" {% if order.status == 'В обработке' %}selected{% endif %}>В обработке</option>
-                                    <option value="Ожидает клиента" {% if order.status == 'Ожидает клиента' %}selected{% endif %}>Ожидает клиента</option>
-                                    <option value="Выполняется" {% if order.status == 'Выполняется' %}selected{% endif %}>Выполняется</option>
-                                    <option value="Выдан" {% if order.status == 'Выдан' %}selected{% endif %}>Выдан</option>
-                                </select>
-                            </div>
-                        </div>
-
-                        <div class="mb-3">
-                            <label for="comment" class="form-label">
-                                <i class="fas fa-comment"></i> Комментарий
-                            </label>
-                            <textarea class="form-control" id="comment" name="comment" rows="2">{{ order.comment or '' }}</textarea>
-                        </div>
-
-                        <div class="alert alert-info">
-                            <i class="fas fa-lock"></i> 
-                            <strong>Исполнитель закреплен:</strong> {{ user_name }}
-                            <br>
-                            <small class="text-muted">Вы являетесь создателем и единственным исполнителем этого заказа</small>
-                        </div>
-
-                        <div class="alert alert-warning">
-                            <i class="fas fa-info-circle"></i>
-                            <strong>Информация о заказе:</strong>
-                            <br>
-                            Создан: {{ order.created_at.strftime('%d.%m.%Y %H:%M') if order.created_at else 'Неизвестно' }}
-                            <br>
-                            Магазин: {{ shops.get(order.shop_id, order.shop_id) }}
-                        </div>
-
-                        <div class="d-grid gap-2">
-                            <button type="submit" class="btn btn-primary btn-lg">
-                                <i class="fas fa-save"></i> Сохранить изменения
-                            </button>
-                            <a href="{{ url_for('employee_dashboard') }}" class="btn btn-secondary">
-                                <i class="fas fa-arrow-left"></i> Назад в кабинет
-                            </a>
-                        </div>
-                    </form>
-                </div>
+    <div class="main-content">
+        <div class="page-header">
+            <div class="breadcrumb">
+                <a href="/employee">Мой кабинет</a> → Редактировать заказ #{{ order.id }}
             </div>
+            <h1>✏️ Редактировать заказ #{{ order.id }}</h1>
         </div>
-    </div>
-</div>
-
-<script>
-document.addEventListener('DOMContentLoaded', function() {
-    const phoneInput = document.getElementById('phone');
-    if (phoneInput) {
-        phoneInput.addEventListener('input', function(e) {
-            let value = e.target.value.replace(/\D/g, '');
-            if (value.length > 0) {
-                if (value.startsWith('375')) {
-                    value = '+' + value;
-                }
-                if (value.length > 6) {
-                    value = value.slice(0, 6) + ' ' + value.slice(6);
-                }
-                if (value.length > 10) {
-                    value = value.slice(0, 10) + '-' + value.slice(10);
-                }
-                if (value.length > 13) {
-                    value = value.slice(0, 13) + '-' + value.slice(13);
-                }
-            }
-            e.target.value = value;
-        });
-    }
-
-    const form = document.getElementById('editOrderForm');
-    if (form) {
-        form.addEventListener('submit', function(e) {
-            const customer = document.getElementById('customer').value.trim();
-            const phone = document.getElementById('phone').value.trim();
-            const product = document.getElementById('product').value.trim();
-            
-            if (!customer || !phone || !product) {
-                e.preventDefault();
-                alert('Пожалуйста, заполните все обязательные поля (*)');
-                return false;
-            }
-            
-            const submitBtn = this.querySelector('button[type="submit"]');
-            submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Сохранение...';
-            submitBtn.disabled = true;
-        });
-    }
-});
-</script>
-{% endblock %}
+        
+        <div class="form-card">
+            <form method="POST" action="/employee/orders/{{ order.id }}/edit" id="editOrderForm">
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>👤 Имя клиента *</label>
+                        <input type="text" name="customer" id="customer" required value="{{ order.customer }}">
+                    </div>
+                    <div class="form-group">
+                        <label>📞 Телефон *</label>
+                        <input type="tel" name="phone" id="phone" required value="{{ order.phone }}">
+                    </div>
+                </div>
+                
+                <div class="form-group">
+                    <label>📍 Адрес доставки</label>
+                    <input type="text" name="address" value="{{ order.address or '' }}">
+                </div>
+                
+                <div class="form-group">
+                    <label>📦 Товар/Услуга *</label>
+                    <textarea name="product" id="product" rows="3" required>{{ order.product }}</textarea>
+                </div>
+                
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>💰 Стоимость</label>
+                        <div class="input-group">
+                            <input type="number" name="price" step="0.01" min="0" value="{{ order.price if order.price else '' }}">
+                            <span>руб.</span>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label>💳 Предоплата</label>
+                        <div class="input-group">
+                            <input type="number" name="prepaid" step="0.01" min="0" value="{{ order.prepaid if order.prepaid else '' }}">
+                            <span>руб.</span>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>🚩 Приоритет</label>
+                        <select name="priority">
+                            <option value="Обычный" {% if order.priority == 'Обычный' %}selected{% endif %}>Обычный</option>
+                            <option value="Высокий" {% if order.priority == 'Высокий' %}selected{% endif %}>Высокий</option>
+                            <option value="Низкий" {% if order.priority == 'Низкий' %}selected{% endif %}>Низкий</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>📊 Статус</label>
+                        <select name="status">
+                            <option value="Новый" {% if order.status == 'Новый' %}selected{% endif %}>Новый</option>
+                            <option value="В обработке" {% if order.status == 'В обработке' %}selected{% endif %}>В обработке</option>
+                            <option value="Ожидает клиента" {% if order.status == 'Ожидает клиента' %}selected{% endif %}>Ожидает клиента</option>
+                            <option value="Выполняется" {% if order.status == 'Выполняется' %}selected{% endif %}>Выполняется</option>
+                            <option value="Выдан" {% if order.status == 'Выдан' %}selected{% endif %}>Выдан</option>
+                        </select>
+                    </div>
+                </div>
+                
+                <div class="form-group">
+                    <label>💬 Комментарий</label>
+                    <textarea name="comment" rows="2">{{ order.comment or '' }}</textarea>
+                </div>
+                
+                <div class="alert alert-info">
+                    <strong>🔒 Исполнитель закреплен:</strong> {{ user_name }}
+                    <br>
+                    <small>Вы являетесь создателем и единственным исполнителем этого заказа</small>
+                </div>
+                
+                <div class="alert alert-warning">
+                    <strong>ℹ️ Информация о заказе:</strong>
+                    <
