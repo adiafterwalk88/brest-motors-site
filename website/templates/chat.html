@@ -4,12 +4,107 @@
 <style>
 .chat-container {
     display: flex;
-    flex-direction: column;
-    height: calc(100vh - 200px);
+    height: calc(100vh - 160px);
+    gap: 0;
     background: white;
     border-radius: 12px;
     box-shadow: 0 2px 8px rgba(0,0,0,0.06);
     overflow: hidden;
+}
+
+/* Левая панель - онлайн-пользователи */
+.chat-sidebar {
+    width: 220px;
+    background: #f8f9fa;
+    border-right: 1px solid #e0e0e0;
+    padding: 16px;
+    overflow-y: auto;
+    flex-shrink: 0;
+}
+
+.chat-sidebar h3 {
+    font-size: 14px;
+    color: #666;
+    margin-bottom: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.online-user {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 12px;
+    border-radius: 8px;
+    margin-bottom: 4px;
+    transition: background .2s;
+}
+
+.online-user:hover {
+    background: #e9ecef;
+}
+
+.online-user .avatar {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    background: #2ecc71;
+    color: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 600;
+    font-size: 14px;
+    flex-shrink: 0;
+}
+
+.online-user .avatar.offline {
+    background: #ced4da;
+}
+
+.online-user .user-info {
+    flex: 1;
+}
+
+.online-user .user-name {
+    font-size: 14px;
+    font-weight: 500;
+    color: #1a1a2e;
+}
+
+.online-user .user-status {
+    font-size: 11px;
+    color: #999;
+}
+
+.online-user .status-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    display: inline-block;
+    margin-right: 4px;
+}
+
+.online-user .status-dot.online {
+    background: #2ecc71;
+    animation: pulse-dot 2s infinite;
+}
+
+.online-user .status-dot.offline {
+    background: #ced4da;
+}
+
+@keyframes pulse-dot {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.4; }
+}
+
+/* Основная часть - чат */
+.chat-main {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
 }
 
 .chat-header {
@@ -19,6 +114,7 @@
     display: flex;
     justify-content: space-between;
     align-items: center;
+    flex-shrink: 0;
 }
 
 .chat-header h2 {
@@ -49,6 +145,7 @@
     border-radius: 12px;
     background: white;
     box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+    word-wrap: break-word;
 }
 
 .chat-message.own .message-bubble {
@@ -79,6 +176,7 @@
     border-top: 1px solid #e0e0e0;
     display: flex;
     gap: 12px;
+    flex-shrink: 0;
 }
 
 .chat-input-area input {
@@ -114,19 +212,8 @@
 .chat-input-area button:disabled {
     opacity: 0.5;
     cursor: not-allowed;
-    transform: none;
 }
 
-.message-time {
-    font-size: 11px;
-    color: #999;
-}
-
-.chat-message.own .message-time {
-    color: rgba(255,255,255,0.8);
-}
-
-/* Анимация новых сообщений */
 @keyframes slideIn {
     from { opacity: 0; transform: translateY(10px); }
     to { opacity: 1; transform: translateY(0); }
@@ -136,77 +223,83 @@
     animation: slideIn 0.3s ease-out;
 }
 
-/* Индикатор набора текста */
-.typing-indicator {
-    padding: 8px 16px;
-    color: #666;
-    font-size: 13px;
-    display: none;
+.empty-chat {
+    text-align: center;
+    color: #999;
+    padding: 40px;
+    font-size: 16px;
 }
 
-.typing-indicator.active {
-    display: block;
-}
-
-.typing-dots {
-    display: inline-block;
-    animation: dots 1.4s infinite;
-}
-
-@keyframes dots {
-    0%, 20% { content: ''; }
-    40% { content: '.'; }
-    60% { content: '..'; }
-    80%, 100% { content: '...'; }
-}
-
-/* Количество непрочитанных */
-.unread-badge {
-    background: #e74c3c;
+.online-count {
+    background: #2ecc71;
     color: white;
-    border-radius: 50%;
-    padding: 2px 8px;
+    border-radius: 12px;
+    padding: 2px 10px;
     font-size: 12px;
-    margin-left: 8px;
+    font-weight: 600;
+}
+
+@media (max-width: 768px) {
+    .chat-sidebar {
+        display: none;
+    }
+    .chat-container {
+        height: calc(100vh - 120px);
+        border-radius: 0;
+    }
+    .chat-message .message-bubble {
+        max-width: 85%;
+    }
 }
 </style>
 {% endblock %}
 
 {% block content %}
-<div class="chat-container">
-    <div class="chat-header">
-        <h2>💬 Командный чат</h2>
-        <div>
-            <span style="font-size:13px;opacity:0.8;">👥 {{ employees|length }} сотрудников</span>
-            <span id="online-count" style="margin-left:12px;font-size:13px;opacity:0.8;">🟢 <span id="online-number">0</span> онлайн</span>
-        </div>
-    </div>
-
-    <div class="chat-messages" id="chatMessages">
-        {% for msg in chat_messages %}
-        <div class="chat-message {% if msg.user_name == session.user_name %}own{% endif %}" data-id="{{ msg.id }}">
-            <div class="message-bubble">
-                {{ msg.message }}
+<div style="max-width:1100px;margin:0 auto;">
+    <div class="chat-container">
+        <div class="chat-sidebar" id="onlineUsers">
+            <h3>👥 Онлайн <span class="online-count" id="onlineCount">0</span></h3>
+            <div id="usersList">
+                <div style="text-align:center;color:#999;font-size:13px;padding:20px;">
+                    Загрузка...
+                </div>
             </div>
-            <div class="message-meta">
-                <span class="user-name">{{ msg.user_name }}</span>
-                <span class="message-time">{{ msg.created_at.strftime('%H:%M') }}</span>
-                {% if msg.user_name == session.user_name %}
-                <span style="color:#2ecc71;font-size:11px;">✓</span>
+        </div>
+
+        <div class="chat-main">
+            <div class="chat-header">
+                <h2>💬 Командный чат</h2>
+                <div style="font-size:13px;opacity:0.8;">
+                    👤 {{ session.user_name }}
+                </div>
+            </div>
+
+            <div class="chat-messages" id="chatMessages">
+                {% if chat_messages %}
+                    {% for msg in chat_messages %}
+                    <div class="chat-message {% if msg.user_name == session.user_name %}own{% endif %}" data-id="{{ msg.id }}">
+                        <div class="message-bubble">
+                            {{ msg.message }}
+                        </div>
+                        <div class="message-meta">
+                            <span class="user-name">{{ msg.user_name }}</span>
+                            <span>{{ msg.created_at.strftime('%d.%m.%Y %H:%M') }}</span>
+                        </div>
+                    </div>
+                    {% endfor %}
+                {% else %}
+                    <div class="empty-chat">
+                        💬 Пока нет сообщений<br>
+                        <span style="font-size:13px;color:#bbb;">Напишите что-нибудь, чтобы начать общение</span>
+                    </div>
                 {% endif %}
             </div>
+
+            <div class="chat-input-area">
+                <input type="text" id="chatInput" placeholder="Введите сообщение..." autofocus />
+                <button id="sendButton">📤 Отправить</button>
+            </div>
         </div>
-        {% endfor %}
-    </div>
-
-    <div class="typing-indicator" id="typingIndicator">
-        <span>Кто-то печатает</span>
-        <span class="typing-dots">...</span>
-    </div>
-
-    <div class="chat-input-area">
-        <input type="text" id="chatInput" placeholder="Введите сообщение..." autofocus />
-        <button id="sendButton">📤 Отправить</button>
     </div>
 </div>
 
@@ -215,19 +308,15 @@ document.addEventListener('DOMContentLoaded', function() {
     const messagesContainer = document.getElementById('chatMessages');
     const chatInput = document.getElementById('chatInput');
     const sendButton = document.getElementById('sendButton');
-    const typingIndicator = document.getElementById('typingIndicator');
+    const usersList = document.getElementById('usersList');
+    const onlineCount = document.getElementById('onlineCount');
+    const userName = '{{ session.user_name }}';
     
-    let lastMessageId = null;
-    let typingTimeout = null;
-    let isTyping = false;
-
-    // Функция для скролла вниз
     function scrollToBottom() {
         messagesContainer.scrollTop = messagesContainer.scrollHeight;
     }
-    scrollToBottom();
+    setTimeout(scrollToBottom, 100);
 
-    // Отправка сообщения
     function sendMessage() {
         const message = chatInput.value.trim();
         if (!message) return;
@@ -237,9 +326,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
         fetch('/api/chat/send', {
             method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
+            headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ message: message })
         })
         .then(response => response.json())
@@ -249,13 +336,10 @@ document.addEventListener('DOMContentLoaded', function() {
                 chatInput.disabled = false;
                 sendButton.disabled = false;
                 chatInput.focus();
-                
-                // Добавляем сообщение сразу (оптимистичное обновление)
                 addMessage({
-                    user_name: '{{ session.user_name }}',
+                    user_name: userName,
                     message: message,
-                    created_at: new Date().toISOString(),
-                    id: data.id
+                    created_at: new Date().toISOString()
                 }, true);
             }
         })
@@ -263,79 +347,131 @@ document.addEventListener('DOMContentLoaded', function() {
             console.error('Ошибка:', error);
             chatInput.disabled = false;
             sendButton.disabled = false;
-            alert('Ошибка отправки сообщения');
+            alert('❌ Ошибка отправки сообщения');
         });
     }
 
-    // Добавление сообщения в чат
     function addMessage(msg, isOwn = false) {
         const div = document.createElement('div');
         div.className = `chat-message ${isOwn ? 'own' : ''}`;
-        div.dataset.id = msg.id;
-        
-        const time = new Date(msg.created_at);
-        const timeStr = time.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' });
-        
+        const date = new Date(msg.created_at);
+        const dateStr = date.toLocaleString('ru-RU', {
+            day: '2-digit', month: '2-digit', year: 'numeric',
+            hour: '2-digit', minute: '2-digit'
+        });
         div.innerHTML = `
             <div class="message-bubble">${escapeHtml(msg.message)}</div>
             <div class="message-meta">
                 <span class="user-name">${escapeHtml(msg.user_name)}</span>
-                <span class="message-time">${timeStr}</span>
-                ${isOwn ? '<span style="color:#2ecc71;font-size:11px;">✓</span>' : ''}
+                <span>${dateStr}</span>
             </div>
         `;
-        
         messagesContainer.appendChild(div);
         scrollToBottom();
     }
 
-    // Экранирование HTML
     function escapeHtml(text) {
         const div = document.createElement('div');
         div.textContent = text;
         return div.innerHTML;
     }
 
-    // Получение новых сообщений
     function fetchNewMessages() {
-        const firstMessage = messagesContainer.querySelector('.chat-message:first-child');
         const lastMessage = messagesContainer.querySelector('.chat-message:last-child');
         const lastId = lastMessage ? lastMessage.dataset.id : null;
-        
         let url = '/api/chat/messages?limit=50';
-        if (lastId) {
-            url += `&after=${lastId}`;
-        }
+        if (lastId) url += `&after=${lastId}`;
         
         fetch(url)
             .then(response => response.json())
             .then(messages => {
-                // Проверяем, есть ли новые сообщения
                 const currentIds = new Set();
                 messagesContainer.querySelectorAll('.chat-message').forEach(el => {
-                    currentIds.add(el.dataset.id);
+                    if (el.dataset.id) currentIds.add(el.dataset.id);
                 });
-                
                 let newMessages = 0;
                 messages.forEach(msg => {
                     if (!currentIds.has(String(msg.id))) {
-                        const isOwn = msg.user_name === '{{ session.user_name }}';
+                        const isOwn = msg.user_name === userName;
                         addMessage(msg, isOwn);
                         newMessages++;
                     }
                 });
-                
-                // Показываем уведомление, если не в фокусе
                 if (newMessages > 0 && document.hidden) {
                     document.title = `💬 ${newMessages} новых сообщений`;
-                } else {
+                } else if (newMessages > 0) {
                     document.title = '💬 Командный чат';
                 }
             })
             .catch(error => console.error('Ошибка загрузки:', error));
     }
 
-    // Обработчики событий
+    // ===== ОНЛАЙН-СТАТУС =====
+    
+    function updateOnlineStatus() {
+        fetch('/api/online/update', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' }
+        }).catch(error => console.error('Ошибка обновления статуса:', error));
+    }
+
+    function fetchOnlineUsers() {
+        fetch('/api/online/users')
+            .then(response => response.json())
+            .then(users => {
+                renderOnlineUsers(users);
+            })
+            .catch(error => console.error('Ошибка загрузки онлайн-пользователей:', error));
+    }
+
+    function renderOnlineUsers(users) {
+        const onlineUsers = users.filter(u => u.is_online);
+        onlineCount.textContent = onlineUsers.length;
+        
+        if (users.length === 0) {
+            usersList.innerHTML = `
+                <div style="text-align:center;color:#999;font-size:13px;padding:20px;">
+                    Нет активных пользователей
+                </div>
+            `;
+            return;
+        }
+        
+        let html = '';
+        onlineUsers.forEach(user => {
+            const initials = user.user_name.split(' ').map(w => w[0]).join('').toUpperCase();
+            html += `
+                <div class="online-user">
+                    <div class="avatar">${initials || '👤'}</div>
+                    <div class="user-info">
+                        <div class="user-name">${escapeHtml(user.user_name)}</div>
+                        <div class="user-status">
+                            <span class="status-dot online"></span> онлайн
+                        </div>
+                    </div>
+                </div>
+            `;
+        });
+        
+        const offlineUsers = users.filter(u => !u.is_online);
+        offlineUsers.forEach(user => {
+            const initials = user.user_name.split(' ').map(w => w[0]).join('').toUpperCase();
+            html += `
+                <div class="online-user" style="opacity:0.6;">
+                    <div class="avatar offline">${initials || '👤'}</div>
+                    <div class="user-info">
+                        <div class="user-name">${escapeHtml(user.user_name)}</div>
+                        <div class="user-status">
+                            <span class="status-dot offline"></span> был(а) онлайн
+                        </div>
+                    </div>
+                </div>
+            `;
+        });
+        usersList.innerHTML = html;
+    }
+
+    // ===== ОБРАБОТЧИКИ =====
     sendButton.addEventListener('click', sendMessage);
     chatInput.addEventListener('keypress', function(e) {
         if (e.key === 'Enter' && !e.shiftKey) {
@@ -344,30 +480,27 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     });
 
-    // Проверка новых сообщений каждые 3 секунды
+    // ===== ПЕРИОДИЧЕСКИЕ ЗАДАЧИ =====
+    setInterval(updateOnlineStatus, 30000);
+    setInterval(fetchOnlineUsers, 10000);
     setInterval(fetchNewMessages, 3000);
 
-    // Индикатор набора текста (простой polling)
-    chatInput.addEventListener('input', function() {
-        clearTimeout(typingTimeout);
-        if (!isTyping && this.value.length > 0) {
-            isTyping = true;
-            // Здесь можно отправить сигнал о наборе текста
-        }
-        typingTimeout = setTimeout(() => {
-            isTyping = false;
-        }, 2000);
+    // ===== ПРИ ВЫХОДЕ =====
+    window.addEventListener('beforeunload', function() {
+        navigator.sendBeacon('/api/online/leave');
     });
 
-    // Восстановление заголовка при фокусе
+    // ===== ИНИЦИАЛИЗАЦИЯ =====
+    updateOnlineStatus();
+    fetchOnlineUsers();
+    setTimeout(fetchNewMessages, 1000);
+
     document.addEventListener('visibilitychange', function() {
         if (!document.hidden) {
             document.title = '💬 Командный чат';
+            fetchOnlineUsers();
         }
     });
-
-    // Первая загрузка
-    setTimeout(fetchNewMessages, 1000);
 });
 </script>
 {% endblock %}
