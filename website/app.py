@@ -338,6 +338,63 @@ def employee_dashboard():
                              now=datetime.now())
 
 # ==========================================
+# СОЗДАНИЕ ЗАКАЗА СОТРУДНИКОМ
+# ==========================================
+@app.route('/employee/orders/create', methods=['GET', 'POST'])
+@login_required
+def employee_create_order():
+    """Создание заказа из кабинета сотрудника"""
+    if session.get('is_admin'):
+        return redirect(url_for('create_order_form'))
+    
+    if request.method == 'POST':
+        try:
+            customer = request.form.get('customer')
+            phone = request.form.get('phone')
+            address = request.form.get('address')
+            product = request.form.get('product')
+            price = safe_float(request.form.get('price'))
+            prepaid = safe_float(request.form.get('prepaid'))
+            priority = request.form.get('priority') or 'Обычный'
+            status = request.form.get('status') or 'Новый'
+            comment = request.form.get('comment')
+            
+            # Сотрудник автоматически назначается исполнителем
+            executor = session.get('user_name')
+            shop_id = get_user_shop()
+            
+            # Если у сотрудника shop_id = 'all', используем первый магазин
+            if shop_id == 'all':
+                shop_id = list(Config.SHOPS.keys())[0]
+            
+            conn = get_db_connection()
+            cur = conn.cursor()
+            query = """
+                INSERT INTO orders (customer, phone, address, product, price, prepaid, 
+                                   priority, executor, status, comment, shop_id)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                RETURNING id;
+            """
+            cur.execute(query, (customer, phone, address, product, price, prepaid, 
+                               priority, executor, status, comment, shop_id))
+            order_id = cur.fetchone()[0]
+            conn.commit()
+            cur.close()
+            conn.close()
+            
+            flash(f'✅ Заказ #{order_id} успешно создан! Вы назначены исполнителем.', 'success')
+            return redirect(url_for('employee_dashboard'))
+        except Exception as e:
+            print(f"Ошибка создания заказа сотрудником: {e}")
+            flash(f'❌ Ошибка: {e}', 'error')
+            return redirect(url_for('employee_create_order'))
+    
+    return render_template('employee_create_order.html',
+                         shops=Config.SHOPS,
+                         employees=get_employees(),
+                         user_name=session.get('user_name'))
+
+# ==========================================
 # ЗАКАЗЫ
 # ==========================================
 @app.route('/orders')
