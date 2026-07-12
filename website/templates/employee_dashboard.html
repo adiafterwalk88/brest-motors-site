@@ -47,7 +47,7 @@
     .chat-input-group { display: flex; gap: 8px; margin-top: 12px; }
     .chat-input-group input { flex: 1; padding: 8px 12px; border: 1px solid #ddd; border-radius: 6px; }
     .chat-input-group button { padding: 8px 16px; background: #3498db; color: white; border: none; border-radius: 6px; cursor: pointer; white-space: nowrap; }
-    .own-order { background: #f0f8ff; }
+    .my-order { background: #f0f8ff; }
     .btn-group { display: flex; gap: 5px; }
     @media (max-width: 768px) { 
         .sidebar { display: none; } 
@@ -128,7 +128,7 @@
                                 </thead>
                                 <tbody>
                                     {% for order in my_orders %}
-                                    <tr class="{% if order.is_own_order %}own-order{% endif %}">
+                                    <tr class="my-order">
                                         <td>#{{ order.id }}</td>
                                         <td>{{ order.customer }}</td>
                                         <td><small>{{ shops.get(order.shop_id, order.shop_id) }}</small></td>
@@ -145,9 +145,7 @@
                                         </td>
                                         <td>
                                             <div class="btn-group">
-                                                {% if order.is_own_order %}
                                                 <a href="/employee/orders/{{ order.id }}/edit" class="btn-sm btn-edit">✏️</a>
-                                                {% endif %}
                                                 <form method="POST" action="/orders/{{ order.id }}/complete" style="display:inline;">
                                                     <input type="hidden" name="notes" value="">
                                                     <button type="submit" class="btn-sm btn-complete">✅</button>
@@ -174,7 +172,7 @@
                     <div class="shop-header">
                         🏪 {{ shop_data.name }}
                         <span style="font-size:14px;opacity:0.9;">
-                            (Активных: {{ shop_data.stats.active if shop_data.stats else 0 }}, 
+                            (Всего активных: {{ shop_data.stats.active if shop_data.stats else 0 }}, 
                             Моих: {{ shop_data.stats.my_active if shop_data.stats else 0 }})
                         </span>
                     </div>
@@ -195,7 +193,7 @@
                                     </thead>
                                     <tbody>
                                         {% for order in shop_data.active_orders %}
-                                        <tr class="{% if order.is_own_order %}own-order{% endif %}">
+                                        <tr class="{% if order.executor == session.user_name %}my-order{% endif %}">
                                             <td>#{{ order.id }}</td>
                                             <td>{{ order.customer }}</td>
                                             <td>{{ order.product[:30] }}{% if order.product|length > 30 %}...{% endif %}</td>
@@ -217,7 +215,7 @@
                                                 </span>
                                             </td>
                                             <td>
-                                                {% if order.is_own_order %}
+                                                {% if order.executor == session.user_name %}
                                                 <a href="/employee/orders/{{ order.id }}/edit" class="btn-sm btn-edit">✏️</a>
                                                 {% endif %}
                                             </td>
@@ -269,7 +267,7 @@
                     <div class="card-title">📅 Мои задачи на сегодня</div>
                     {% if today_tasks %}
                         {% for task in today_tasks %}
-                        <div style="padding:10px 0;border-bottom:1px solid #f0f0f0;{% if task.is_own_order %}background:#f0f8ff;padding:10px;border-radius:6px;{% endif %}">
+                        <div style="padding:10px 0;border-bottom:1px solid #f0f0f0;background:#f0f8ff;padding:10px;border-radius:6px;margin-bottom:5px;">
                             <div style="display:flex;justify-content:space-between;align-items:center;">
                                 <div>
                                     <strong>#{{ task.id }}</strong> - {{ task.customer }}
@@ -279,9 +277,7 @@
                                     <small style="color:#999;">{{ shops.get(task.shop_id, task.shop_id) }}</small>
                                 </div>
                                 <div style="display:flex;align-items:center;gap:8px;">
-                                    {% if task.is_own_order %}
                                     <a href="/employee/orders/{{ task.id }}/edit" class="btn-sm btn-edit">✏️</a>
-                                    {% endif %}
                                     <span class="badge-status {% if task.priority == 'Высокий' %}badge-high{% else %}badge-normal{% endif %}">
                                         {{ task.priority }}
                                     </span>
