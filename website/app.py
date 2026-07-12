@@ -426,6 +426,80 @@ def employee_create_order():
                          user_name=session.get('user_name'))
 
 # ==========================================
+# РЕДАКТИРОВАНИЕ ЗАКАЗА СОТРУДНИКОМ
+# ==========================================
+@app.route('/employee/orders/<int:order_id>/edit', methods=['GET', 'POST'])
+@login_required
+def employee_edit_order(order_id):
+    """Редактирование заказа сотрудником (только если он исполнитель)"""
+    if session.get('is_admin'):
+        return redirect(url_for('edit_order_form', order_id=order_id))
+    
+    user_name = session.get('user_name')
+    
+    try:
+        conn = get_db_connection()
+        cur = conn.cursor(cursor_factory=DictCursor)
+        
+        # Проверяем, что сотрудник является исполнителем этого заказа
+        cur.execute("""
+            SELECT * FROM orders 
+            WHERE id = %s AND executor = %s AND status != 'Выдан'
+        """, (order_id, user_name))
+        order = cur.fetchone()
+        
+        if not order:
+            flash('❌ Вы не можете редактировать этот заказ! Возможно, он уже завершен или назначен другому сотруднику.', 'error')
+            cur.close()
+            conn.close()
+            return redirect(url_for('employee_dashboard'))
+        
+        if request.method == 'POST':
+            customer = request.form.get('customer')
+            phone = request.form.get('phone')
+            address = request.form.get('address')
+            product = request.form.get('product')
+            price = safe_float(request.form.get('price'))
+            prepaid = safe_float(request.form.get('prepaid'))
+            priority = request.form.get('priority') or 'Обычный'
+            status = request.form.get('status') or order['status']
+            comment = request.form.get('comment')
+            
+            # Исполнитель не меняется
+            query = """
+                UPDATE orders 
+                SET customer = %s, phone = %s, address = %s, product = %s, 
+                    price = %s, prepaid = %s, priority = %s, status = %s, 
+                    comment = %s, updated_at = CURRENT_TIMESTAMP
+                WHERE id = %s AND executor = %s AND status != 'Выдан'
+                RETURNING id;
+            """
+            cur.execute(query, (customer, phone, address, product, price, prepaid, 
+                               priority, status, comment, order_id, user_name))
+            
+            if cur.fetchone():
+                conn.commit()
+                flash(f'✅ Заказ #{order_id} успешно обновлен!', 'success')
+            else:
+                flash('❌ Ошибка обновления заказа', 'error')
+            
+            cur.close()
+            conn.close()
+            return redirect(url_for('employee_dashboard'))
+        
+        cur.close()
+        conn.close()
+        
+        return render_template('employee_edit_order.html',
+                             order=order,
+                             user_name=user_name,
+                             shops=Config.SHOPS)
+                             
+    except Exception as e:
+        print(f"Ошибка редактирования заказа сотрудником: {e}")
+        flash(f'❌ Ошибка: {e}', 'error')
+        return redirect(url_for('employee_dashboard'))
+# ==========================================
 # ЗАКАЗЫ
 # ==========================================
 @app.route('/orders')
