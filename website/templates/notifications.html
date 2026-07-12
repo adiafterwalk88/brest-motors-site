@@ -1,0 +1,302 @@
+{% extends "base.html" %}
+
+{% block extra_css %}
+<style>
+.notification-container {
+    max-width: 900px;
+    margin: 0 auto;
+}
+
+.notification-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+    flex-wrap: wrap;
+    gap: 12px;
+}
+
+.notification-filters {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.notification-filters a {
+    padding: 6px 16px;
+    border-radius: 20px;
+    text-decoration: none;
+    font-size: 13px;
+    background: #f0f2f5;
+    color: #666;
+    transition: all .2s;
+}
+
+.notification-filters a:hover {
+    background: #e0e0e0;
+}
+
+.notification-filters a.active {
+    background: #2ecc71;
+    color: white;
+}
+
+.notification-filters a .badge {
+    background: #e74c3c;
+    color: white;
+    border-radius: 50%;
+    padding: 1px 8px;
+    font-size: 11px;
+    margin-left: 4px;
+}
+
+.notification-item {
+    background: white;
+    border-radius: 10px;
+    padding: 16px 20px;
+    margin-bottom: 10px;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+    display: flex;
+    gap: 16px;
+    align-items: flex-start;
+    transition: all .2s;
+    border-left: 4px solid transparent;
+}
+
+.notification-item.unread {
+    border-left-color: #2ecc71;
+    background: #f8fff8;
+}
+
+.notification-item .icon {
+    font-size: 24px;
+    flex-shrink: 0;
+    width: 40px;
+    text-align: center;
+}
+
+.notification-item .content {
+    flex: 1;
+}
+
+.notification-item .content .title {
+    font-weight: 600;
+    font-size: 15px;
+    color: #1a1a2e;
+}
+
+.notification-item .content .message {
+    font-size: 14px;
+    color: #555;
+    margin-top: 4px;
+}
+
+.notification-item .content .meta {
+    font-size: 12px;
+    color: #999;
+    margin-top: 6px;
+    display: flex;
+    gap: 12px;
+    flex-wrap: wrap;
+}
+
+.notification-item .content .meta .priority-high {
+    color: #e74c3c;
+    font-weight: 600;
+}
+
+.notification-item .content .meta .priority-medium {
+    color: #f39c12;
+    font-weight: 600;
+}
+
+.notification-item .actions {
+    display: flex;
+    gap: 6px;
+    flex-shrink: 0;
+}
+
+.notification-item .actions button {
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-size: 16px;
+    padding: 4px 8px;
+    border-radius: 6px;
+    transition: background .2s;
+    opacity: 0.5;
+}
+
+.notification-item .actions button:hover {
+    background: #f0f0f0;
+    opacity: 1;
+}
+
+.notification-item .actions button.read-btn {
+    color: #2ecc71;
+}
+
+.notification-item .actions button.archive-btn {
+    color: #f39c12;
+}
+
+.empty-notifications {
+    text-align: center;
+    padding: 60px 20px;
+    color: #999;
+}
+
+.empty-notifications .big-icon {
+    font-size: 64px;
+    margin-bottom: 16px;
+}
+
+@media (max-width: 768px) {
+    .notification-header {
+        flex-direction: column;
+        align-items: stretch;
+    }
+    .notification-item {
+        flex-wrap: wrap;
+    }
+    .notification-item .actions {
+        width: 100%;
+        justify-content: flex-end;
+    }
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="notification-container">
+    <div class="notification-header">
+        <h1 style="font-size:24px;">🔔 Уведомления</h1>
+        <div class="notification-filters">
+            <a href="/notifications?type=all" class="{% if filter_type == 'all' %}active{% endif %}">
+                Все
+            </a>
+            <a href="/notifications?type=unread" class="{% if filter_type == 'unread' %}active{% endif %}">
+                Непрочитанные
+                {% if stats and stats.unread > 0 %}
+                <span class="badge">{{ stats.unread }}</span>
+                {% endif %}
+            </a>
+            <a href="/notifications?type=read" class="{% if filter_type == 'read' %}active{% endif %}">
+                Прочитанные
+            </a>
+            <a href="/notifications?type=archived" class="{% if filter_type == 'archived' %}active{% endif %}">
+                Архив
+            </a>
+            {% if filter_type != 'archived' %}
+            <button onclick="markAllRead()" class="btn btn-sm btn-info" style="margin-left:8px;padding:6px 16px;border:none;border-radius:20px;background:#3498db;color:white;cursor:pointer;">
+                📖 Всё прочитано
+            </button>
+            {% endif %}
+        </div>
+    </div>
+
+    <div id="notificationsList">
+        {% if notifications %}
+            {% for notif in notifications %}
+            <div class="notification-item {% if not notif.is_read %}unread{% endif %}" 
+                 data-id="{{ notif.id }}">
+                <div class="icon">
+                    {% if notif.priority == 'Высокий' %}🔴
+                    {% elif notif.priority == 'Обычный' %}🟡
+                    {% else %}🟢{% endif %}
+                </div>
+                <div class="content">
+                    <div class="title">{{ notif.title }}</div>
+                    <div class="message">{{ notif.message }}</div>
+                    <div class="meta">
+                        <span>{{ notif.created_at.strftime('%d.%m.%Y %H:%M') }}</span>
+                        {% if notif.order_id %}
+                        <span>📦 Заказ #{{ notif.order_id }}</span>
+                        {% endif %}
+                        <span class="priority-{% if notif.priority == 'Высокий' %}high{% elif notif.priority == 'Обычный' %}medium{% else %}low{% endif %}">
+                            {{ notif.priority }}
+                        </span>
+                        {% if notif.order_status %}
+                        <span>Статус: {{ notif.order_status }}</span>
+                        {% endif %}
+                    </div>
+                </div>
+                <div class="actions">
+                    {% if not notif.is_read %}
+                    <button class="read-btn" onclick="markRead({{ notif.id }})" title="Отметить как прочитанное">✅</button>
+                    {% endif %}
+                    {% if not notif.is_archived %}
+                    <button class="archive-btn" onclick="archiveNotif({{ notif.id }})" title="Архивировать">📦</button>
+                    {% endif %}
+                </div>
+            </div>
+            {% endfor %}
+        {% else %}
+            <div class="empty-notifications">
+                <div class="big-icon">📭</div>
+                <h3 style="color:#333;">Нет уведомлений</h3>
+                <p>Все уведомления будут отображаться здесь</p>
+            </div>
+        {% endif %}
+    </div>
+</div>
+
+<script>
+function markRead(notifId) {
+    fetch(`/api/notifications/mark-read/${notifId}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            const item = document.querySelector(`.notification-item[data-id="${notifId}"]`);
+            if (item) {
+                item.classList.remove('unread');
+                const btn = item.querySelector('.read-btn');
+                if (btn) btn.remove();
+            }
+        }
+    })
+    .catch(error => console.error('Ошибка:', error));
+}
+
+function archiveNotif(notifId) {
+    fetch(`/api/notifications/archive/${notifId}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            const item = document.querySelector(`.notification-item[data-id="${notifId}"]`);
+            if (item) {
+                item.style.opacity = '0.3';
+                setTimeout(() => { item.remove(); }, 300);
+            }
+        }
+    })
+    .catch(error => console.error('Ошибка:', error));
+}
+
+function markAllRead() {
+    if (!confirm('Отметить все уведомления как прочитанные?')) return;
+    
+    fetch('/api/notifications/mark-all-read', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            document.querySelectorAll('.notification-item.unread').forEach(item => {
+                item.classList.remove('unread');
+                const btn = item.querySelector('.read-btn');
+                if (btn) btn.remove();
+            });
+        }
+    })
+    .catch(error => console.error('Ошибка:', error));
+}
+</script>
+{% endblock %}
