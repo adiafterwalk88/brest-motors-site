@@ -4,7 +4,7 @@
 <style>
     body { font-family: 'Segoe UI', Arial, sans-serif; background: #f0f2f5; margin: 0; padding: 0; }
     .employee-layout { display: flex; min-height: 100vh; }
-    .sidebar { width: 240px; background: #1a1a2e; color: white; padding: 20px 0; position: fixed; height: 100vh; overflow-y: auto; }
+    .sidebar { width: 240px; background: #1a1a2e; color: white; padding: 20px 0; position: fixed; height: 100vh; overflow-y: auto; z-index: 100; }
     .sidebar .logo { font-size: 20px; font-weight: 700; padding: 0 20px 20px; border-bottom: 1px solid rgba(255,255,255,0.1); display: flex; align-items: center; gap: 10px; }
     .sidebar .menu { list-style: none; padding: 0; margin-top: 20px; }
     .sidebar .menu a { display: flex; align-items: center; gap: 12px; padding: 12px 20px; color: rgba(255,255,255,0.7); text-decoration: none; transition: all .2s; border-left: 3px solid transparent; }
@@ -18,11 +18,11 @@
     .form-card { background: white; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); padding: 30px; max-width: 800px; margin: 0 auto; }
     .form-group { margin-bottom: 20px; }
     .form-group label { display: block; margin-bottom: 6px; font-weight: 600; color: #333; }
-    .form-group input, .form-group textarea, .form-group select { width: 100%; padding: 10px 12px; border: 1px solid #ddd; border-radius: 8px; font-size: 14px; font-family: inherit; }
+    .form-group input, .form-group textarea, .form-group select { width: 100%; padding: 10px 12px; border: 1px solid #ddd; border-radius: 8px; font-size: 14px; font-family: inherit; box-sizing: border-box; }
     .form-group textarea { resize: vertical; min-height: 80px; }
     .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
     .input-group { display: flex; }
-    .input-group input { border-radius: 8px 0 0 8px; }
+    .input-group input { border-radius: 8px 0 0 8px; flex: 1; }
     .input-group span { padding: 10px 16px; background: #f0f0f0; border: 1px solid #ddd; border-left: none; border-radius: 0 8px 8px 0; display: flex; align-items: center; color: #666; }
     .alert { padding: 16px; border-radius: 8px; margin-bottom: 20px; }
     .alert-info { background: #e3f2fd; color: #1565c0; border-left: 4px solid #1565c0; }
@@ -124,9 +124,9 @@
                 </div>
                 
                 <div class="alert alert-info">
-                    <strong>🔒 Исполнитель закреплен:</strong> {{ user_name }}
+                    <strong>🔒 Исполнитель:</strong> {{ user_name }} (вы)
                     <br>
-                    <small>Вы являетесь создателем и единственным исполнителем этого заказа</small>
+                    <small>Вы являетесь исполнителем этого заказа</small>
                 </div>
                 
                 <div class="alert alert-warning">
