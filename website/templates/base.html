@@ -12,16 +12,54 @@
     {% block extra_css %}{% endblock %}
 </head>
 <body>
-    <!-- Мобильное меню -->
+    <!-- Мобильное меню (бургер) -->
     <button class="mobile-menu-toggle" id="mobileMenuToggle" aria-label="Открыть меню">☰</button>
     
     <div class="app-layout">
-        <!-- Sidebar -->
-        {% block sidebar %}
-            {% include "partials/sidebar.html" %}
-        {% endblock %}
+        <!-- ===== САЙДБАР (встроен прямо сюда) ===== -->
+        <div class="sidebar" id="mainSidebar" role="navigation" aria-label="Основное меню">
+            <div class="sidebar-header">
+                <div class="logo">
+                    🎯 In<span>Target</span>
+                </div>
+                <button class="sidebar-close" id="sidebarClose" aria-label="Закрыть меню">✕</button>
+            </div>
+            
+            <ul class="menu">
+                <li>
+                    <a href="{{ url_for('dashboard') }}" class="{% if active_page == 'dashboard' %}active{% endif %}">
+                        📊 Дашборд
+                    </a>
+                </li>
+                <li>
+                    <a href="{{ url_for('orders_page') }}" class="{% if active_page == 'orders' %}active{% endif %}">
+                        📋 Заказы
+                    </a>
+                </li>
+                <li>
+                    <a href="{{ url_for('clients_page') }}" class="{% if active_page == 'clients' %}active{% endif %}">
+                        👥 Клиенты
+                    </a>
+                </li>
+                {% if session.is_admin %}
+                <li>
+                    <a href="{{ url_for('employee_dashboard') }}" class="{% if active_page == 'employee' %}active{% endif %}">
+                        👨‍🔧 Сотрудники
+                    </a>
+                </li>
+                {% endif %}
+                <li>
+                    <a href="{{ url_for('logout') }}" class="logout">
+                        🚪 Выйти
+                    </a>
+                </li>
+            </ul>
+        </div>
         
-        <!-- Основной контент -->
+        <!-- Оверлей для мобильных -->
+        <div class="sidebar-overlay" id="sidebarOverlay"></div>
+        
+        <!-- ===== ОСНОВНОЙ КОНТЕНТ ===== -->
         <main class="main-content" id="mainContent">
             <!-- Верхняя панель -->
             <nav class="top-bar">
