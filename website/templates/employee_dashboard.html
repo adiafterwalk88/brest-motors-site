@@ -3,67 +3,12 @@
 {% block title %}Кабинет сотрудника{% endblock %}
 
 {% block content %}
-<style>
-    .stats-grid {
-        display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-        gap: 16px;
-        margin-bottom: 24px;
-    }
-    .stat-card {
-        background: #1c1c1f;
-        border: 1px solid rgba(255, 255, 255, 0.06);
-        padding: 20px;
-        border-radius: 12px;
-        text-align: center;
-    }
-    .stat-val {
-        font-size: 28px;
-        font-weight: 700;
-        color: #d4a84b;
-    }
-    .stat-lbl {
-        color: #a0a0ab;
-        font-size: 13px;
-        margin-top: 4px;
-    }
-    .card {
-        background: #1c1c1f;
-        border-radius: 12px;
-        padding: 20px;
-        margin-bottom: 24px;
-        border: 1px solid rgba(255, 255, 255, 0.05);
-    }
-    .card-header-gradient {
-        background: linear-gradient(135deg, rgba(212, 168, 75, 0.2), rgba(20, 20, 22, 0.8));
-        border-bottom: 1px solid rgba(212, 168, 75, 0.3);
-        color: #d4a84b;
-        padding: 12px 16px;
-        margin: -20px -20px 20px -20px;
-        font-size: 15px;
-        font-weight: 600;
-        border-top-left-radius: 12px;
-        border-top-right-radius: 12px;
-    }
-    .table-wrapper { overflow-x: auto; }
-    table { width: 100%; border-collapse: collapse; }
-    th, td {
-        padding: 12px;
-        text-align: left;
-        border-bottom: 1px solid rgba(255, 255, 255, 0.05);
-        font-size: 14px;
-        color: #ffffff;
-    }
-    th { color: #666673; font-weight: 600; background: rgba(0, 0, 0, 0.2); }
-    tr.row-my { background: rgba(212, 168, 75, 0.08); }
-</style>
-
 <div class="header-bar" style="display:flex; justify-content:space-between; align-items:center; margin-bottom:24px;">
     <div>
         <h1 style="font-size:24px; color:#fff;">👨‍🔧 Кабинет сотрудника</h1>
         <span style="color:#a0a0ab; font-size:14px;">Дмитрий — InTarget Brest Motors</span>
     </div>
-    <a href="/employee/orders/create" class="btn btn-primary" style="background:#d4a84b; color:#000; padding:8px 16px; border-radius:6px; font-weight:600; text-decoration:none;">➕ Создать заказ</a>
+    <a href="/employee/orders/create" class="btn btn-primary">➕ Создать заказ</a>
 </div>
 
 <!-- СТАТИСТИКА -->
@@ -110,10 +55,10 @@
                     <td><span style="background:rgba(212,168,75,0.2); color:#d4a84b; padding:4px 8px; border-radius:4px; font-size:12px;">В работе</span></td>
                     <td>
                         <div style="display:flex; gap:8px; align-items:center;">
-                            <a href="/employee/orders/17/edit" style="background:rgba(255,255,255,0.1); color:#fff; padding:6px 12px; border-radius:4px; text-decoration:none; font-size:12px;">✏️ РЕДАКТИРОВАТЬ</a>
+                            <a href="/employee/orders/17/edit" class="btn" style="background:rgba(255,255,255,0.1); color:#fff; font-size:12px;">✏️ РЕДАКТИРОВАТЬ</a>
                             <form method="POST" action="/orders/17/complete" onsubmit="return confirm('Завершить заказ #17?');" style="margin:0;">
                                 <input type="hidden" name="notes" value="">
-                                <button type="submit" style="background:#52c41a; color:#fff; padding:6px 12px; border-radius:4px; border:none; cursor:pointer; font-size:12px; font-weight:600;">✅ ЗАВЕРШИТЬ</button>
+                                <button type="submit" class="btn btn-success" style="font-size:12px;">✅ ЗАВЕРШИТЬ</button>
                             </form>
                         </div>
                     </td>
@@ -173,7 +118,7 @@
                     <td><strong style="color:#52c41a;">Я</strong></td>
                     <td><span style="background:rgba(212,168,75,0.2); color:#d4a84b; padding:4px 8px; border-radius:4px; font-size:12px;">В работе</span></td>
                     <td>
-                        <a href="/employee/orders/17/edit" style="background:rgba(255,255,255,0.1); color:#fff; padding:6px 12px; border-radius:4px; text-decoration:none; font-size:12px;">✏️ РЕДАКТИРОВАТЬ</a>
+                        <a href="/employee/orders/17/edit" class="btn" style="background:rgba(255,255,255,0.1); color:#fff; font-size:12px;">✏️ РЕДАКТИРОВАТЬ</a>
                     </td>
                 </tr>
             </tbody>
@@ -186,12 +131,12 @@
         🏪 ул. Карьерная, 45
         <span style="font-size:13px; opacity:0.8; margin-left:8px;">(Активных: 0, Моих: 0)</span>
     </div>
-    <p style="text-align:center; color:#666673; padding:10px;">Нет активных заказов в этом магазине</p>
+    <p style="text-align:center; color:#a0a0ab; padding:10px;">Нет активных заказов в этом магазине</p>
 </div>
 
 <!-- ЗАДАЧИ НА СЕГОДНЯ -->
 <div class="card">
     <h3 style="margin-bottom: 16px; color:#fff;">📅 Мои задачи на сегодня</h3>
-    <p style="text-align:center; color:#666673; padding:10px;">Нет задач на сегодня</p>
+    <p style="text-align:center; color:#a0a0ab; padding:10px;">Нет задач на сегодня</p>
 </div>
 {% endblock %}
