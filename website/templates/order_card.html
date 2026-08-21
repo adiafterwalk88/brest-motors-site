@@ -1,24 +1,38 @@
 <div class="order-card {% if o.priority == 'Высокий' %}priority-high{% elif o.priority == 'Низкий' %}priority-low{% endif %}">
+    <!-- Шапка карточки -->
     <div class="order-header">
         <div>
             <span class="order-number">№{{ o.id }}</span>
-            <span class="order-date">{{ o.date }}</span>
+            <span class="order-date">{{ o.date if o.date else '---' }}</span>
         </div>
-        <span class="badge badge-{{ 'new' if o.status=='Новый' else 'progress' if o.status=='В работе' else 'ready' if o.status=='Готов' else 'done' }}">{{ o.status }}</span>
+        <span class="badge badge-{% if o.status == 'Новый' %}new{% elif o.status == 'В работе' %}progress{% elif o.status == 'Готов' %}ready{% else %}done{% endif %}">
+            {{ o.status }}
+        </span>
     </div>
+
+    <!-- Тело карточки -->
     <div class="order-body">
-        <strong>{{ o.product[:60] }}{% if o.product|length > 60 %}...{% endif %}</strong>
+        <strong>{{ o.product[:60] }}{% if o.product and o.product|length > 60 %}...{% endif %}</strong>
     </div>
+
+    <!-- Клиентские метаданные -->
     <div class="order-meta">
         <span>👤 {{ o.customer }}</span>
         <span>📱 {{ o.phone }}</span>
         {% if o.address %}<span>📍 {{ o.address }}</span>{% endif %}
     </div>
+
+    <!-- Финансовые метаданные -->
+    {% set prepaid = o.prepaid or 0 %}
+    {% set price = o.price or 0 %}
+    {% set debt = price - prepaid %}
     <div class="order-meta">
-        <span>💰 <strong>{{ o.price }} Br</strong></span>
-        {% if o.prepaid > 0 %}<span>💳 {{ o.prepaid }} Br</span>{% endif %}
-        <span>📋 Долг: <strong style="color:{{ 'var(--danger)' if o.price - o.prepaid > 0 else 'var(--success)' }}">{{ o.price - o.prepaid }} Br</strong></span>
+        <span>💰 <strong>{{ price }} Br</strong></span>
+        {% if prepaid > 0 %}<span>💳 {{ prepaid }} Br</span>{% endif %}
+        <span>📋 Долг: <strong style="color: {{ 'var(--danger)' if debt > 0 else 'var(--success)' }}">{{ debt }} Br</strong></span>
     </div>
+
+    <!-- Подвал карточки -->
     <div class="order-footer">
         <div>
             <select class="status-select" onchange="changeStatus({{ o.id }}, this)">
@@ -26,11 +40,12 @@
                 <option value="{{ s }}" {% if o.status == s %}selected{% endif %}>{{ s }}</option>
                 {% endfor %}
             </select>
-            <span style="margin-left:8px;font-size:13px;color:var(--text-light);">👨‍🔧 {{ o.executor }}</span>
+            <span style="margin-left:8px;font-size:13px;color:var(--text-light);">👨‍🔧 {{ o.executor or 'Не назначен' }}</span>
         </div>
-        <div>
-            <button class="btn btn-accent btn-sm" onclick="openEditModal({{ o | tojson }})">✏️</button>
-            <button class="btn btn-danger btn-sm" onclick="deleteOrder({{ o.id }})">🗑️</button>
+        <div class="card-actions">
+            <!-- Безопасная передача данных через data-атрибут -->
+            <button class="btn btn-accent btn-sm btn-edit" data-order="{{ o | tojson | forceescape }}" onclick="openEditModalFromElement(this)" title="Редактировать">✏️</button>
+            <button class="btn btn-danger btn-sm" onclick="deleteOrder({{ o.id }})" title="Удалить">🗑️</button>
         </div>
     </div>
 </div>
