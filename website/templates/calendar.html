@@ -1,10 +1,8 @@
 {% extends "base.html" %}
 
 {% block extra_css %}
-<!-- FullCalendar CDN -->
-<link href="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.11/main.min.css" rel="stylesheet">
-<script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.11/main.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.11/locales/ru.js"></script>
+<!-- FullCalendar v6 Global Bundle (включает стили и все языковые пакеты) -->
+<script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.11/index.global.min.js"></script>
 
 <style>
 .calendar-container {
@@ -19,6 +17,7 @@
     margin: 0 auto;
 }
 
+/* Кастомизация FullCalendar */
 .fc .fc-button-primary {
     background: #1a1a2e !important;
     border-color: #1a1a2e !important;
@@ -52,7 +51,7 @@
     background: #f8f9fa;
 }
 
-/* Легенда */
+/* Легенда статусов */
 .legend {
     display: flex;
     gap: 20px;
@@ -76,28 +75,57 @@
     border-radius: 4px;
 }
 
+/* Оверлей под попапом */
+.popup-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background: rgba(0, 0, 0, 0.4);
+    z-index: 9998;
+    display: none;
+    backdrop-filter: blur(2px);
+}
+
+.popup-overlay.show {
+    display: block;
+}
+
+/* Попап с информацией о заказе */
 .event-popup {
     position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
     background: white;
     border-radius: 12px;
     box-shadow: 0 8px 32px rgba(0,0,0,0.2);
-    padding: 20px;
-    max-width: 320px;
+    padding: 24px;
+    width: 90%;
+    max-width: 360px;
     z-index: 9999;
     display: none;
 }
 
 .event-popup.show {
     display: block;
+    animation: popupFadeIn 0.2s ease-out;
+}
+
+@keyframes popupFadeIn {
+    from { opacity: 0; transform: translate(-50%, -46%); }
+    to { opacity: 1; transform: translate(-50%, -50%); }
 }
 
 .event-popup .close {
     position: absolute;
-    top: 8px;
-    right: 12px;
+    top: 12px;
+    right: 16px;
     cursor: pointer;
-    font-size: 20px;
+    font-size: 22px;
     color: #999;
+    line-height: 1;
 }
 
 .event-popup .close:hover {
@@ -111,9 +139,9 @@
 }
 
 .event-popup .customer {
-    font-size: 16px;
+    font-size: 15px;
     color: #333;
-    margin-top: 4px;
+    margin-top: 6px;
 }
 
 .event-popup .product {
@@ -123,7 +151,7 @@
 }
 
 .event-popup .status {
-    margin-top: 8px;
+    margin-top: 10px;
     display: inline-block;
     padding: 4px 12px;
     border-radius: 12px;
@@ -131,10 +159,18 @@
     font-weight: 600;
 }
 
+.event-popup .executor {
+    margin-top: 10px;
+    font-size: 13px;
+    color: #888;
+}
+
 .event-popup .btn {
-    margin-top: 12px;
+    margin-top: 16px;
     width: 100%;
     text-align: center;
+    display: block;
+    box-sizing: border-box;
 }
 </style>
 {% endblock %}
@@ -142,7 +178,7 @@
 {% block content %}
 <div class="calendar-container">
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;flex-wrap:wrap;gap:12px;">
-        <h2 style="font-size:22px;">📅 Календарь заказов</h2>
+        <h2 style="font-size:22px;margin:0;">📅 Календарь заказов</h2>
         <div>
             <a href="/orders" class="btn btn-primary" style="text-decoration:none;">📋 Все заказы</a>
         </div>
@@ -166,17 +202,18 @@
     <div id="calendar"></div>
 </div>
 
-<!-- Попап с информацией о заказе -->
+<!-- Оверлей и попап карточки заказа -->
+<div class="popup-overlay" id="popupOverlay"></div>
 <div class="event-popup" id="eventPopup">
     <span class="close" onclick="closePopup()">×</span>
     <div class="order-id">Заказ #<span id="popupOrderId"></span></div>
     <div class="customer">👤 <span id="popupCustomer"></span></div>
     <div class="product">📦 <span id="popupProduct"></span></div>
     <div><span class="status" id="popupStatus"></span></div>
-    <div style="margin-top:8px;font-size:13px;color:#999;">
-        Исполнитель: <span id="popupExecutor"></span>
+    <div class="executor">
+        Исполнитель: <span id="popupExecutor" style="color:#333;font-weight:500;"></span>
     </div>
-    <a href="/orders" class="btn btn-primary" style="text-decoration:none;margin-top:12px;display:block;text-align:center;">
+    <a id="popupOrderLink" href="/orders" class="btn btn-primary" style="text-decoration:none;">
         Перейти к заказу
     </a>
 </div>
@@ -184,6 +221,8 @@
 <script>
 document.addEventListener('DOMContentLoaded', function() {
     const calendarEl = document.getElementById('calendar');
+    const popupOverlay = document.getElementById('popupOverlay');
+    const eventPopup = document.getElementById('eventPopup');
     
     const calendar = new FullCalendar.Calendar(calendarEl, {
         locale: 'ru',
@@ -200,24 +239,28 @@ document.addEventListener('DOMContentLoaded', function() {
             day: 'День'
         },
         events: function(info, successCallback, failureCallback) {
-            fetch('/api/calendar/events')
-                .then(response => response.json())
-                .then(events => {
-                    successCallback(events);
+            // Передаем границы диапазона дат на сервер для оптимизации запроса
+            const start = info.startStr;
+            const end = info.endStr;
+
+            fetch(`/api/calendar/events?start=${start}&end=${end}`)
+                .then(response => {
+                    if (!response.ok) throw new Error('Ошибка сервера');
+                    return response.json();
                 })
+                .then(events => successCallback(events))
                 .catch(error => {
                     console.error('Ошибка загрузки событий:', error);
                     failureCallback(error);
                 });
         },
         eventClick: function(info) {
+            info.jsEvent.stopPropagation(); // Предотвращаем моментальное закрытие
             const props = info.event.extendedProps;
-            if (props.order_id) {
-                showPopup(props);
-            }
+            showPopup(props, info.event.id || props.order_id);
         },
-        dayClick: function(info) {
-            // Можно добавить переход на заказы за этот день
+        dateClick: function(info) {
+            // Клик по дню (исправлено с dayClick на dateClick)
             const date = info.dateStr;
             window.location.href = `/orders?date=${date}`;
         },
@@ -231,42 +274,52 @@ document.addEventListener('DOMContentLoaded', function() {
     
     calendar.render();
 
-    // Функция показа попапа
-    window.showPopup = function(props) {
-        const popup = document.getElementById('eventPopup');
-        document.getElementById('popupOrderId').textContent = props.order_id || '—';
+    // Открытие попапа
+    window.showPopup = function(props, id) {
+        const orderId = props.order_id || id || '—';
+        document.getElementById('popupOrderId').textContent = orderId;
         document.getElementById('popupCustomer').textContent = props.customer || '—';
         document.getElementById('popupProduct').textContent = props.product || '—';
         
         const statusEl = document.getElementById('popupStatus');
         const status = props.status || 'Новый';
         statusEl.textContent = status;
+        
         const colors = {
             'Новый': '#3498db',
             'В работе': '#f39c12',
-            'Выдан': '#2ecc71'
+            'Выдан': '#2ecc71',
+            'Завершён': '#2ecc71'
         };
         statusEl.style.background = colors[status] || '#95a5a6';
         statusEl.style.color = 'white';
         
         document.getElementById('popupExecutor').textContent = props.executor || 'Не назначен';
         
-        popup.classList.add('show');
-        
-        // Позиционирование
-        popup.style.top = '50%';
-        popup.style.left = '50%';
-        popup.style.transform = 'translate(-50%, -50%)';
+        // Динамическая ссылка на конкретный заказ
+        const link = document.getElementById('popupOrderLink');
+        if (props.order_id) {
+            link.href = `/orders/${props.order_id}`;
+        } else {
+            link.href = '/orders';
+        }
+
+        popupOverlay.classList.add('show');
+        eventPopup.classList.add('show');
     };
 
+    // Закрытие попапа
     window.closePopup = function() {
-        document.getElementById('eventPopup').classList.remove('show');
+        popupOverlay.classList.remove('show');
+        eventPopup.classList.remove('show');
     };
 
-    // Закрытие по клику вне попапа
-    document.addEventListener('click', function(e) {
-        const popup = document.getElementById('eventPopup');
-        if (popup.classList.contains('show') && !popup.contains(e.target)) {
+    // Закрытие по клику на затемненный оверлей
+    popupOverlay.addEventListener('click', closePopup);
+
+    // Закрытие по нажатию на клавишу ESC
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape' && eventPopup.classList.contains('show')) {
             closePopup();
         }
     });
