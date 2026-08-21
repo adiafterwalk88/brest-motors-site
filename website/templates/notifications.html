@@ -20,6 +20,7 @@
     display: flex;
     gap: 8px;
     flex-wrap: wrap;
+    align-items: center;
 }
 
 .notification-filters a {
@@ -177,8 +178,8 @@
             </a>
             <a href="/notifications?type=unread" class="{% if filter_type == 'unread' %}active{% endif %}">
                 Непрочитанные
-                {% if stats and stats.unread > 0 %}
-                <span class="badge">{{ stats.unread }}</span>
+                {% if stats and stats.unread and stats.unread > 0 %}
+                <span class="badge" id="unreadBadge">{{ stats.unread }}</span>
                 {% endif %}
             </a>
             <a href="/notifications?type=read" class="{% if filter_type == 'read' %}active{% endif %}">
@@ -198,8 +199,7 @@
     <div id="notificationsList">
         {% if notifications %}
             {% for notif in notifications %}
-            <div class="notification-item {% if not notif.is_read %}unread{% endif %}" 
-                 data-id="{{ notif.id }}">
+            <div class="notification-item {% if not notif.is_read %}unread{% endif %}" data-id="{{ notif.id }}">
                 <div class="icon">
                     {% if notif.priority == 'Высокий' %}🔴
                     {% elif notif.priority == 'Обычный' %}🟡
@@ -209,12 +209,20 @@
                     <div class="title">{{ notif.title }}</div>
                     <div class="message">{{ notif.message }}</div>
                     <div class="meta">
-                        <span>{{ notif.created_at.strftime('%d.%m.%Y %H:%M') }}</span>
+                        <span>
+                            {% if notif.created_at is string %}
+                                {{ notif.created_at }}
+                            {% elif notif.created_at %}
+                                {{ notif.created_at.strftime('%d.%m.%Y %H:%M') }}
+                            {% else %}
+                                ---
+                            {% endif %}
+                        </span>
                         {% if notif.order_id %}
                         <span>📦 Заказ #{{ notif.order_id }}</span>
                         {% endif %}
                         <span class="priority-{% if notif.priority == 'Высокий' %}high{% elif notif.priority == 'Обычный' %}medium{% else %}low{% endif %}">
-                            {{ notif.priority }}
+                            {{ notif.priority or 'Обычный' }}
                         </span>
                         {% if notif.order_status %}
                         <span>Статус: {{ notif.order_status }}</span>
@@ -242,6 +250,24 @@
 </div>
 
 <script>
+function updateUnreadBadge(decrement = 1, clearAll = false) {
+    const badge = document.getElementById('unreadBadge');
+    if (!badge) return;
+
+    if (clearAll) {
+        badge.remove();
+        return;
+    }
+
+    let current = parseInt(badge.textContent, 10) || 0;
+    current -= decrement;
+    if (current <= 0) {
+        badge.remove();
+    } else {
+        badge.textContent = current;
+    }
+}
+
 function markRead(notifId) {
     fetch(`/api/notifications/mark-read/${notifId}`, {
         method: 'POST',
@@ -251,10 +277,11 @@ function markRead(notifId) {
     .then(data => {
         if (data.success) {
             const item = document.querySelector(`.notification-item[data-id="${notifId}"]`);
-            if (item) {
+            if (item && item.classList.contains('unread')) {
                 item.classList.remove('unread');
                 const btn = item.querySelector('.read-btn');
                 if (btn) btn.remove();
+                updateUnreadBadge(1);
             }
         }
     })
@@ -271,6 +298,9 @@ function archiveNotif(notifId) {
         if (data.success) {
             const item = document.querySelector(`.notification-item[data-id="${notifId}"]`);
             if (item) {
+                if (item.classList.contains('unread')) {
+                    updateUnreadBadge(1);
+                }
                 item.style.opacity = '0.3';
                 setTimeout(() => { item.remove(); }, 300);
             }
@@ -294,6 +324,7 @@ function markAllRead() {
                 const btn = item.querySelector('.read-btn');
                 if (btn) btn.remove();
             });
+            updateUnreadBadge(0, true);
         }
     })
     .catch(error => console.error('Ошибка:', error));
