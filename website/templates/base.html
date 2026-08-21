@@ -16,8 +16,8 @@
     <button class="mobile-menu-toggle" id="mobileMenuToggle" aria-label="Открыть меню">☰</button>
     
     <div class="app-layout">
-        <!-- ===== САЙДБАР (встроен прямо сюда) ===== -->
-        <div class="sidebar" id="mainSidebar" role="navigation" aria-label="Основное меню">
+        <!-- ===== САЙДБАР ===== -->
+        <aside class="sidebar" id="mainSidebar" aria-label="Основное меню">
             <div class="sidebar-header">
                 <div class="logo">
                     🎯 In<span>Target</span>
@@ -25,36 +25,38 @@
                 <button class="sidebar-close" id="sidebarClose" aria-label="Закрыть меню">✕</button>
             </div>
             
-            <ul class="menu">
-                <li>
-                    <a href="{{ url_for('dashboard') }}" class="{% if active_page == 'dashboard' %}active{% endif %}">
-                        📊 Дашборд
-                    </a>
-                </li>
-                <li>
-                    <a href="{{ url_for('orders_page') }}" class="{% if active_page == 'orders' %}active{% endif %}">
-                        📋 Заказы
-                    </a>
-                </li>
-                <li>
-                    <a href="{{ url_for('clients_page') }}" class="{% if active_page == 'clients' %}active{% endif %}">
-                        👥 Клиенты
-                    </a>
-                </li>
-                {% if session.is_admin %}
-                <li>
-                    <a href="{{ url_for('employee_dashboard') }}" class="{% if active_page == 'employee' %}active{% endif %}">
-                        👨‍🔧 Сотрудники
-                    </a>
-                </li>
-                {% endif %}
-                <li>
-                    <a href="{{ url_for('logout') }}" class="logout">
-                        🚪 Выйти
-                    </a>
-                </li>
-            </ul>
-        </div>
+            <nav>
+                <ul class="menu">
+                    <li>
+                        <a href="{{ url_for('dashboard') }}" class="{% if active_page == 'dashboard' %}active{% endif %}">
+                            <span aria-hidden="true">📊</span> Дашборд
+                        </a>
+                    </li>
+                    <li>
+                        <a href="{{ url_for('orders_page') }}" class="{% if active_page == 'orders' %}active{% endif %}">
+                            <span aria-hidden="true">📋</span> Заказы
+                        </a>
+                    </li>
+                    <li>
+                        <a href="{{ url_for('clients_page') }}" class="{% if active_page == 'clients' %}active{% endif %}">
+                            <span aria-hidden="true">👥</span> Клиенты
+                        </a>
+                    </li>
+                    {% if session.get('is_admin') %}
+                    <li>
+                        <a href="{{ url_for('employee_dashboard') }}" class="{% if active_page == 'employee' %}active{% endif %}">
+                            <span aria-hidden="true">👨‍🔧</span> Сотрудники
+                        </a>
+                    </li>
+                    {% endif %}
+                    <li>
+                        <a href="{{ url_for('logout') }}" class="logout">
+                            <span aria-hidden="true">🚪</span> Выйти
+                        </a>
+                    </li>
+                </ul>
+            </nav>
+        </aside>
         
         <!-- Оверлей для мобильных -->
         <div class="sidebar-overlay" id="sidebarOverlay"></div>
@@ -62,15 +64,16 @@
         <!-- ===== ОСНОВНОЙ КОНТЕНТ ===== -->
         <main class="main-content" id="mainContent">
             <!-- Верхняя панель -->
-            <nav class="top-bar">
+            <header class="top-bar">
                 <div>
                     {% block page_title %}{% endblock %}
                 </div>
                 <div class="user-info">
-                    <div class="header-notifications" id="notifToggle">
-                        <span style="font-size:20px;color:var(--color-text-secondary);">🔔</span>
-                        <span class="badge zero" id="notifBadge">0</span>
-                        <div class="notif-dropdown" id="notifDropdown">
+                    <div class="header-notifications" id="notifToggle" tabindex="0" role="button" aria-haspopup="true" aria-expanded="false">
+                        <span style="font-size:20px; color:var(--color-text-secondary);" aria-hidden="true">🔔</span>
+                        <span class="badge zero" id="notifBadge" style="display:none;">0</span>
+                        
+                        <div class="notif-dropdown" id="notifDropdown" role="menu">
                             <div id="notifDropdownContent">
                                 <div class="notif-empty">📭 Нет уведомлений</div>
                             </div>
@@ -79,17 +82,21 @@
                             </div>
                         </div>
                     </div>
+                    
                     <span class="user-name">
-                        👤 <strong>{{ session.user_name }}</strong>
+                        <span aria-hidden="true">👤</span> <strong>{{ session.get('user_name', 'Пользователь') }}</strong>
                     </span>
-                    <a href="{{ url_for('logout') }}" style="color:var(--color-danger);font-size:var(--font-size-lg);text-decoration:none;">🚪</a>
+                    
+                    <a href="{{ url_for('logout') }}" style="color:var(--color-danger); font-size:var(--font-size-lg); text-decoration:none;" title="Выйти" aria-label="Выйти">
+                        <span aria-hidden="true">🚪</span>
+                    </a>
                 </div>
-            </nav>
+            </header>
             
             <!-- Flash-сообщения -->
             {% with messages = get_flashed_messages(with_categories=true) %}
                 {% if messages %}
-                    <div style="margin-bottom:var(--spacing-md);">
+                    <div class="flash-container" style="margin-bottom:var(--spacing-md);">
                         {% for category, message in messages %}
                             <div class="flash-message {{ category }}">{{ message }}</div>
                         {% endfor %}
@@ -104,71 +111,99 @@
     
     <!-- Скрипты -->
     <script>
-        // Уведомления
-        function fetchNotifications() {
-            fetch('/api/notifications/check')
-                .then(r => r.json())
-                .then(data => {
-                    const badge = document.getElementById('notifBadge');
-                    if (data.unread > 0) {
-                        badge.textContent = data.unread;
-                        badge.className = 'badge';
-                    } else {
-                        badge.className = 'badge zero';
-                    }
-                })
-                .catch(() => {});
-        }
-        
-        document.getElementById('notifToggle')?.addEventListener('click', function(e) {
-            e.stopPropagation();
-            document.getElementById('notifDropdown').classList.toggle('show');
-        });
-        document.addEventListener('click', function() {
-            document.getElementById('notifDropdown')?.classList.remove('show');
-        });
-        
-        setInterval(fetchNotifications, 30000);
-        fetchNotifications();
-        
-        // Мобильное меню
         document.addEventListener('DOMContentLoaded', function() {
+            // --- Уведомления ---
+            const badge = document.getElementById('notifBadge');
+            const notifToggle = document.getElementById('notifToggle');
+            const notifDropdown = document.getElementById('notifDropdown');
+            const dropdownContent = document.getElementById('notifDropdownContent');
+
+            function fetchNotifications() {
+                fetch('/api/notifications/check')
+                    .then(response => {
+                        if (!response.ok) throw new Error('Network response was not ok');
+                        return response.json();
+                    })
+                    .then(data => {
+                        if (data.unread > 0) {
+                            badge.textContent = data.unread > 99 ? '99+' : data.unread;
+                            badge.style.display = 'inline-block';
+                            badge.classList.remove('zero');
+                        } else {
+                            badge.style.display = 'none';
+                            badge.classList.add('zero');
+                        }
+
+                        // Если бэкенд возвращает список последних уведомлений в data.items:
+                        if (data.items && data.items.length > 0) {
+                            dropdownContent.innerHTML = data.items.map(item => `
+                                <div class="notif-item ${item.read ? '' : 'unread'}">
+                                    <div class="notif-title">${item.title}</div>
+                                    <div class="notif-time">${item.time}</div>
+                                </div>
+                            `).join('');
+                        }
+                    })
+                    .catch(() => {});
+            }
+
+            if (notifToggle && notifDropdown) {
+                notifToggle.addEventListener('click', function(e) {
+                    e.stopPropagation();
+                    const isOpen = notifDropdown.classList.toggle('show');
+                    notifToggle.setAttribute('aria-expanded', isOpen);
+                });
+
+                notifDropdown.addEventListener('click', function(e) {
+                    e.stopPropagation(); // Предотвращает закрытие при клике внутри выпадающего списка
+                });
+
+                document.addEventListener('click', function() {
+                    notifDropdown.classList.remove('show');
+                    notifToggle.setAttribute('aria-expanded', 'false');
+                });
+            }
+
+            // Интервальный опрос (раз в 30 секунд)
+            fetchNotifications();
+            setInterval(fetchNotifications, 30000);
+
+            // --- Мобильное меню ---
             const toggle = document.getElementById('mobileMenuToggle');
             const sidebar = document.getElementById('mainSidebar');
             const overlay = document.getElementById('sidebarOverlay');
             const closeBtn = document.getElementById('sidebarClose');
-            
+
             function openMenu() {
                 sidebar?.classList.add('open');
                 overlay?.classList.add('active');
                 document.body.style.overflow = 'hidden';
             }
-            
+
             function closeMenu() {
                 sidebar?.classList.remove('open');
                 overlay?.classList.remove('active');
                 document.body.style.overflow = '';
             }
-            
+
             toggle?.addEventListener('click', openMenu);
             closeBtn?.addEventListener('click', closeMenu);
             overlay?.addEventListener('click', closeMenu);
-            
+
             document.addEventListener('keydown', function(e) {
                 if (e.key === 'Escape') closeMenu();
             });
-            
+
             sidebar?.querySelectorAll('a').forEach(link => {
                 link.addEventListener('click', closeMenu);
             });
-        });
-        
-        // Автоскрытие flash
-        document.addEventListener('DOMContentLoaded', function() {
+
+            // --- Автоскрытие Flash-сообщений ---
             document.querySelectorAll('.flash-message').forEach(function(msg) {
                 setTimeout(function() {
+                    msg.style.transition = 'opacity 0.5s ease-out, transform 0.5s ease-out';
                     msg.style.opacity = '0';
-                    msg.style.transition = 'opacity 0.5s';
+                    msg.style.transform = 'translateY(-10px)';
                     setTimeout(function() { msg.remove(); }, 500);
                 }, 5000);
             });
