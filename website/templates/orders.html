@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 
-{% block title %}Заказы — InTarget Brest Motors{% endblock %}
+{% block title %}Управление заказами — InTarget Brest Motors{% endblock %}
 
 {% block page_title %}
 <div style="display: flex; align-items: center; gap: 12px;">
@@ -15,39 +15,39 @@
 </div>
 
 <!-- ФИЛЬТРЫ -->
-<div class="card">
+<div class="card" style="background-color: var(--card-bg) !important; color: #fff !important;">
     <form method="GET" action="{{ url_for('orders_page') }}" style="display: flex; flex-direction: column; gap: 16px;">
-        <div style="display: flex; gap: 12px; flex-wrap: wrap;">
-            <input type="text" name="q" value="{{ request.args.get('q', '') }}" placeholder="🔍 Клиент / Телефон / Товар..." style="flex: 1; min-width: 200px; padding: 8px 12px; background: #121214; border: 1px solid rgba(255,255,255,0.1); border-radius: 6px; color: #fff;">
-            <select name="status" style="padding: 8px 12px; background: #121214; border: 1px solid rgba(255,255,255,0.1); border-radius: 6px; color: #fff;">
+        <div style="display: flex; gap: 12px; flex-wrap: wrap; align-items: center;">
+            <input type="text" name="q" value="{{ request.args.get('q', '') }}" placeholder="🔍 Клиент / Телефон / Товар..." style="flex: 1; min-width: 200px; padding: 10px 14px; background: #121214; border: 1px solid rgba(255,255,255,0.1); border-radius: 6px; color: #fff;">
+            <select name="status" style="padding: 10px 14px; background: #121214; border: 1px solid rgba(255,255,255,0.1); border-radius: 6px; color: #fff;">
                 <option value="">Все статусы</option>
                 <option value="new">Новый</option>
                 <option value="in_progress">В работе</option>
                 <option value="completed">Выдан</option>
             </select>
-            <button type="submit" class="btn" style="background: var(--accent-gold); color: #000;">Применить</button>
-            <a href="{{ url_for('orders_page') }}" class="btn" style="background: rgba(255,255,255,0.05); color: #a0a0ab;">Очистить</a>
+            <button type="submit" class="btn btn-primary">Применить</button>
+            <a href="{{ url_for('orders_page') }}" class="btn" style="background: rgba(255,255,255,0.08); color: #a0a0ab;">Очистить</a>
         </div>
     </form>
 </div>
 
-<!-- СПИСОК ЗАКАЗОВ -->
-<div class="card">
-    <div class="table-wrapper">
-        <table>
-            <thead>
-                <tr>
-                    <th>#</th>
-                    <th>Клиент</th>
-                    <th>Товар</th>
-                    <th>Цена</th>
-                    <th>Статус</th>
-                    <th>Исполнитель</th>
-                    <th>Действия</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% if orders %}
+<!-- ТАБЛИЦА / ПУСТОЕ СОСТОЯНИЕ -->
+<div class="card" style="background-color: var(--card-bg) !important; color: #fff !important;">
+    {% if orders %}
+        <div class="table-wrapper">
+            <table>
+                <thead>
+                    <tr>
+                        <th>#</th>
+                        <th>Клиент</th>
+                        <th>Товар</th>
+                        <th>Цена</th>
+                        <th>Статус</th>
+                        <th>Исполнитель</th>
+                        <th>Действия</th>
+                    </tr>
+                </thead>
+                <tbody>
                     {% for order in orders %}
                     <tr>
                         <td><strong>#{{ order.id }}</strong></td>
@@ -64,15 +64,15 @@
                         </td>
                     </tr>
                     {% endfor %}
-                {% else %}
-                    <tr>
-                        <td colspan="7" style="text-align: center; color: #a0a0ab; padding: 40px 0;">
-                            📫 Нет заказов
-                        </td>
-                    </tr>
-                {% endif %}
-            </tbody>
-        </table>
-    </div>
+                </tbody>
+            </table>
+        </div>
+    {% else %}
+        <div style="text-align: center; padding: 40px 20px;">
+            <div style="font-size: 40px; margin-bottom: 12px;">📬</div>
+            <div style="font-size: 16px; color: #ffffff; font-weight: 600;">Нет заказов</div>
+            <a href="/orders/create" style="color: var(--accent-gold); text-decoration: none; font-size: 14px; display: inline-block; margin-top: 8px;">➕ Создать первый заказ</a>
+        </div>
+    {% endif %}
 </div>
 {% endblock %}
