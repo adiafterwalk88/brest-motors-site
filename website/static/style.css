@@ -1,530 +1,273 @@
-/* ==========================================
-   ROOT VARIABLES — Дизайн-система
-   ========================================== */
-:root {
-    /* Цветовая схема */
-    --color-primary: #1a1a2e;
-    --color-primary-light: #2d2d44;
-    --color-primary-dark: #0f0f1a;
-    --color-accent: #2ecc71;
-    --color-accent-hover: #27ae60;
-    --color-accent-light: #d5f5e3;
-    --color-danger: #e74c3c;
-    --color-danger-hover: #c0392b;
-    --color-warning: #f39c12;
-    --color-warning-hover: #e67e22;
-    --color-info: #3498db;
-    --color-info-hover: #2980b9;
-    
-    /* Нейтральные */
-    --color-white: #ffffff;
-    --color-gray-50: #f8f9fa;
-    --color-gray-100: #f0f2f5;
-    --color-gray-200: #e9ecef;
-    --color-gray-300: #dee2e6;
-    --color-gray-400: #ced4da;
-    --color-gray-500: #adb5bd;
-    --color-gray-600: #6c757d;
-    --color-gray-700: #495057;
-    --color-gray-800: #343a40;
-    --color-gray-900: #212529;
-    
-    /* Тени */
-    --shadow-sm: 0 1px 3px rgba(0,0,0,0.08);
-    --shadow-md: 0 4px 16px rgba(0,0,0,0.10);
-    --shadow-lg: 0 8px 32px rgba(0,0,0,0.15);
-    --shadow-xl: 0 16px 48px rgba(0,0,0,0.20);
-    
-    /* Скругления */
-    --radius-sm: 6px;
-    --radius-md: 10px;
-    --radius-lg: 16px;
-    --radius-xl: 24px;
-    
-    /* Анимации */
-    --transition-fast: 0.15s ease;
-    --transition-normal: 0.3s ease;
-    --transition-slow: 0.5s ease;
-    
-    /* Шрифты */
-    --font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-    --font-size-xs: 11px;
-    --font-size-sm: 13px;
-    --font-size-md: 15px;
-    --font-size-lg: 18px;
-    --font-size-xl: 24px;
-    --font-size-2xl: 32px;
-    
-    /* Отступы */
-    --spacing-xs: 4px;
-    --spacing-sm: 8px;
-    --spacing-md: 16px;
-    --spacing-lg: 24px;
-    --spacing-xl: 32px;
-    --spacing-2xl: 48px;
-}
+{% extends "base.html" %}
 
-/* ==========================================
-   БАЗОВЫЕ СТИЛИ
-   ========================================== */
-* {
-    margin: 0;
-    padding: 0;
-    box-sizing: border-box;
-}
-
-body {
-    font-family: var(--font-family);
-    background: var(--color-gray-100);
-    color: var(--color-gray-900);
-    line-height: 1.6;
-    min-height: 100vh;
-}
-
-/* ==========================================
-   УТИЛИТЫ
-   ========================================== */
-.text-center { text-align: center; }
-.text-right { text-align: right; }
-.text-muted { color: var(--color-gray-600); }
-.text-success { color: var(--color-accent); }
-.text-danger { color: var(--color-danger); }
-.text-warning { color: var(--color-warning); }
-
-.flex { display: flex; }
-.flex-center { display: flex; align-items: center; justify-content: center; }
-.flex-between { display: flex; justify-content: space-between; align-items: center; }
-.flex-column { flex-direction: column; }
-.gap-sm { gap: var(--spacing-sm); }
-.gap-md { gap: var(--spacing-md); }
-.gap-lg { gap: var(--spacing-lg); }
-
-.w-100 { width: 100%; }
-.h-100 { height: 100%; }
-
-.mt-sm { margin-top: var(--spacing-sm); }
-.mt-md { margin-top: var(--spacing-md); }
-.mt-lg { margin-top: var(--spacing-lg); }
-.mb-sm { margin-bottom: var(--spacing-sm); }
-.mb-md { margin-bottom: var(--spacing-md); }
-.mb-lg { margin-bottom: var(--spacing-lg); }
-
-/* ==========================================
-   КАРТОЧКИ
-   ========================================== */
-.card {
-    background: var(--color-white);
-    border-radius: var(--radius-lg);
-    box-shadow: var(--shadow-sm);
-    padding: var(--spacing-lg);
-    transition: all var(--transition-normal);
-    border: 1px solid var(--color-gray-200);
-}
-
-.card:hover {
-    box-shadow: var(--shadow-md);
-    transform: translateY(-2px);
-}
-
-.card-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: var(--spacing-md);
-    padding-bottom: var(--spacing-md);
-    border-bottom: 2px solid var(--color-gray-100);
-}
-
-.card-title {
-    font-size: var(--font-size-lg);
-    font-weight: 700;
-    color: var(--color-primary);
-}
-
-/* ==========================================
-   КНОПКИ
-   ========================================== */
-.btn {
-    display: inline-flex;
-    align-items: center;
-    gap: var(--spacing-sm);
-    padding: 10px 20px;
-    border: none;
-    border-radius: var(--radius-md);
-    font-size: var(--font-size-sm);
-    font-weight: 600;
-    cursor: pointer;
-    transition: all var(--transition-normal);
-    text-decoration: none;
-    font-family: var(--font-family);
-}
-
-.btn:hover {
-    transform: translateY(-2px);
-    box-shadow: var(--shadow-md);
-}
-
-.btn:active {
-    transform: scale(0.97);
-}
-
-.btn-primary {
-    background: var(--color-accent);
-    color: var(--color-white);
-}
-.btn-primary:hover {
-    background: var(--color-accent-hover);
-    box-shadow: 0 4px 20px rgba(46, 204, 113, 0.35);
-}
-
-.btn-danger {
-    background: var(--color-danger);
-    color: var(--color-white);
-}
-.btn-danger:hover {
-    background: var(--color-danger-hover);
-    box-shadow: 0 4px 20px rgba(231, 76, 60, 0.35);
-}
-
-.btn-warning {
-    background: var(--color-warning);
-    color: var(--color-white);
-}
-.btn-warning:hover {
-    background: var(--color-warning-hover);
-    box-shadow: 0 4px 20px rgba(243, 156, 18, 0.35);
-}
-
-.btn-info {
-    background: var(--color-info);
-    color: var(--color-white);
-}
-.btn-info:hover {
-    background: var(--color-info-hover);
-    box-shadow: 0 4px 20px rgba(52, 152, 219, 0.35);
-}
-
-.btn-outline {
-    background: transparent;
-    color: var(--color-primary);
-    border: 2px solid var(--color-gray-300);
-}
-.btn-outline:hover {
-    border-color: var(--color-accent);
-    color: var(--color-accent);
-}
-
-.btn-sm {
-    padding: 6px 14px;
-    font-size: var(--font-size-xs);
-    border-radius: var(--radius-sm);
-}
-
-.btn-lg {
-    padding: 14px 28px;
-    font-size: var(--font-size-md);
-    border-radius: var(--radius-lg);
-}
-
-/* ==========================================
-   ФОРМЫ
-   ========================================== */
-.form-group {
-    margin-bottom: var(--spacing-md);
-}
-
-.form-label {
-    display: block;
-    font-weight: 600;
-    font-size: var(--font-size-sm);
-    color: var(--color-gray-700);
-    margin-bottom: var(--spacing-xs);
-}
-
-.form-control {
-    width: 100%;
-    padding: 10px 14px;
-    border: 2px solid var(--color-gray-300);
-    border-radius: var(--radius-md);
-    font-size: var(--font-size-md);
-    font-family: var(--font-family);
-    transition: all var(--transition-fast);
-    background: var(--color-white);
-    color: var(--color-gray-900);
-}
-
-.form-control:focus {
-    border-color: var(--color-accent);
-    outline: none;
-    box-shadow: 0 0 0 4px rgba(46, 204, 113, 0.15);
-}
-
-.form-control::placeholder {
-    color: var(--color-gray-500);
-}
-
-.form-control.is-invalid {
-    border-color: var(--color-danger);
-}
-.form-control.is-invalid:focus {
-    box-shadow: 0 0 0 4px rgba(231, 76, 60, 0.15);
-}
-
-.form-error {
-    color: var(--color-danger);
-    font-size: var(--font-size-xs);
-    margin-top: var(--spacing-xs);
-}
-
-select.form-control {
-    appearance: none;
-    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%236c757d' stroke-width='2' fill='none'/%3E%3C/svg%3E");
-    background-repeat: no-repeat;
-    background-position: right 14px center;
-    padding-right: 40px;
-    cursor: pointer;
-}
-
-/* ==========================================
-   БЕЙДЖИ И СТАТУСЫ
-   ========================================== */
-.badge {
-    display: inline-flex;
-    align-items: center;
-    gap: var(--spacing-xs);
-    padding: 4px 12px;
-    border-radius: 50px;
-    font-size: var(--font-size-xs);
-    font-weight: 600;
-    letter-spacing: 0.3px;
-    text-transform: uppercase;
-}
-
-.badge-success {
-    background: var(--color-accent-light);
-    color: var(--color-accent-hover);
-}
-
-.badge-danger {
-    background: #fde8e8;
-    color: var(--color-danger);
-}
-
-.badge-warning {
-    background: #fef5e7;
-    color: var(--color-warning);
-}
-
-.badge-info {
-    background: #e8f4fd;
-    color: var(--color-info);
-}
-
-.badge-gray {
-    background: var(--color-gray-200);
-    color: var(--color-gray-700);
-}
-
-/* Статусы заказов */
-.status-new {
-    background: #dbeafe;
-    color: #1e40af;
-}
-.status-new::before {
-    content: "●";
-    animation: pulse-dot 2s infinite;
-}
-
-.status-work {
-    background: #fef3c7;
-    color: #92400e;
-}
-.status-work::before {
-    content: "●";
-    animation: pulse-dot 1.5s infinite;
-}
-
-.status-done {
-    background: #d1fae5;
-    color: #065f46;
-}
-.status-done::before {
-    content: "✓";
-}
-
-@keyframes pulse-dot {
-    0%, 100% { opacity: 1; }
-    50% { opacity: 0.3; }
-}
-
-/* ==========================================
-   УВЕДОМЛЕНИЯ (FLASH)
-   ========================================== */
-.flash-message {
-    padding: 14px 20px;
-    border-radius: var(--radius-md);
-    margin-bottom: var(--spacing-md);
-    font-size: var(--font-size-sm);
-    display: flex;
-    align-items: center;
-    gap: var(--spacing-md);
-    animation: slideInRight 0.4s ease;
-    box-shadow: var(--shadow-md);
-}
-
-.flash-message.success {
-    background: #d1fae5;
-    color: #065f46;
-    border-left: 4px solid var(--color-accent);
-}
-
-.flash-message.error {
-    background: #fde8e8;
-    color: #991b1b;
-    border-left: 4px solid var(--color-danger);
-}
-
-.flash-message.warning {
-    background: #fef3c7;
-    color: #92400e;
-    border-left: 4px solid var(--color-warning);
-}
-
-.flash-message.info {
-    background: #dbeafe;
-    color: #1e40af;
-    border-left: 4px solid var(--color-info);
-}
-
-@keyframes slideInRight {
-    from {
-        opacity: 0;
-        transform: translateX(40px);
-    }
-    to {
-        opacity: 1;
-        transform: translateX(0);
-    }
-}
-
-/* ==========================================
-   ТАБЛИЦЫ
-   ========================================== */
-.table-responsive {
-    overflow-x: auto;
-    margin: var(--spacing-md) 0;
-}
-
-.table {
-    width: 100%;
-    border-collapse: collapse;
-    font-size: var(--font-size-sm);
-}
-
-.table thead {
-    background: var(--color-gray-50);
-}
-
-.table th {
-    padding: 12px 16px;
-    text-align: left;
-    font-weight: 600;
-    color: var(--color-gray-700);
-    border-bottom: 2px solid var(--color-gray-200);
-    text-transform: uppercase;
-    font-size: var(--font-size-xs);
-    letter-spacing: 0.5px;
-}
-
-.table td {
-    padding: 12px 16px;
-    border-bottom: 1px solid var(--color-gray-200);
-    vertical-align: middle;
-}
-
-.table tbody tr {
-    transition: background var(--transition-fast);
-}
-.table tbody tr:hover {
-    background: var(--color-gray-50);
-}
-
-/* ==========================================
-   АНИМАЦИИ
-   ========================================== */
-@keyframes fadeIn {
-    from { opacity: 0; transform: translateY(10px); }
-    to { opacity: 1; transform: translateY(0); }
-}
-
-@keyframes slideUp {
-    from { opacity: 0; transform: translateY(20px); }
-    to { opacity: 1; transform: translateY(0); }
-}
-
-.fade-in {
-    animation: fadeIn 0.4s ease;
-}
-
-.slide-up {
-    animation: slideUp 0.5s ease;
-}
-
-/* ==========================================
-   SKELETON LOADING
-   ========================================== */
-.skeleton {
-    background: linear-gradient(
-        90deg,
-        var(--color-gray-200) 25%,
-        var(--color-gray-100) 50%,
-        var(--color-gray-200) 75%
-    );
-    background-size: 200% 100%;
-    animation: shimmer 1.5s infinite;
-    border-radius: var(--radius-sm);
-}
-
-@keyframes shimmer {
-    0% { background-position: -200% 0; }
-    100% { background-position: 200% 0; }
-}
-
-/* ==========================================
-   АДАПТИВНОСТЬ
-   ========================================== */
-@media (max-width: 768px) {
-    .card {
-        padding: var(--spacing-md);
+{% block extra_css %}
+<style>
+    .dashboard-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+        gap: var(--spacing-lg);
+        margin-bottom: var(--spacing-xl);
     }
     
-    .table th,
-    .table td {
-        padding: 8px 12px;
+    .stat-card {
+        background: var(--color-white);
+        border-radius: var(--radius-lg);
+        padding: var(--spacing-lg);
+        box-shadow: var(--shadow-sm);
+        transition: all var(--transition-normal);
+        border: 1px solid var(--color-gray-200);
+        position: relative;
+        overflow: hidden;
+    }
+    
+    .stat-card:hover {
+        transform: translateY(-4px);
+        box-shadow: var(--shadow-md);
+    }
+    
+    .stat-card .stat-icon {
+        font-size: 32px;
+        margin-bottom: var(--spacing-sm);
+    }
+    
+    .stat-card .stat-value {
+        font-size: var(--font-size-2xl);
+        font-weight: 700;
+        color: var(--color-primary);
+        line-height: 1.2;
+    }
+    
+    .stat-card .stat-label {
+        font-size: var(--font-size-sm);
+        color: var(--color-gray-600);
+        margin-top: var(--spacing-xs);
+    }
+    
+    .stat-card .stat-trend {
         font-size: var(--font-size-xs);
+        font-weight: 600;
+        margin-top: var(--spacing-sm);
+        display: inline-flex;
+        align-items: center;
+        gap: var(--spacing-xs);
+        padding: 2px 10px;
+        border-radius: 50px;
     }
     
-    .btn {
-        padding: 8px 16px;
-        font-size: var(--font-size-xs);
+    .stat-card .stat-trend.up {
+        background: #d1fae5;
+        color: #065f46;
     }
     
-    .flex-between {
-        flex-direction: column;
-        align-items: stretch;
-        gap: var(--spacing-sm);
+    .stat-card .stat-trend.down {
+        background: #fde8e8;
+        color: #991b1b;
     }
-}
-
-@media (max-width: 480px) {
-    .card {
-        padding: var(--spacing-sm);
+    
+    .stat-card .stat-trend.neutral {
+        background: var(--color-gray-100);
+        color: var(--color-gray-600);
+    }
+    
+    /* Акцентная полоса */
+    .stat-card::after {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 4px;
+        background: linear-gradient(90deg, var(--color-accent), var(--color-info));
+    }
+    
+    .stat-card:nth-child(2)::after {
+        background: linear-gradient(90deg, var(--color-info), var(--color-primary));
+    }
+    
+    .stat-card:nth-child(3)::after {
+        background: linear-gradient(90deg, var(--color-warning), var(--color-danger));
+    }
+    
+    .stat-card:nth-child(4)::after {
+        background: linear-gradient(90deg, var(--color-accent), var(--color-warning));
+    }
+    
+    /* Чарт статусов */
+    .status-chart {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+        gap: var(--spacing-md);
+        margin-top: var(--spacing-md);
+    }
+    
+    .status-item {
+        background: var(--color-gray-50);
         border-radius: var(--radius-md);
+        padding: var(--spacing-md);
+        text-align: center;
+        transition: all var(--transition-fast);
     }
     
-    .table th,
-    .table td {
-        padding: 6px 8px;
-        font-size: 11px;
+    .status-item:hover {
+        background: var(--color-gray-200);
     }
-}
+    
+    .status-item .count {
+        font-size: var(--font-size-xl);
+        font-weight: 700;
+        color: var(--color-primary);
+    }
+    
+    .status-item .label {
+        font-size: var(--font-size-xs);
+        color: var(--color-gray-600);
+    }
+    
+    @media (max-width: 768px) {
+        .dashboard-grid {
+            grid-template-columns: repeat(2, 1fr);
+            gap: var(--spacing-md);
+        }
+        
+        .stat-card {
+            padding: var(--spacing-md);
+        }
+        
+        .stat-card .stat-value {
+            font-size: var(--font-size-xl);
+        }
+    }
+    
+    @media (max-width: 480px) {
+        .dashboard-grid {
+            grid-template-columns: 1fr;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div style="max-width:1440px;margin:0 auto;">
+    <!-- Приветствие -->
+    <div style="margin-bottom:var(--spacing-xl);">
+        <h1 style="font-size:var(--font-size-2xl);font-weight:700;color:var(--color-primary);">
+            👋 Добро пожаловать, {{ session.user_name }}
+        </h1>
+        <p style="color:var(--color-gray-600);font-size:var(--font-size-md);">
+            {{ session.shop_name }} — {{ datetime.now().strftime('%d %B %Y') }}
+        </p>
+    </div>
+    
+    <!-- Статистика -->
+    <div class="dashboard-grid">
+        <div class="stat-card">
+            <div class="stat-icon">📦</div>
+            <div class="stat-value">{{ total_orders }}</div>
+            <div class="stat-label">Всего заказов</div>
+            <div class="stat-trend neutral">📊 {{ "%.1f"|format((active_orders / total_orders * 100) if total_orders > 0 else 0) }}% активных</div>
+        </div>
+        
+        <div class="stat-card">
+            <div class="stat-icon">🔄</div>
+            <div class="stat-value">{{ active_orders }}</div>
+            <div class="stat-label">Активных заказов</div>
+            <div class="stat-trend up">⚡ В работе</div>
+        </div>
+        
+        <div class="stat-card">
+            <div class="stat-icon">📅</div>
+            <div class="stat-value">{{ today_orders }}</div>
+            <div class="stat-label">Заказов сегодня</div>
+            <div class="stat-trend {% if today_orders > 0 %}up{% else %}neutral{% endif %}">
+                {% if today_orders > 0 %}📈 +{{ today_orders }}{% else %}⏸️ пока нет{% endif %}
+            </div>
+        </div>
+        
+        <div class="stat-card">
+            <div class="stat-icon">🏆</div>
+            <div class="stat-value">{{ status_stats|length if status_stats else 0 }}</div>
+            <div class="stat-label">Активных статусов</div>
+            <div class="stat-trend neutral">📊 {{ status_stats|length if status_stats else 0 }} типов</div>
+        </div>
+    </div>
+    
+    <!-- Статус-чарт -->
+    {% if status_stats %}
+    <div class="card">
+        <div class="card-header">
+            <span class="card-title">📊 Распределение по статусам</span>
+            <span style="font-size:var(--font-size-sm);color:var(--color-gray-600);">
+                Всего: {{ total_orders }}
+            </span>
+        </div>
+        <div class="status-chart">
+            {% for stat in status_stats %}
+            <div class="status-item">
+                <div class="count">{{ stat.count }}</div>
+                <div class="label">{{ stat.status }}</div>
+                <div style="height:4px;background:var(--color-gray-200);border-radius:4px;margin-top:var(--spacing-sm);overflow:hidden;">
+                    <div style="height:100%;width:{{ (stat.count / total_orders * 100) if total_orders > 0 else 0 }}%;background:linear-gradient(90deg, var(--color-accent), var(--color-info));border-radius:4px;transition:width 1s ease;"></div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+    
+    <!-- Последние заказы -->
+    <div class="card">
+        <div class="card-header">
+            <span class="card-title">📋 Последние заказы</span>
+            <a href="/orders" class="btn btn-outline btn-sm">Все заказы →</a>
+        </div>
+        {% if orders %}
+            <div class="table-responsive">
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th>#</th>
+                            <th>Клиент</th>
+                            <th>Товар</th>
+                            <th>Сумма</th>
+                            <th>Статус</th>
+                            <th>Исполнитель</th>
+                            <th>Действия</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for order in orders[:10] %}
+                        <tr>
+                            <td><strong>#{{ order.id }}</strong></td>
+                            <td>{{ order.customer }}</td>
+                            <td style="max-width:200px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">
+                                {{ order.product }}
+                            </td>
+                            <td><strong>{{ "%.2f"|format(order.price) }} Br</strong></td>
+                            <td>
+                                <span class="badge 
+                                    {% if order.status == 'Новый' %}status-new
+                                    {% elif order.status == 'В работе' %}status-work
+                                    {% elif order.status == 'Выдан' %}status-done
+                                    {% else %}badge-gray{% endif %}">
+                                    {{ order.status }}
+                                </span>
+                            </td>
+                            <td>{{ order.executor or 'Не назначен' }}</td>
+                            <td>
+                                <a href="/orders/{{ order.id }}/edit" class="btn btn-info btn-sm">✏️</a>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        {% else %}
+            <div class="empty-state" style="padding:var(--spacing-xl);">
+                <div class="icon">📭</div>
+                <p style="color:var(--color-gray-500);">Нет заказов</p>
+                <a href="/orders/create" class="btn btn-primary mt-md">➕ Создать заказ</a>
+            </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
