@@ -17,9 +17,6 @@ from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
 from flask_session import Session
 
-# ===== ВРЕМЕННО УБИРАЕМ CSRF =====
-# from flask_wtf import CSRFProtect
-
 load_dotenv()
 
 # ==========================================
@@ -69,16 +66,9 @@ app = Flask(__name__)
 app.config.from_object(Config)
 app.secret_key = Config.SECRET_KEY
 
-# ===== CSRF ОТКЛЮЧЁН (для отладки) =====
-# csrf = CSRFProtect(app)
-
-# Сессии
 Session(app)
-
-# Кеширование
 cache = Cache(app)
 
-# Rate Limiting
 limiter = Limiter(
     app=app,
     key_func=get_remote_address,
@@ -107,7 +97,6 @@ def get_db_connection():
         import psycopg2
         from psycopg2.extras import DictCursor
         conn = psycopg2.connect(Config.DATABASE_URL)
-        conn.cursor_factory = DictCursor
         return conn
 
 @contextmanager
@@ -129,30 +118,8 @@ def init_db():
         with get_db_cursor() as cur:
             is_sqlite = Config.DATABASE_URL.startswith('sqlite://')
             
+            # Таблица заказов (БЕЗ deleted_at)
             cur.execute("""
-                CREATE TABLE IF NOT EXISTS orders (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    customer TEXT NOT NULL,
-                    phone TEXT NOT NULL,
-                    address TEXT,
-                    product TEXT NOT NULL,
-                    price REAL DEFAULT 0,
-                    prepaid REAL DEFAULT 0,
-                    priority TEXT DEFAULT 'Обычный',
-                    executor TEXT,
-                    executor_id TEXT,
-                    status TEXT DEFAULT 'Новый',
-                    comment TEXT,
-                    employee_notes TEXT,
-                    shop_id TEXT DEFAULT 'moskovskaya',
-                    is_archived INTEGER DEFAULT 0,
-                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                    completed_at TIMESTAMP,
-                    created_by TEXT,
-                    deleted_at TIMESTAMP
-                )
-            """ if is_sqlite else """
                 CREATE TABLE IF NOT EXISTS orders (
                     id SERIAL PRIMARY KEY,
                     customer TEXT NOT NULL,
@@ -172,12 +139,52 @@ def init_db():
                     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                     completed_at TIMESTAMP,
-                    created_by TEXT,
-                    deleted_at TIMESTAMP
+                    created_by TEXT
+                )
+            """ if not is_sqlite else """
+                CREATE TABLE IF NOT EXISTS orders (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    customer TEXT NOT NULL,
+                    phone TEXT NOT NULL,
+                    address TEXT,
+                    product TEXT NOT NULL,
+                    price REAL DEFAULT 0,
+                    prepaid REAL DEFAULT 0,
+                    priority TEXT DEFAULT 'Обычный',
+                    executor TEXT,
+                    executor_id TEXT,
+                    status TEXT DEFAULT 'Новый',
+                    comment TEXT,
+                    employee_notes TEXT,
+                    shop_id TEXT DEFAULT 'moskovskaya',
+                    is_archived INTEGER DEFAULT 0,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    completed_at TIMESTAMP,
+                    created_by TEXT
                 )
             """)
             
+            # Таблица уведомлений
             cur.execute("""
+                CREATE TABLE IF NOT EXISTS notifications (
+                    id SERIAL PRIMARY KEY,
+                    user_id TEXT NOT NULL,
+                    user_name TEXT,
+                    order_id INTEGER,
+                    notification_type TEXT,
+                    title TEXT,
+                    message TEXT,
+                    priority TEXT DEFAULT 'Обычный',
+                    is_read BOOLEAN DEFAULT FALSE,
+                    is_archived BOOLEAN DEFAULT FALSE,
+                    scheduled_for TIMESTAMP,
+                    action_url TEXT,
+                    metadata JSONB,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    read_at TIMESTAMP
+                )
+            """ if not is_sqlite else """
                 CREATE TABLE IF NOT EXISTS notifications (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
                     user_id TEXT NOT NULL,
@@ -195,27 +202,19 @@ def init_db():
                     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                     read_at TIMESTAMP
                 )
-            """ if is_sqlite else """
-                CREATE TABLE IF NOT EXISTS notifications (
-                    id SERIAL PRIMARY KEY,
-                    user_id TEXT NOT NULL,
-                    user_name TEXT,
-                    order_id INTEGER REFERENCES orders(id),
-                    notification_type TEXT,
-                    title TEXT,
-                    message TEXT,
-                    priority TEXT DEFAULT 'Обычный',
-                    is_read BOOLEAN DEFAULT FALSE,
-                    is_archived BOOLEAN DEFAULT FALSE,
-                    scheduled_for TIMESTAMP,
-                    action_url TEXT,
-                    metadata JSONB,
-                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                    read_at TIMESTAMP
-                )
             """)
             
+            # Таблица чата
             cur.execute("""
+                CREATE TABLE IF NOT EXISTS chat_messages (
+                    id SERIAL PRIMARY KEY,
+                    user_id TEXT NOT NULL,
+                    user_name TEXT NOT NULL,
+                    user_role TEXT,
+                    message TEXT NOT NULL,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                )
+            """ if not is_sqlite else """
                 CREATE TABLE IF NOT EXISTS chat_messages (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
                     user_id TEXT NOT NULL,
@@ -224,36 +223,10 @@ def init_db():
                     message TEXT NOT NULL,
                     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
                 )
-            """ if is_sqlite else """
-                CREATE TABLE IF NOT EXISTS chat_messages (
-                    id SERIAL PRIMARY KEY,
-                    user_id TEXT NOT NULL,
-                    user_name TEXT NOT NULL,
-                    user_role TEXT,
-                    message TEXT NOT NULL,
-                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-                )
             """)
             
+            # Таблица настроек уведомлений
             cur.execute("""
-                CREATE TABLE IF NOT EXISTS notification_settings (
-                    user_id TEXT PRIMARY KEY,
-                    user_name TEXT,
-                    notify_new_orders INTEGER DEFAULT 1,
-                    notify_status_changes INTEGER DEFAULT 1,
-                    notify_mentions INTEGER DEFAULT 1,
-                    notify_overdue INTEGER DEFAULT 1,
-                    notify_chat_messages INTEGER DEFAULT 1,
-                    notify_assignments INTEGER DEFAULT 1,
-                    reminder_frequency INTEGER DEFAULT 60,
-                    reminder_start_hour INTEGER DEFAULT 9,
-                    reminder_end_hour INTEGER DEFAULT 20,
-                    email_notifications INTEGER DEFAULT 0,
-                    browser_notifications INTEGER DEFAULT 1,
-                    telegram_notifications INTEGER DEFAULT 0,
-                    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-                )
-            """ if is_sqlite else """
                 CREATE TABLE IF NOT EXISTS notification_settings (
                     user_id TEXT PRIMARY KEY,
                     user_name TEXT,
@@ -271,47 +244,40 @@ def init_db():
                     telegram_notifications BOOLEAN DEFAULT FALSE,
                     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
                 )
-            """)
-            
-            cur.execute("""
-                CREATE TABLE IF NOT EXISTS user_sessions (
+            """ if not is_sqlite else """
+                CREATE TABLE IF NOT EXISTS notification_settings (
                     user_id TEXT PRIMARY KEY,
                     user_name TEXT,
-                    last_seen TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                    is_online INTEGER DEFAULT 0
+                    notify_new_orders INTEGER DEFAULT 1,
+                    notify_status_changes INTEGER DEFAULT 1,
+                    notify_mentions INTEGER DEFAULT 1,
+                    notify_overdue INTEGER DEFAULT 1,
+                    notify_chat_messages INTEGER DEFAULT 1,
+                    notify_assignments INTEGER DEFAULT 1,
+                    reminder_frequency INTEGER DEFAULT 60,
+                    reminder_start_hour INTEGER DEFAULT 9,
+                    reminder_end_hour INTEGER DEFAULT 20,
+                    email_notifications INTEGER DEFAULT 0,
+                    browser_notifications INTEGER DEFAULT 1,
+                    telegram_notifications INTEGER DEFAULT 0,
+                    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
                 )
-            """ if is_sqlite else """
+            """)
+            
+            # Таблица онлайн-сессий
+            cur.execute("""
                 CREATE TABLE IF NOT EXISTS user_sessions (
                     user_id TEXT PRIMARY KEY,
                     user_name TEXT,
                     last_seen TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                     is_online BOOLEAN DEFAULT FALSE
                 )
-            """)
-            
-            cur.execute("""
-                CREATE TABLE IF NOT EXISTS audit_logs (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    user_id TEXT,
+            """ if not is_sqlite else """
+                CREATE TABLE IF NOT EXISTS user_sessions (
+                    user_id TEXT PRIMARY KEY,
                     user_name TEXT,
-                    action TEXT,
-                    target_type TEXT,
-                    target_id INTEGER,
-                    details TEXT,
-                    ip_address TEXT,
-                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-                )
-            """ if is_sqlite else """
-                CREATE TABLE IF NOT EXISTS audit_logs (
-                    id SERIAL PRIMARY KEY,
-                    user_id TEXT,
-                    user_name TEXT,
-                    action TEXT,
-                    target_type TEXT,
-                    target_id INTEGER,
-                    details JSONB,
-                    ip_address TEXT,
-                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                    last_seen TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    is_online INTEGER DEFAULT 0
                 )
             """)
             
@@ -524,34 +490,52 @@ def dashboard():
         
         with get_db_cursor() as cur:
             if shop_id == 'all':
-                cur.execute("SELECT * FROM orders WHERE deleted_at IS NULL ORDER BY created_at DESC LIMIT 50;")
+                cur.execute("SELECT * FROM orders ORDER BY created_at DESC LIMIT 50;")
                 orders = cur.fetchall()
                 
-                cur.execute("SELECT COUNT(*) FROM orders WHERE deleted_at IS NULL;")
+                cur.execute("SELECT COUNT(*) FROM orders;")
                 total_orders = cur.fetchone()[0] or 0
                 
-                cur.execute("SELECT COUNT(*) FROM orders WHERE status != 'Выдан' AND deleted_at IS NULL;")
+                cur.execute("SELECT COUNT(*) FROM orders WHERE status != 'Выдан';")
                 active_orders = cur.fetchone()[0] or 0
                 
-                cur.execute("SELECT COUNT(*) FROM orders WHERE DATE(created_at) = DATE('now') AND deleted_at IS NULL;")
+                if is_sqlite:
+                    cur.execute("SELECT COUNT(*) FROM orders WHERE DATE(created_at) = DATE('now');")
+                else:
+                    cur.execute("SELECT COUNT(*) FROM orders WHERE created_at::date = CURRENT_DATE;")
                 today_orders = cur.fetchone()[0] or 0
                 
-                cur.execute("SELECT status, COUNT(*) FROM orders WHERE deleted_at IS NULL GROUP BY status;")
+                cur.execute("SELECT status, COUNT(*) FROM orders GROUP BY status;")
                 status_stats = cur.fetchall()
             else:
-                cur.execute("SELECT * FROM orders WHERE shop_id = ? AND deleted_at IS NULL ORDER BY created_at DESC LIMIT 50;", (shop_id,))
+                if is_sqlite:
+                    cur.execute("SELECT * FROM orders WHERE shop_id = ? ORDER BY created_at DESC LIMIT 50;", (shop_id,))
+                else:
+                    cur.execute("SELECT * FROM orders WHERE shop_id = %s ORDER BY created_at DESC LIMIT 50;", (shop_id,))
                 orders = cur.fetchall()
                 
-                cur.execute("SELECT COUNT(*) FROM orders WHERE shop_id = ? AND deleted_at IS NULL;", (shop_id,))
+                if is_sqlite:
+                    cur.execute("SELECT COUNT(*) FROM orders WHERE shop_id = ?;", (shop_id,))
+                else:
+                    cur.execute("SELECT COUNT(*) FROM orders WHERE shop_id = %s;", (shop_id,))
                 total_orders = cur.fetchone()[0] or 0
                 
-                cur.execute("SELECT COUNT(*) FROM orders WHERE shop_id = ? AND status != 'Выдан' AND deleted_at IS NULL;", (shop_id,))
+                if is_sqlite:
+                    cur.execute("SELECT COUNT(*) FROM orders WHERE shop_id = ? AND status != 'Выдан';", (shop_id,))
+                else:
+                    cur.execute("SELECT COUNT(*) FROM orders WHERE shop_id = %s AND status != 'Выдан';", (shop_id,))
                 active_orders = cur.fetchone()[0] or 0
                 
-                cur.execute("SELECT COUNT(*) FROM orders WHERE shop_id = ? AND DATE(created_at) = DATE('now') AND deleted_at IS NULL;", (shop_id,))
+                if is_sqlite:
+                    cur.execute("SELECT COUNT(*) FROM orders WHERE shop_id = ? AND DATE(created_at) = DATE('now');", (shop_id,))
+                else:
+                    cur.execute("SELECT COUNT(*) FROM orders WHERE shop_id = %s AND created_at::date = CURRENT_DATE;", (shop_id,))
                 today_orders = cur.fetchone()[0] or 0
                 
-                cur.execute("SELECT status, COUNT(*) FROM orders WHERE shop_id = ? AND deleted_at IS NULL GROUP BY status;", (shop_id,))
+                if is_sqlite:
+                    cur.execute("SELECT status, COUNT(*) FROM orders WHERE shop_id = ? GROUP BY status;", (shop_id,))
+                else:
+                    cur.execute("SELECT status, COUNT(*) FROM orders WHERE shop_id = %s GROUP BY status;", (shop_id,))
                 status_stats = cur.fetchall()
         
         return render_template('dashboard.html',
@@ -584,39 +568,72 @@ def employee_dashboard():
         is_sqlite = Config.DATABASE_URL.startswith('sqlite://')
         
         with get_db_cursor() as cur:
-            cur.execute("""
-                SELECT * FROM orders 
-                WHERE executor = ? AND status != 'Выдан' AND is_archived = 0 AND deleted_at IS NULL
-                ORDER BY 
-                    CASE priority 
-                        WHEN 'Высокий' THEN 1 
-                        WHEN 'Обычный' THEN 2 
-                        ELSE 3 
-                    END,
-                    created_at ASC
-            """, (user_name,))
+            if is_sqlite:
+                cur.execute("""
+                    SELECT * FROM orders 
+                    WHERE executor = ? AND status != 'Выдан' AND is_archived = 0
+                    ORDER BY 
+                        CASE priority 
+                            WHEN 'Высокий' THEN 1 
+                            WHEN 'Обычный' THEN 2 
+                            ELSE 3 
+                        END,
+                        created_at ASC
+                """, (user_name,))
+            else:
+                cur.execute("""
+                    SELECT * FROM orders 
+                    WHERE executor = %s AND status != 'Выдан' AND is_archived = FALSE
+                    ORDER BY 
+                        CASE priority 
+                            WHEN 'Высокий' THEN 1 
+                            WHEN 'Обычный' THEN 2 
+                            ELSE 3 
+                        END,
+                        created_at ASC
+                """, (user_name,))
             my_orders = cur.fetchall()
             
-            cur.execute("""
-                SELECT 
-                    COUNT(*) as total,
-                    COUNT(*) FILTER (WHERE status != 'Выдан') as active,
-                    COUNT(*) FILTER (WHERE status = 'Выдан' AND DATE(completed_at) = DATE('now')) as completed_today,
-                    COUNT(*) FILTER (WHERE status = 'Новый') as new_orders
-                FROM orders 
-                WHERE executor = ? AND deleted_at IS NULL
-            """, (user_name,))
+            if is_sqlite:
+                cur.execute("""
+                    SELECT 
+                        COUNT(*) as total,
+                        COUNT(*) FILTER (WHERE status != 'Выдан') as active,
+                        COUNT(*) FILTER (WHERE status = 'Выдан' AND DATE(completed_at) = DATE('now')) as completed_today,
+                        COUNT(*) FILTER (WHERE status = 'Новый') as new_orders
+                    FROM orders 
+                    WHERE executor = ?
+                """, (user_name,))
+            else:
+                cur.execute("""
+                    SELECT 
+                        COUNT(*) as total,
+                        COUNT(*) FILTER (WHERE status != 'Выдан') as active,
+                        COUNT(*) FILTER (WHERE status = 'Выдан' AND completed_at::date = CURRENT_DATE) as completed_today,
+                        COUNT(*) FILTER (WHERE status = 'Новый') as new_orders
+                    FROM orders 
+                    WHERE executor = %s
+                """, (user_name,))
             my_stats = cur.fetchone()
             
-            cur.execute("""
-                SELECT * FROM orders 
-                WHERE executor = ? 
-                AND status != 'Выдан' 
-                AND is_archived = 0
-                AND deleted_at IS NULL
-                AND DATE(created_at) = DATE('now')
-                ORDER BY created_at ASC
-            """, (user_name,))
+            if is_sqlite:
+                cur.execute("""
+                    SELECT * FROM orders 
+                    WHERE executor = ? 
+                    AND status != 'Выдан' 
+                    AND is_archived = 0
+                    AND DATE(created_at) = DATE('now')
+                    ORDER BY created_at ASC
+                """, (user_name,))
+            else:
+                cur.execute("""
+                    SELECT * FROM orders 
+                    WHERE executor = %s 
+                    AND status != 'Выдан' 
+                    AND is_archived = FALSE
+                    AND created_at::date = CURRENT_DATE
+                    ORDER BY created_at ASC
+                """, (user_name,))
             today_tasks = cur.fetchall()
         
         return render_template('employee_dashboard.html',
@@ -640,7 +657,7 @@ def employee_dashboard():
                              active_page='employee')
 
 # ==========================================
-# ЗАКАЗЫ
+# ЗАКАЗЫ (упрощённые, без deleted_at)
 # ==========================================
 
 @app.route('/orders')
@@ -658,8 +675,12 @@ def orders_page():
         is_sqlite = Config.DATABASE_URL.startswith('sqlite://')
         
         with get_db_cursor() as cur:
-            query = "SELECT * FROM orders WHERE shop_id = ? AND deleted_at IS NULL" if is_sqlite else "SELECT * FROM orders WHERE shop_id = %s AND deleted_at IS NULL"
-            count_query = "SELECT COUNT(*) FROM orders WHERE shop_id = ? AND deleted_at IS NULL" if is_sqlite else "SELECT COUNT(*) FROM orders WHERE shop_id = %s AND deleted_at IS NULL"
+            if is_sqlite:
+                query = "SELECT * FROM orders WHERE shop_id = ?"
+                count_query = "SELECT COUNT(*) FROM orders WHERE shop_id = ?"
+            else:
+                query = "SELECT * FROM orders WHERE shop_id = %s"
+                count_query = "SELECT COUNT(*) FROM orders WHERE shop_id = %s"
             params = [shop_id]
             
             if not show_archived:
@@ -699,10 +720,16 @@ def orders_page():
             cur.execute(query, params)
             orders = cur.fetchall()
             
-            cur.execute("SELECT DISTINCT status FROM orders WHERE shop_id = ? AND deleted_at IS NULL;", (shop_id,)) if is_sqlite else cur.execute("SELECT DISTINCT status FROM orders WHERE shop_id = %s AND deleted_at IS NULL;", (shop_id,))
+            if is_sqlite:
+                cur.execute("SELECT DISTINCT status FROM orders WHERE shop_id = ?;", (shop_id,))
+            else:
+                cur.execute("SELECT DISTINCT status FROM orders WHERE shop_id = %s;", (shop_id,))
             statuses = [row[0] for row in cur.fetchall()]
             
-            cur.execute("SELECT COUNT(*) FROM orders WHERE shop_id = ? AND is_archived = 1 AND deleted_at IS NULL;", (shop_id,)) if is_sqlite else cur.execute("SELECT COUNT(*) FROM orders WHERE shop_id = %s AND is_archived = TRUE AND deleted_at IS NULL;", (shop_id,))
+            if is_sqlite:
+                cur.execute("SELECT COUNT(*) FROM orders WHERE shop_id = ? AND is_archived = 1;", (shop_id,))
+            else:
+                cur.execute("SELECT COUNT(*) FROM orders WHERE shop_id = %s AND is_archived = TRUE;", (shop_id,))
             archived_count = cur.fetchone()[0] or 0
         
         return render_template('orders.html',
@@ -754,7 +781,6 @@ def add_order():
                     INSERT INTO orders (customer, phone, address, product, price, prepaid, 
                                        priority, executor, status, comment, shop_id, created_by)
                     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                    RETURNING id;
                 """, (customer, phone, address, product, price, prepaid, priority, executor, 
                       status, comment, shop_id, session.get('user_name')))
             else:
@@ -765,9 +791,9 @@ def add_order():
                     RETURNING id;
                 """, (customer, phone, address, product, price, prepaid, priority, executor, 
                       status, comment, shop_id, session.get('user_name')))
-            order_id = cur.fetchone()[0]
+                order_id = cur.fetchone()[0] if not is_sqlite else None
         
-        flash(f'✅ Заказ #{order_id} успешно создан!', 'success')
+        flash('✅ Заказ успешно создан!' + (f' #{order_id}' if order_id else ''), 'success')
         return redirect(url_for('orders_page'))
     except Exception as e:
         logger.exception("Ошибка создания заказа")
@@ -781,7 +807,10 @@ def edit_order_form(order_id):
         shop_id = get_user_shop()
         is_sqlite = Config.DATABASE_URL.startswith('sqlite://')
         with get_db_cursor() as cur:
-            cur.execute("SELECT * FROM orders WHERE id = ? AND shop_id = ? AND deleted_at IS NULL;", (order_id, shop_id)) if is_sqlite else cur.execute("SELECT * FROM orders WHERE id = %s AND shop_id = %s AND deleted_at IS NULL;", (order_id, shop_id))
+            if is_sqlite:
+                cur.execute("SELECT * FROM orders WHERE id = ? AND shop_id = ?;", (order_id, shop_id))
+            else:
+                cur.execute("SELECT * FROM orders WHERE id = %s AND shop_id = %s;", (order_id, shop_id))
             order = cur.fetchone()
         
         if not order:
@@ -818,8 +847,7 @@ def edit_order(order_id):
                     SET customer = ?, phone = ?, address = ?, product = ?, 
                         price = ?, prepaid = ?, priority = ?, executor = ?, 
                         status = ?, comment = ?, updated_at = CURRENT_TIMESTAMP
-                    WHERE id = ? AND shop_id = ? AND deleted_at IS NULL
-                    RETURNING id;
+                    WHERE id = ? AND shop_id = ?
                 """, (customer, phone, address, product, price, prepaid, priority, executor, 
                       status, comment, order_id, shop_id))
             else:
@@ -828,15 +856,11 @@ def edit_order(order_id):
                     SET customer = %s, phone = %s, address = %s, product = %s, 
                         price = %s, prepaid = %s, priority = %s, executor = %s, 
                         status = %s, comment = %s, updated_at = CURRENT_TIMESTAMP
-                    WHERE id = %s AND shop_id = %s AND deleted_at IS NULL
-                    RETURNING id;
+                    WHERE id = %s AND shop_id = %s
                 """, (customer, phone, address, product, price, prepaid, priority, executor, 
                       status, comment, order_id, shop_id))
-            if cur.fetchone():
-                flash(f'✅ Заказ #{order_id} успешно обновлен!', 'success')
-            else:
-                flash('❌ Заказ не найден или уже удален!', 'error')
         
+        flash(f'✅ Заказ #{order_id} успешно обновлен!', 'success')
         return redirect(url_for('orders_page'))
     except Exception as e:
         logger.exception("Ошибка редактирования")
@@ -860,7 +884,7 @@ def update_order(order_id):
                     SET status = ?, executor = ?, employee_notes = ?,
                         completed_at = CASE WHEN ? = 'Выдан' THEN CURRENT_TIMESTAMP ELSE NULL END,
                         updated_at = CURRENT_TIMESTAMP
-                    WHERE id = ? AND shop_id = ? AND deleted_at IS NULL;
+                    WHERE id = ? AND shop_id = ?
                 """, (status, executor, employee_notes, status, order_id, shop_id))
             else:
                 cur.execute("""
@@ -868,7 +892,7 @@ def update_order(order_id):
                     SET status = %s, executor = %s, employee_notes = %s,
                         completed_at = CASE WHEN %s = 'Выдан' THEN CURRENT_TIMESTAMP ELSE NULL END,
                         updated_at = CURRENT_TIMESTAMP
-                    WHERE id = %s AND shop_id = %s AND deleted_at IS NULL;
+                    WHERE id = %s AND shop_id = %s
                 """, (status, executor, employee_notes, status, order_id, shop_id))
         
         flash(f'✅ Заказ #{order_id} обновлен!', 'success')
@@ -886,7 +910,10 @@ def archive_order(order_id):
         shop_id = get_user_shop()
         is_sqlite = Config.DATABASE_URL.startswith('sqlite://')
         with get_db_cursor() as cur:
-            cur.execute("UPDATE orders SET is_archived = 1, updated_at = CURRENT_TIMESTAMP WHERE id = ? AND shop_id = ? AND deleted_at IS NULL;", (order_id, shop_id)) if is_sqlite else cur.execute("UPDATE orders SET is_archived = TRUE, updated_at = CURRENT_TIMESTAMP WHERE id = %s AND shop_id = %s AND deleted_at IS NULL;", (order_id, shop_id))
+            if is_sqlite:
+                cur.execute("UPDATE orders SET is_archived = 1, updated_at = CURRENT_TIMESTAMP WHERE id = ? AND shop_id = ?;", (order_id, shop_id))
+            else:
+                cur.execute("UPDATE orders SET is_archived = TRUE, updated_at = CURRENT_TIMESTAMP WHERE id = %s AND shop_id = %s;", (order_id, shop_id))
         flash(f'📦 Заказ #{order_id} перемещен в архив!', 'success')
         return redirect(url_for('orders_page'))
     except Exception as e:
@@ -902,27 +929,14 @@ def unarchive_order(order_id):
         shop_id = get_user_shop()
         is_sqlite = Config.DATABASE_URL.startswith('sqlite://')
         with get_db_cursor() as cur:
-            cur.execute("UPDATE orders SET is_archived = 0, updated_at = CURRENT_TIMESTAMP WHERE id = ? AND shop_id = ? AND deleted_at IS NULL;", (order_id, shop_id)) if is_sqlite else cur.execute("UPDATE orders SET is_archived = FALSE, updated_at = CURRENT_TIMESTAMP WHERE id = %s AND shop_id = %s AND deleted_at IS NULL;", (order_id, shop_id))
+            if is_sqlite:
+                cur.execute("UPDATE orders SET is_archived = 0, updated_at = CURRENT_TIMESTAMP WHERE id = ? AND shop_id = ?;", (order_id, shop_id))
+            else:
+                cur.execute("UPDATE orders SET is_archived = FALSE, updated_at = CURRENT_TIMESTAMP WHERE id = %s AND shop_id = %s;", (order_id, shop_id))
         flash(f'📤 Заказ #{order_id} восстановлен!', 'success')
         return redirect(url_for('orders_page'))
     except Exception as e:
         logger.exception("Ошибка восстановления")
-        flash(f'❌ Ошибка: {e}', 'error')
-        return redirect(url_for('orders_page'))
-
-@app.route('/orders/<int:order_id>/soft-delete', methods=['POST'])
-@login_required
-@admin_required
-def soft_delete_order(order_id):
-    try:
-        shop_id = get_user_shop()
-        is_sqlite = Config.DATABASE_URL.startswith('sqlite://')
-        with get_db_cursor() as cur:
-            cur.execute("UPDATE orders SET deleted_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP WHERE id = ? AND shop_id = ? AND deleted_at IS NULL;", (order_id, shop_id)) if is_sqlite else cur.execute("UPDATE orders SET deleted_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP WHERE id = %s AND shop_id = %s AND deleted_at IS NULL;", (order_id, shop_id))
-        flash(f'🗑️ Заказ #{order_id} помечен как удаленный', 'success')
-        return redirect(url_for('orders_page'))
-    except Exception as e:
-        logger.exception("Ошибка удаления")
         flash(f'❌ Ошибка: {e}', 'error')
         return redirect(url_for('orders_page'))
 
@@ -942,7 +956,7 @@ def complete_order(order_id):
                         completed_at = CURRENT_TIMESTAMP,
                         employee_notes = ?,
                         updated_at = CURRENT_TIMESTAMP
-                    WHERE id = ? AND executor = ? AND status != 'Выдан' AND deleted_at IS NULL
+                    WHERE id = ? AND executor = ? AND status != 'Выдан'
                 """, (notes, order_id, user_name))
             else:
                 cur.execute("""
@@ -951,7 +965,7 @@ def complete_order(order_id):
                         completed_at = CURRENT_TIMESTAMP,
                         employee_notes = %s,
                         updated_at = CURRENT_TIMESTAMP
-                    WHERE id = %s AND executor = %s AND status != 'Выдан' AND deleted_at IS NULL
+                    WHERE id = %s AND executor = %s AND status != 'Выдан'
                 """, (notes, order_id, user_name))
         
         flash(f'✅ Заказ #{order_id} завершен!', 'success')
@@ -977,7 +991,7 @@ def clients_page():
                            SUM(price) as total_spent,
                            GROUP_CONCAT(DISTINCT shop_id) as shops
                     FROM orders
-                    WHERE is_archived = 0 AND deleted_at IS NULL
+                    WHERE is_archived = 0
                     GROUP BY customer, phone
                     ORDER BY total_spent DESC;
                 """)
@@ -987,7 +1001,7 @@ def clients_page():
                            SUM(price) as total_spent,
                            STRING_AGG(DISTINCT shop_id, ', ') as shops
                     FROM orders
-                    WHERE is_archived = FALSE AND deleted_at IS NULL
+                    WHERE is_archived = FALSE
                     GROUP BY customer, phone
                     ORDER BY total_spent DESC;
                 """)
@@ -1113,24 +1127,24 @@ def calendar_events_api():
                     SELECT id, customer, product, status, priority, created_at, 
                            completed_at, executor, shop_id
                     FROM orders
-                    WHERE is_archived = 0 AND deleted_at IS NULL
+                    WHERE is_archived = 0
                 """ if is_sqlite else """
                     SELECT id, customer, product, status, priority, created_at, 
                            completed_at, executor, shop_id
                     FROM orders
-                    WHERE is_archived = FALSE AND deleted_at IS NULL
+                    WHERE is_archived = FALSE
                 """)
             else:
                 cur.execute("""
                     SELECT id, customer, product, status, priority, created_at, 
                            completed_at, executor, shop_id
                     FROM orders
-                    WHERE executor = ? AND is_archived = 0 AND deleted_at IS NULL
+                    WHERE executor = ? AND is_archived = 0
                 """, (user_name,)) if is_sqlite else cur.execute("""
                     SELECT id, customer, product, status, priority, created_at, 
                            completed_at, executor, shop_id
                     FROM orders
-                    WHERE executor = %s AND is_archived = FALSE AND deleted_at IS NULL
+                    WHERE executor = %s AND is_archived = FALSE
                 """, (user_name,))
             orders = cur.fetchall()
         
@@ -1248,10 +1262,16 @@ def check_notifications_api():
         is_sqlite = Config.DATABASE_URL.startswith('sqlite://')
         
         with get_db_cursor() as cur:
-            cur.execute("SELECT COUNT(*) FROM orders WHERE executor = ? AND status = 'Новый' AND is_archived = 0 AND deleted_at IS NULL;", (user_name,)) if is_sqlite else cur.execute("SELECT COUNT(*) FROM orders WHERE executor = %s AND status = 'Новый' AND is_archived = FALSE AND deleted_at IS NULL;", (user_name,))
+            if is_sqlite:
+                cur.execute("SELECT COUNT(*) FROM orders WHERE executor = ? AND status = 'Новый' AND is_archived = 0;", (user_name,))
+            else:
+                cur.execute("SELECT COUNT(*) FROM orders WHERE executor = %s AND status = 'Новый' AND is_archived = FALSE;", (user_name,))
             new_orders = cur.fetchone()[0] or 0
             
-            cur.execute("SELECT COUNT(*) FROM notifications WHERE user_id = ? AND is_read = 0 AND is_archived = 0;", (user_id,)) if is_sqlite else cur.execute("SELECT COUNT(*) FROM notifications WHERE user_id = %s AND is_read = FALSE AND is_archived = FALSE;", (user_id,))
+            if is_sqlite:
+                cur.execute("SELECT COUNT(*) FROM notifications WHERE user_id = ? AND is_read = 0 AND is_archived = 0;", (user_id,))
+            else:
+                cur.execute("SELECT COUNT(*) FROM notifications WHERE user_id = %s AND is_read = FALSE AND is_archived = FALSE;", (user_id,))
             unread = cur.fetchone()[0] or 0
         
         return jsonify({'new_orders': new_orders, 'unread': unread})
@@ -1268,7 +1288,10 @@ def get_latest_notifications():
         is_sqlite = Config.DATABASE_URL.startswith('sqlite://')
         
         with get_db_cursor() as cur:
-            cur.execute("SELECT * FROM notifications WHERE user_id = ? AND is_archived = 0 ORDER BY created_at DESC LIMIT ?;", (user_id, limit)) if is_sqlite else cur.execute("SELECT * FROM notifications WHERE user_id = %s AND is_archived = FALSE ORDER BY created_at DESC LIMIT %s;", (user_id, limit))
+            if is_sqlite:
+                cur.execute("SELECT * FROM notifications WHERE user_id = ? AND is_archived = 0 ORDER BY created_at DESC LIMIT ?;", (user_id, limit))
+            else:
+                cur.execute("SELECT * FROM notifications WHERE user_id = %s AND is_archived = FALSE ORDER BY created_at DESC LIMIT %s;", (user_id, limit))
             notifications = cur.fetchall()
             
             result = []
@@ -1294,7 +1317,10 @@ def mark_notification_read(notif_id):
         user_id = session.get('user_id')
         is_sqlite = Config.DATABASE_URL.startswith('sqlite://')
         with get_db_cursor() as cur:
-            cur.execute("UPDATE notifications SET is_read = 1, read_at = CURRENT_TIMESTAMP WHERE id = ? AND user_id = ?;", (notif_id, user_id)) if is_sqlite else cur.execute("UPDATE notifications SET is_read = TRUE, read_at = CURRENT_TIMESTAMP WHERE id = %s AND user_id = %s;", (notif_id, user_id))
+            if is_sqlite:
+                cur.execute("UPDATE notifications SET is_read = 1, read_at = CURRENT_TIMESTAMP WHERE id = ? AND user_id = ?;", (notif_id, user_id))
+            else:
+                cur.execute("UPDATE notifications SET is_read = TRUE, read_at = CURRENT_TIMESTAMP WHERE id = %s AND user_id = %s;", (notif_id, user_id))
         return jsonify({'success': True})
     except Exception as e:
         return jsonify({'error': str(e)}), 500
@@ -1306,7 +1332,10 @@ def mark_all_notifications_read():
         user_id = session.get('user_id')
         is_sqlite = Config.DATABASE_URL.startswith('sqlite://')
         with get_db_cursor() as cur:
-            cur.execute("UPDATE notifications SET is_read = 1, read_at = CURRENT_TIMESTAMP WHERE user_id = ? AND is_read = 0;", (user_id,)) if is_sqlite else cur.execute("UPDATE notifications SET is_read = TRUE, read_at = CURRENT_TIMESTAMP WHERE user_id = %s AND is_read = FALSE;", (user_id,))
+            if is_sqlite:
+                cur.execute("UPDATE notifications SET is_read = 1, read_at = CURRENT_TIMESTAMP WHERE user_id = ? AND is_read = 0;", (user_id,))
+            else:
+                cur.execute("UPDATE notifications SET is_read = TRUE, read_at = CURRENT_TIMESTAMP WHERE user_id = %s AND is_read = FALSE;", (user_id,))
         return jsonify({'success': True})
     except Exception as e:
         return jsonify({'error': str(e)}), 500
@@ -1318,7 +1347,10 @@ def archive_notification(notif_id):
         user_id = session.get('user_id')
         is_sqlite = Config.DATABASE_URL.startswith('sqlite://')
         with get_db_cursor() as cur:
-            cur.execute("UPDATE notifications SET is_archived = 1 WHERE id = ? AND user_id = ?;", (notif_id, user_id)) if is_sqlite else cur.execute("UPDATE notifications SET is_archived = TRUE WHERE id = %s AND user_id = %s;", (notif_id, user_id))
+            if is_sqlite:
+                cur.execute("UPDATE notifications SET is_archived = 1 WHERE id = ? AND user_id = ?;", (notif_id, user_id))
+            else:
+                cur.execute("UPDATE notifications SET is_archived = TRUE WHERE id = %s AND user_id = %s;", (notif_id, user_id))
         return jsonify({'success': True})
     except Exception as e:
         return jsonify({'error': str(e)}), 500
@@ -1361,28 +1393,31 @@ def get_online_users():
     try:
         is_sqlite = Config.DATABASE_URL.startswith('sqlite://')
         with get_db_cursor() as cur:
-            cur.execute("""
-                SELECT user_id, user_name, last_seen,
-                       CASE 
-                           WHEN julianday('now') - julianday(last_seen) < 0.0014 THEN 1
-                           ELSE 0
-                       END as is_online
-                FROM user_sessions
-                WHERE julianday('now') - julianday(last_seen) < 0.0035
-                ORDER BY user_name
-            """) if is_sqlite else cur.execute("""
-                SELECT 
-                    user_id,
-                    user_name,
-                    last_seen,
-                    CASE 
-                        WHEN NOW() - last_seen < INTERVAL '2 minutes' THEN TRUE
-                        ELSE FALSE
-                    END as is_online
-                FROM user_sessions
-                WHERE NOW() - last_seen < INTERVAL '5 minutes'
-                ORDER BY user_name
-            """)
+            if is_sqlite:
+                cur.execute("""
+                    SELECT user_id, user_name, last_seen,
+                           CASE 
+                               WHEN julianday('now') - julianday(last_seen) < 0.0014 THEN 1
+                               ELSE 0
+                           END as is_online
+                    FROM user_sessions
+                    WHERE julianday('now') - julianday(last_seen) < 0.0035
+                    ORDER BY user_name
+                """)
+            else:
+                cur.execute("""
+                    SELECT 
+                        user_id,
+                        user_name,
+                        last_seen,
+                        CASE 
+                            WHEN NOW() - last_seen < INTERVAL '2 minutes' THEN TRUE
+                            ELSE FALSE
+                        END as is_online
+                    FROM user_sessions
+                    WHERE NOW() - last_seen < INTERVAL '5 minutes'
+                    ORDER BY user_name
+                """)
             users = cur.fetchall()
             
             result = []
@@ -1404,7 +1439,10 @@ def leave_online():
         user_id = session.get('user_id')
         is_sqlite = Config.DATABASE_URL.startswith('sqlite://')
         with get_db_cursor() as cur:
-            cur.execute("UPDATE user_sessions SET is_online = 0, last_seen = CURRENT_TIMESTAMP WHERE user_id = ?;", (user_id,)) if is_sqlite else cur.execute("UPDATE user_sessions SET is_online = FALSE, last_seen = CURRENT_TIMESTAMP WHERE user_id = %s;", (user_id,))
+            if is_sqlite:
+                cur.execute("UPDATE user_sessions SET is_online = 0, last_seen = CURRENT_TIMESTAMP WHERE user_id = ?;", (user_id,))
+            else:
+                cur.execute("UPDATE user_sessions SET is_online = FALSE, last_seen = CURRENT_TIMESTAMP WHERE user_id = %s;", (user_id,))
         return jsonify({'success': True})
     except Exception as e:
         return jsonify({'error': str(e)}), 500
