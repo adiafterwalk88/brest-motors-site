@@ -1,313 +1,224 @@
-<!DOCTYPE html>
-<html lang="ru">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>InTarget Brest Motors — Кабинет сотрудника</title>
-    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%230a0a0a'/><text x='50' y='68' font-size='48' font-family='Arial' font-weight='bold' text-anchor='middle' fill='%23d4a84b'>BM</text></svg>">
-    <meta name="theme-color" content="#0d0d0e">
-    
-    <link rel="stylesheet" href="/static/style.css">
-    
-    <style>
-        /* Дополнительные стили шапки и элементов уведомлений */
-        .top-bar {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: var(--spacing-md) 0;
-            margin-bottom: var(--spacing-lg);
-            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
-        }
-        .user-info {
-            display: flex;
-            align-items: center;
-            gap: var(--spacing-lg);
-        }
-        .header-notifications {
-            position: relative;
-            cursor: pointer;
-        }
-        .notif-dropdown {
-            display: none;
-            position: absolute;
-            right: 0;
-            top: calc(100% + 10px);
-            width: 300px;
-            background: var(--color-bg-card);
-            border: 1px solid rgba(212, 168, 75, 0.3);
-            border-radius: var(--radius-md);
-            box-shadow: var(--shadow-lg);
-            padding: var(--spacing-md);
-            z-index: 1000;
-        }
-        .notif-dropdown.show {
-            display: block;
-        }
-        .notif-footer {
-            margin-top: var(--spacing-sm);
-            padding-top: var(--spacing-sm);
-            border-top: 1px solid rgba(255,255,255,0.05);
-            text-align: center;
-            font-size: var(--font-size-xs);
-        }
-        .flash-container {
-            margin-bottom: var(--spacing-md);
-        }
-        .flash-message.success {
-            background: rgba(82, 196, 26, 0.15);
-            color: #95de64;
-            border: 1px solid rgba(82, 196, 26, 0.3);
-            padding: 12px 16px;
-            border-radius: var(--radius-md);
-        }
-        .card-header-gradient {
-            background: linear-gradient(135deg, rgba(212, 168, 75, 0.2), rgba(20, 20, 22, 0.8));
-            border-bottom: 1px solid rgba(212, 168, 75, 0.3);
-            color: var(--color-gold-light);
-            padding: 12px 16px;
-            margin: -24px -24px 20px -24px;
-            font-size: var(--font-size-md);
-            font-weight: 600;
-            border-top-left-radius: var(--radius-lg);
-            border-top-right-radius: var(--radius-lg);
-        }
-        .stats-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-            gap: var(--spacing-md);
-            margin-bottom: var(--spacing-xl);
-        }
-        .stat-card {
-            background: var(--color-bg-card);
-            border: 1px solid rgba(255, 255, 255, 0.06);
-            padding: var(--spacing-lg);
-            border-radius: var(--radius-lg);
-            text-align: center;
-        }
-        .stat-val {
-            font-size: var(--font-size-2xl);
-            font-weight: 700;
-            color: var(--color-gold);
-        }
-        .stat-lbl {
-            color: var(--color-text-secondary);
-            font-size: var(--font-size-xs);
-            margin-top: 4px;
-        }
-        .table-wrapper {
-            overflow-x: auto;
-        }
-        table {
-            width: 100%;
-            border-collapse: collapse;
-        }
-        th, td {
-            padding: 12px;
-            text-align: left;
-            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
-            font-size: var(--font-size-sm);
-        }
-        th {
-            color: var(--color-text-muted);
-            font-weight: 600;
-            background: rgba(0, 0, 0, 0.2);
-        }
-        tr.row-my {
-            background: rgba(212, 168, 75, 0.05);
-        }
-    </style>
-</head>
-<body>
-    <button class="mobile-menu-toggle" id="mobileMenuToggle" aria-label="Открыть меню">☰</button>
+/* ==========================================================================
+   ОСНОВНЫЕ СБРОСЫ И ПЕРЕМЕННЫЕ
+   ========================================================================== */
+:root {
+    --bg-dark: #0d0d0e;
+    --card-bg: #1c1c1f;
+    --sidebar-bg: #121214;
+    --accent-gold: #d4a84b;
+    --accent-gold-hover: #c3973a;
+    --text-primary: #ffffff;
+    --text-muted: #a0a0ab;
+    --border-color: rgba(255, 255, 255, 0.06);
+    --border-gold: rgba(212, 168, 75, 0.3);
+    --success: #52c41a;
+    --info: #1890ff;
+    --danger: #ff4d4f;
+}
 
-    <div class="app-container">
-        <aside class="sidebar" id="mainSidebar">
-            <div class="sidebar-header">
-                <div class="sidebar-logo">🎯 InTarget</div>
-                <button class="sidebar-close" id="sidebarClose" aria-label="Закрыть меню">✕</button>
-            </div>
-            <nav class="sidebar-nav">
-                <a href="/employee" class="nav-item active">👨‍🔧 Мой кабинет</a>
-                <a href="/employee/orders/create" class="nav-item">➕ Создать заказ</a>
-                <a href="/logout" class="nav-item logout" style="color: var(--color-danger);">🚪 Выйти</a>
-            </nav>
-        </aside>
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+}
 
-        <div class="sidebar-overlay" id="sidebarOverlay"></div>
+body {
+    background-color: var(--bg-dark);
+    color: var(--text-primary);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    font-size: 14px;
+    line-height: 1.5;
+}
 
-        <main class="main-content" id="mainContent">
-            <header class="top-bar">
-                <div class="header-title">
-                    <h1 style="font-size: var(--font-size-xl); color: var(--color-text-primary);">👨‍🔧 Кабинет сотрудника</h1>
-                    <span style="color: var(--color-text-secondary); font-size: var(--font-size-sm);">Дмитрий — InTarget Brest Motors</span>
-                </div>
-                
-                <div class="user-info">
-                    <div class="header-notifications" id="notifToggle" tabindex="0" role="button">
-                        <span style="font-size:20px; color:var(--color-gold);" aria-hidden="true">🔔</span>
-                        <span class="badge badge-gold" id="notifBadge" style="display:none;">0</span>
-                        
-                        <div class="notif-dropdown" id="notifDropdown">
-                            <div id="notifDropdownContent">
-                                <div class="notif-empty" style="color: var(--color-text-muted);">📭 Нет уведомлений</div>
-                            </div>
-                            <div class="notif-footer">
-                                <a href="/notifications">Все уведомления →</a>
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <span class="user-name" style="color: var(--color-text-primary);">👤 <strong>Дмитрий</strong></span>
-                    <a href="/employee/orders/create" class="btn btn-primary btn-sm">➕ Создать заказ</a>
-                </div>
-            </header>
+/* ==========================================================================
+   МАКЕТ (LAYOUT)
+   ========================================================================== */
+.app-layout {
+    display: flex;
+    min-height: 100vh;
+}
 
-            <div class="flash-container">
-                <div class="flash-message success">✅ Добро пожаловать, Дмитрий!</div>
-            </div>
+.sidebar {
+    width: 240px;
+    background-color: var(--sidebar-bg);
+    border-right: 1px solid var(--border-color);
+    padding: 20px 0;
+    flex-shrink: 0;
+}
 
-            <div class="stats-grid">
-                <div class="stat-card">
-                    <div class="stat-val">4</div>
-                    <div class="stat-lbl">Моих заказов</div>
-                </div>
-                <div class="stat-card">
-                    <div class="stat-val">3</div>
-                    <div class="stat-lbl">Активных</div>
-                </div>
-                <div class="stat-card">
-                    <div class="stat-val">0</div>
-                    <div class="stat-lbl">Выдано сегодня</div>
-                </div>
-                <div class="stat-card">
-                    <div class="stat-val">0</div>
-                    <div class="stat-lbl">Новых</div>
-                </div>
-            </div>
+.sidebar-header {
+    padding: 0 20px 20px;
+    border-bottom: 1px solid var(--border-color);
+}
 
-            <div class="order-card" style="margin-bottom: var(--spacing-xl);">
-                <h3 style="margin-bottom: var(--spacing-md); color: var(--color-text-primary);">📋 Мои активные заказы</h3>
-                <div class="table-wrapper">
-                    <table>
-                        <thead>
-                            <tr>
-                                <th>#</th>
-                                <th>Клиент</th>
-                                <th>Магазин</th>
-                                <th>Товар</th>
-                                <th>Статус</th>
-                                <th>Действия</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <tr class="row-my">
-                                <td><strong style="color: var(--color-gold);">#17</strong></td>
-                                <td>кто-то</td>
-                                <td>🏪 ул. Московская, 123</td>
-                                <td>Вал-шестеренчатый вторичный SK850S ...</td>
-                                <td><span class="badge badge-work">В работе</span></td>
-                                <td>
-                                    <div style="display:flex; gap:8px; align-items:center;">
-                                        <a href="/employee/orders/17/edit" class="btn btn-secondary btn-sm">✏️ РЕДАКТИРОВАТЬ</a>
-                                        <form method="POST" action="/orders/17/complete" onsubmit="return confirm('Завершить заказ #17?');" style="margin:0;">
-                                            <input type="hidden" name="notes" value="">
-                                            <button type="submit" class="btn btn-primary btn-sm">✅ ЗАВЕРШИТЬ</button>
-                                        </form>
-                                    </div>
-                                </td>
-                            </tr>
-                        </tbody>
-                    </table>
-                </div>
-            </div>
+.logo {
+    font-size: 20px;
+    font-weight: 700;
+    color: var(--text-primary);
+}
 
-            <div class="order-card" style="margin-bottom: var(--spacing-xl);">
-                <div class="card-header-gradient">
-                    🏪 ул. Московская, 123
-                    <span style="font-size:13px; opacity:0.8; margin-left:8px;">(Активных: 4, Моих: 0)</span>
-                </div>
-                <div class="table-wrapper">
-                    <table>
-                        <thead>
-                            <tr>
-                                <th>#</th>
-                                <th>Клиент</th>
-                                <th>Товар</th>
-                                <th>Исполнитель</th>
-                                <th>Статус</th>
-                                <th>Действия</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <tr>
-                                <td><strong>#10</strong></td>
-                                <td>Александрия-Агро</td>
-                                <td>артикул: CNP15024 муфта сцепл...</td>
-                                <td>Павел</td>
-                                <td><span class="badge badge-work">В работе</span></td>
-                                <td></td>
-                            </tr>
-                            <tr>
-                                <td><strong>#12</strong></td>
-                                <td>Никита</td>
-                                <td>Ступица ножа LC353V LC353VI ко...</td>
-                                <td>Павел Иванович</td>
-                                <td><span class="badge badge-new">Новый</span></td>
-                                <td></td>
-                            </tr>
-                            <tr>
-                                <td><strong>#16</strong></td>
-                                <td>кто-то</td>
-                                <td>Артикул: 5320120011 Ремень We...</td>
-                                <td>Павел</td>
-                                <td><span class="badge badge-new">Новый</span></td>
-                                <td></td>
-                            </tr>
-                            <tr class="row-my">
-                                <td><strong style="color: var(--color-gold);">#17</strong></td>
-                                <td>кто-то</td>
-                                <td>Вал-шестеренчатый вторичный SK850S ...</td>
-                                <td><strong style="color: var(--color-success);">Я</strong></td>
-                                <td><span class="badge badge-work">В работе</span></td>
-                                <td>
-                                    <a href="/employee/orders/17/edit" class="btn btn-secondary btn-sm">✏️ РЕДАКТИРОВАТЬ</a>
-                                </td>
-                            </tr>
-                        </tbody>
-                    </table>
-                </div>
-            </div>
+.logo span {
+    color: var(--accent-gold);
+}
 
-            <div class="order-card" style="margin-bottom: var(--spacing-xl);">
-                <div class="card-header-gradient">
-                    🏪 ул. Карьерная, 45
-                    <span style="font-size:13px; opacity:0.8; margin-left:8px;">(Активных: 0, Моих: 0)</span>
-                </div>
-                <p style="text-align:center; color: var(--color-text-muted); padding: 10px;">Нет активных заказов в этом магазине</p>
-            </div>
+.menu {
+    list-style: none;
+    margin-top: 20px;
+}
 
-            <div class="order-card">
-                <h3 style="margin-bottom: var(--spacing-md); color: var(--color-text-primary);">📅 Мои задачи на сегодня</h3>
-                <p style="text-align:center; color: var(--color-text-muted); padding: 10px;">Нет задач на сегодня</p>
-            </div>
-        </main>
-    </div>
+.menu a {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 12px 20px;
+    color: var(--text-muted);
+    text-decoration: none;
+    font-weight: 500;
+    transition: all 0.2s ease;
+}
 
-    <script>
-        document.addEventListener('DOMContentLoaded', function() {
-            // --- Уведомления ---
-            const badge = document.getElementById('notifBadge');
-            const notifToggle = document.getElementById('notifToggle');
-            const notifDropdown = document.getElementById('notifDropdown');
-            const dropdownContent = document.getElementById('notifDropdownContent');
+.menu a:hover, .menu a.active {
+    color: var(--text-primary);
+    background-color: rgba(212, 168, 75, 0.12);
+    border-left: 3px solid var(--accent-gold);
+}
 
-            function fetchNotifications() {
-                fetch('/api/notifications/check')
-                    .then(response => response.ok ? response.json() : Promise.reject())
-                    .then(data => {
-                        if (data.unread > 0) {
-                            badge.textContent = data.unread > 99 ? '99+' : data.unread;
-                            badge.style.display = 'inline-block';
-                        } else {
-                            badge.style.display =
+.menu a.logout {
+    color: var(--danger);
+    margin-top: 20px;
+    border-top: 1px solid var(--border-color);
+}
+
+.main-content {
+    flex: 1;
+    padding: 24px;
+    background-color: var(--bg-dark);
+}
+
+/* ==========================================================================
+   КАРТОЧКИ И СТАТИСТИКА
+   ========================================================================== */
+.card {
+    background-color: var(--card-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    padding: 20px;
+    margin-bottom: 24px;
+}
+
+.card-header-gradient {
+    background: linear-gradient(135deg, rgba(212, 168, 75, 0.2), rgba(20, 20, 22, 0.8));
+    border-bottom: 1px solid var(--border-gold);
+    color: var(--accent-gold);
+    padding: 12px 16px;
+    margin: -20px -20px 20px -20px;
+    font-size: 15px;
+    font-weight: 600;
+    border-top-left-radius: 12px;
+    border-top-right-radius: 12px;
+}
+
+.stats-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 16px;
+    margin-bottom: 24px;
+}
+
+.stat-card {
+    background-color: var(--card-bg);
+    border: 1px solid var(--border-color);
+    padding: 20px;
+    border-radius: 12px;
+    text-align: center;
+}
+
+.stat-val {
+    font-size: 28px;
+    font-weight: 700;
+    color: var(--accent-gold);
+}
+
+.stat-lbl {
+    color: var(--text-muted);
+    font-size: 13px;
+    margin-top: 4px;
+}
+
+/* ==========================================================================
+   ТАБЛИЦЫ
+   ========================================================================== */
+.table-wrapper {
+    overflow-x: auto;
+}
+
+table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+th, td {
+    padding: 12px;
+    text-align: left;
+    border-bottom: 1px solid var(--border-color);
+    font-size: 14px;
+    color: var(--text-primary);
+}
+
+th {
+    color: var(--text-muted);
+    font-weight: 600;
+    background-color: rgba(0, 0, 0, 0.2);
+}
+
+tr.row-my {
+    background-color: rgba(212, 168, 75, 0.08);
+}
+
+/* ==========================================================================
+   КНОПКИ И ЭЛЕМЕНТЫ УПРАВЛЕНИЯ
+   ========================================================================== */
+.btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 8px 16px;
+    border-radius: 6px;
+    font-weight: 600;
+    font-size: 13px;
+    text-decoration: none;
+    border: none;
+    cursor: pointer;
+    transition: background-color 0.2s ease;
+}
+
+.btn-primary {
+    background-color: var(--accent-gold);
+    color: #000;
+}
+
+.btn-primary:hover {
+    background-color: var(--accent-gold-hover);
+}
+
+.btn-success {
+    background-color: var(--success);
+    color: #fff;
+}
+
+.badge {
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-size: 12px;
+    font-weight: 500;
+}
+
+.badge-warning {
+    background-color: rgba(212, 168, 75, 0.2);
+    color: var(--accent-gold);
+}
+
+.badge-info {
+    background-color: rgba(24, 144, 255, 0.2);
+    color: #69c0ff;
+}
