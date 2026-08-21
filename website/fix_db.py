@@ -5,72 +5,52 @@ from dotenv import load_dotenv
 load_dotenv()
 
 def fix_database():
-    """Исправление структуры базы данных"""
+    """Исправление и обновление структуры базы данных"""
+    db_url = os.environ.get('DATABASE_URL')
+    if not db_url:
+        print("❌ Ошибка: Переменная окружения DATABASE_URL не найдена!")
+        return
+
     try:
-        conn = psycopg2.connect(os.environ.get('DATABASE_URL'))
+        conn = psycopg2.connect(db_url)
         cur = conn.cursor()
         
         print("🔄 Исправляем структуру БД...")
         
-        # 1. Добавляем колонку shop_id
-        cur.execute("""
-            DO $$ 
-            BEGIN
-                IF NOT EXISTS (SELECT 1 FROM information_schema.columns 
-                              WHERE table_name='orders' AND column_name='shop_id') THEN
-                    ALTER TABLE orders ADD COLUMN shop_id VARCHAR(50) DEFAULT 'moskovskaya';
-                END IF;
-            END $$;
-        """)
-        print("✅ Добавлена колонка shop_id")
+        # 1. Добавляем необходимые колонки в таблицу orders
+        # PostgreSQL поддерживает ADD COLUMN IF NOT EXISTS начиная с версии 9.6
+        columns_to_add = [
+            ("shop_id", "VARCHAR(50) DEFAULT 'moskovskaya'"),
+            ("is_archived", "BOOLEAN DEFAULT FALSE"),
+            ("completed_at", "TIMESTAMP"),
+            ("updated_at", "TIMESTAMP DEFAULT CURRENT_TIMESTAMP"),
+            ("employee_notes", "TEXT")
+        ]
         
-        # 2. Обновляем существующие записи
+        for col_name, col_def in columns_to_add:
+            cur.execute(f"ALTER TABLE orders ADD COLUMN IF NOT EXISTS {col_name} {col_def};")
+            print(f"  └─ Колонка {col_name}: проверена/добавлена")
+            
+        # 2. Заполняем NULL значения для существующих записей
         cur.execute("UPDATE orders SET shop_id = 'moskovskaya' WHERE shop_id IS NULL;")
-        print("✅ Обновлены существующие записи")
+        cur.execute("UPDATE orders SET updated_at = CURRENT_TIMESTAMP WHERE updated_at IS NULL;")
+        print("✅ Заполнены базовые значения по умолчанию")
         
-        # 3. Добавляем is_archived
-        cur.execute("""
-            DO $$ 
-            BEGIN
-                IF NOT EXISTS (SELECT 1 FROM information_schema.columns 
-                              WHERE table_name='orders' AND column_name='is_archived') THEN
-                    ALTER TABLE orders ADD COLUMN is_archived BOOLEAN DEFAULT FALSE;
-                END IF;
-            END $$;
-        """)
-        print("✅ Добавлена колонка is_archived")
+        # 3. Создаем индексы для ускорения выборок и фильтрации
+        indexes = [
+            ("idx_orders_shop_id", "orders(shop_id)"),
+            ("idx_orders_is_archived", "orders(is_archived)"),
+            ("idx_orders_completed_at", "orders(completed_at)"),
+            ("idx_orders_status", "orders(status)"),
+            ("idx_orders_executor", "orders(executor)")
+        ]
         
-        # 4. Добавляем completed_at
-        cur.execute("""
-            DO $$ 
-            BEGIN
-                IF NOT EXISTS (SELECT 1 FROM information_schema.columns 
-                              WHERE table_name='orders' AND column_name='completed_at') THEN
-                    ALTER TABLE orders ADD COLUMN completed_at TIMESTAMP;
-                END IF;
-            END $$;
-        """)
-        print("✅ Добавлена колонка completed_at")
+        for idx_name, idx_def in indexes:
+            cur.execute(f"CREATE INDEX IF NOT EXISTS {idx_name} ON {idx_def};")
+            
+        print("✅ Индексы успешно проверены/созданы")
         
-        # 5. Добавляем employee_notes
-        cur.execute("""
-            DO $$ 
-            BEGIN
-                IF NOT EXISTS (SELECT 1 FROM information_schema.columns 
-                              WHERE table_name='orders' AND column_name='employee_notes') THEN
-                    ALTER TABLE orders ADD COLUMN employee_notes TEXT;
-                END IF;
-            END $$;
-        """)
-        print("✅ Добавлена колонка employee_notes")
-        
-        # 6. Создаем индексы
-        cur.execute("CREATE INDEX IF NOT EXISTS idx_orders_shop_id ON orders(shop_id);")
-        cur.execute("CREATE INDEX IF NOT EXISTS idx_orders_is_archived ON orders(is_archived);")
-        cur.execute("CREATE INDEX IF NOT EXISTS idx_orders_completed_at ON orders(completed_at);")
-        print("✅ Созданы индексы")
-        
-        # 7. Создаем таблицу чата
+        # 4. Создаем таблицу чата
         cur.execute("""
             CREATE TABLE IF NOT EXISTS chat_messages (
                 id SERIAL PRIMARY KEY,
@@ -80,19 +60,20 @@ def fix_database():
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             );
         """)
-        print("✅ Создана таблица chat_messages")
+        print("✅ Таблица chat_messages проверена/создана")
         
         conn.commit()
         cur.close()
         conn.close()
         
-        print("🎉 База данных успешно исправлена!")
-        print("   - Добавлены все необходимые колонки")
-        print("   - Созданы индексы")
-        print("   - Создана таблица чата")
+        print("\n🎉 База данных успешно обновлена!")
+        print("    • Добавлена отсутствовавшая колонка updated_at")
+        print("    • Добавлены колонки shop_id, is_archived, completed_at, employee_notes")
+        print("    • Настроены индексы производительности")
+        print("    • Подготовлена таблица чата")
         
     except Exception as e:
-        print(f"❌ Ошибка: {e}")
+        print(f"❌ Ошибка при выполнении миграции: {e}")
 
 if __name__ == '__main__':
     fix_database()
