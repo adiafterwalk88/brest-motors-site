@@ -92,7 +92,6 @@ def init_db_tables():
         init_db_pool()
     try:
         with get_db_cursor(commit=True) as cur:
-            # 1. Создание таблицы пользователей
             cur.execute("""
                 CREATE TABLE IF NOT EXISTS users (
                     id SERIAL PRIMARY KEY,
@@ -103,7 +102,6 @@ def init_db_tables():
                 );
             """)
 
-            # 2. Создание таблицы заказов
             cur.execute("""
                 CREATE TABLE IF NOT EXISTS orders (
                     id SERIAL PRIMARY KEY,
@@ -123,7 +121,6 @@ def init_db_tables():
                 );
             """)
 
-            # 3. Дефолтные аккаунты: dmitry (123456) и admin (admin123)
             default_users = [
                 ('dmitry', generate_password_hash('123456'), True),
                 ('admin', generate_password_hash('admin123'), True)
@@ -335,6 +332,36 @@ def orders_page():
         logger.exception("Ошибка загрузки страницы заказов")
         flash(f'Ошибка загрузки заказов: {e}', 'error')
         return render_template('orders.html', orders=[], statuses=[], executors=[], employees=[], shops=Config.SHOPS, active_page='orders')
+
+# ==========================================
+# НЕДОСТАЮЩИЕ СТРАНИЦЫ (УБИРАЮТ 404)
+# ==========================================
+
+@app.route('/clients')
+@login_required
+def clients_page():
+    try:
+        with get_db_cursor() as cur:
+            cur.execute("SELECT DISTINCT customer_name, customer_phone FROM orders WHERE customer_name IS NOT NULL AND customer_name != '';")
+            clients = cur.fetchall()
+        return render_template('clients.html', clients=clients, active_page='clients')
+    except Exception:
+        return render_template('clients.html', clients=[], active_page='clients')
+
+@app.route('/employees')
+@login_required
+def employees_page():
+    return render_template('employees.html', employees=Config.EMPLOYEES, active_page='employees')
+
+@app.route('/chat')
+@login_required
+def chat_page():
+    return render_template('chat.html', active_page='chat')
+
+@app.route('/calendar')
+@login_required
+def calendar_page():
+    return render_template('calendar.html', active_page='calendar')
 
 @app.route('/order/new', methods=['GET', 'POST'])
 @login_required
