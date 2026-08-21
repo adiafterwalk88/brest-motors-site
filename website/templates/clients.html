@@ -12,6 +12,13 @@
     .main-content { margin-left: 240px; flex: 1; padding: 24px; background: #f0f2f5; }
     .page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; }
     .page-header h1 { font-size: 28px; font-weight: 700; color: #1a1a2e; }
+    .search-box { display: flex; gap: 12px; margin-bottom: 20px; background: white; padding: 12px 16px; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); }
+    .search-input-wrapper { position: relative; flex: 1; display: flex; align-items: center; }
+    .search-input-wrapper span { position: absolute; left: 14px; font-size: 16px; color: #888; }
+    .search-input { width: 100%; padding: 10px 14px 10px 40px; border: 2px solid #e0e0e0; border-radius: 8px; font-size: 14px; outline: none; transition: border-color .2s; }
+    .search-input:focus { border-color: #2ecc71; }
+    .btn-clear { padding: 10px 16px; background: #f0f2f5; color: #555; border: none; border-radius: 8px; font-weight: 600; cursor: pointer; transition: background .2s; }
+    .btn-clear:hover { background: #e4e7eb; }
     .client-card { background: white; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); padding: 16px 20px; margin-bottom: 12px; display: flex; justify-content: space-between; align-items: center; transition: all .2s; }
     .client-card:hover { transform: translateX(4px); box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
     .client-card .client-info { display: flex; align-items: center; gap: 16px; }
@@ -48,26 +55,69 @@
             </div>
         </div>
         
-        {% if clients %}
-            {% for client in clients %}
-            <div class="client-card">
-                <div class="client-info">
-                    <div class="client-icon">👤</div>
-                    <div>
-                        <div class="client-name">{{ client.customer }}</div>
-                        <div class="client-phone">📱 {{ client.phone }}</div>
-                        {% if client.shops %}<div style="font-size:12px;color:#666;margin-top:4px;">🏪 Магазины: {{ client.shops }}</div>{% endif %}
+        <div class="search-box">
+            <div class="search-input-wrapper">
+                <span>🔍</span>
+                <input type="text" id="clientSearch" class="search-input" placeholder="Поиск по имени или номеру телефона..." onkeyup="filterClients()">
+            </div>
+            <button class="btn-clear" onclick="clearSearch()">Очистить</button>
+        </div>
+
+        <div id="clientsList">
+            {% if clients %}
+                {% for client in clients %}
+                <div class="client-card" data-search="{{ client.customer|lower }} {{ client.phone|lower }}">
+                    <div class="client-info">
+                        <div class="client-icon">👤</div>
+                        <div>
+                            <div class="client-name">{{ client.customer }}</div>
+                            <div class="client-phone">📱 {{ client.phone }}</div>
+                            {% if client.shops %}<div style="font-size:12px;color:#666;margin-top:4px;">🏪 Магазины: {{ client.shops }}</div>{% endif %}
+                        </div>
+                    </div>
+                    <div class="client-stats">
+                        <span>📦 {{ client.total_orders }} заказов</span>
+                        <span class="total">💰 {{ "%.2f"|format(client.total_spent) }} Br</span>
                     </div>
                 </div>
-                <div class="client-stats">
-                    <span>📦 {{ client.total_orders }} заказов</span>
-                    <span class="total">💰 {{ "%.2f"|format(client.total_spent) }} Br</span>
-                </div>
-            </div>
-            {% endfor %}
-        {% else %}
-            <div class="empty-state"><div class="icon">📭</div><p>Нет клиентов</p></div>
-        {% endif %}
+                {% endfor %}
+            {% else %}
+                <div class="empty-state"><div class="icon">📭</div><p>Нет клиентов</p></div>
+            {% endif %}
+        </div>
+        
+        <div id="noSearchResults" class="empty-state" style="display: none;">
+            <div class="icon">🔍</div>
+            <p>Клиенты по вашему запросу не найдены</p>
+        </div>
     </div>
 </div>
+
+<script>
+    function filterClients() {
+        const query = document.getElementById('clientSearch').value.toLowerCase().trim();
+        const cards = document.querySelectorAll('.client-card');
+        let visibleCount = 0;
+
+        cards.forEach(card => {
+            const searchData = card.getAttribute('data-search');
+            if (searchData.includes(query)) {
+                card.style.display = 'flex';
+                visibleCount++;
+            } else {
+                card.style.display = 'none';
+            }
+        });
+
+        const noResults = document.getElementById('noSearchResults');
+        if (cards.length > 0) {
+            noResults.style.display = (visibleCount === 0) ? 'block' : 'none';
+        }
+    }
+
+    function clearSearch() {
+        document.getElementById('clientSearch').value = '';
+        filterClients();
+    }
+</script>
 {% endblock %}
