@@ -17,7 +17,6 @@ from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
 from flask_session import Session
 from flask_wtf import CSRFProtect
-from wtforms.validators import DataRequired, Optional
 
 load_dotenv()
 
@@ -33,13 +32,13 @@ class Config:
     DEBUG = os.environ.get('FLASK_DEBUG', 'True') == 'True'
     SITE_NAME = 'InTarget Brest Motors'
     
-    # Сессии (используем файловую систему, если нет Redis)
+    # Сессии (файловые, не требуют Redis)
     SESSION_TYPE = 'filesystem'
     SESSION_FILE_DIR = '/tmp/flask_sessions'
     SESSION_PERMANENT = True
     SESSION_USE_SIGNER = True
     
-    # Кеширование (простое)
+    # Кеширование
     CACHE_TYPE = 'simple'
     CACHE_DEFAULT_TIMEOUT = 300
     
@@ -49,7 +48,7 @@ class Config:
         'kariernaya': '🏪 ул. Карьерная, 45'
     }
     
-    # Сотрудники (хеши будут проверяться)
+    # Сотрудники
     EMPLOYEES = [
         {'id': 'pavel_ivanovich', 'name': 'Павел Иванович', 'password_hash': os.environ.get('PASSWORD_HASH_PAVEL_IVANOVICH')},
         {'id': 'pavel', 'name': 'Павел', 'password_hash': os.environ.get('PASSWORD_HASH_PAVEL')},
@@ -57,14 +56,12 @@ class Config:
         {'id': 'alexander', 'name': 'Александр', 'password_hash': os.environ.get('PASSWORD_HASH_ALEXANDER')}
     ]
 
-# Если нет хешей — создаём тестовые
+# Тестовые пароли, если нет хешей
 if not Config.ADMIN_PASSWORD_HASH:
-    # Пароль: admin123
     Config.ADMIN_PASSWORD_HASH = bcrypt.hashpw(b'admin123', bcrypt.gensalt()).decode('utf-8')
 
 for emp in Config.EMPLOYEES:
     if not emp.get('password_hash'):
-        # Пароль: 123456
         emp['password_hash'] = bcrypt.hashpw(b'123456', bcrypt.gensalt()).decode('utf-8')
 
 # ==========================================
@@ -84,7 +81,7 @@ Session(app)
 # Кеширование
 cache = Cache(app)
 
-# Rate Limiting (мягкое, для разработки)
+# Rate Limiting
 limiter = Limiter(
     app=app,
     key_func=get_remote_address,
@@ -92,10 +89,7 @@ limiter = Limiter(
     storage_uri="memory://"
 )
 
-# ==========================================
-# ЛОГГИРОВАНИЕ
-# ==========================================
-
+# Логирование
 logging.basicConfig(
     level=logging.DEBUG if Config.DEBUG else logging.INFO,
     format='%(asctime)s [%(levelname)s] %(name)s: %(message)s'
@@ -103,13 +97,15 @@ logging.basicConfig(
 logger = logging.getLogger('brest_motors')
 
 # ==========================================
-# РАБОТА С БАЗОЙ ДАННЫХ (SQLite/PostgreSQL)
+# РАБОТА С БАЗОЙ ДАННЫХ
 # ==========================================
 
 def get_db_connection():
     """Получить соединение с БД"""
     if Config.DATABASE_URL.startswith('sqlite://'):
         db_path = Config.DATABASE_URL.replace('sqlite:///', '')
+        # Создаём директорию, если её нет
+        os.makedirs(os.path.dirname(db_path) if os.path.dirname(db_path) else '.', exist_ok=True)
         conn = sqlite3.connect(db_path)
         conn.row_factory = sqlite3.Row
         return conn
@@ -140,10 +136,9 @@ def init_db():
     """Инициализация базы данных — создание всех таблиц"""
     try:
         with get_db_cursor() as cur:
-            # Определяем тип БД
             is_sqlite = Config.DATABASE_URL.startswith('sqlite://')
             
-            # Таблица заказов
+            # ===== ТАБЛИЦА ЗАКАЗОВ =====
             cur.execute("""
                 CREATE TABLE IF NOT EXISTS orders (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -192,7 +187,7 @@ def init_db():
                 )
             """)
             
-            # Таблица уведомлений
+            # ===== ТАБЛИЦА УВЕДОМЛЕНИЙ =====
             cur.execute("""
                 CREATE TABLE IF NOT EXISTS notifications (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -231,7 +226,7 @@ def init_db():
                 )
             """)
             
-            # Таблица чата
+            # ===== ТАБЛИЦА ЧАТА =====
             cur.execute("""
                 CREATE TABLE IF NOT EXISTS chat_messages (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -252,7 +247,7 @@ def init_db():
                 )
             """)
             
-            # Таблица настроек уведомлений
+            # ===== ТАБЛИЦА НАСТРОЕК УВЕДОМЛЕНИЙ =====
             cur.execute("""
                 CREATE TABLE IF NOT EXISTS notification_settings (
                     user_id TEXT PRIMARY KEY,
@@ -291,7 +286,7 @@ def init_db():
                 )
             """)
             
-            # Таблица онлайн-сессий
+            # ===== ТАБЛИЦА ОНЛАЙН-СЕССИЙ =====
             cur.execute("""
                 CREATE TABLE IF NOT EXISTS user_sessions (
                     user_id TEXT PRIMARY KEY,
@@ -308,7 +303,7 @@ def init_db():
                 )
             """)
             
-            # Таблица аудита
+            # ===== ТАБЛИЦА АУДИТА =====
             cur.execute("""
                 CREATE TABLE IF NOT EXISTS audit_logs (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -335,7 +330,7 @@ def init_db():
                 )
             """)
             
-            # Индексы (для SQLite игнорируем, для PostgreSQL создаём)
+            # Индексы (только для PostgreSQL)
             if not is_sqlite:
                 try:
                     cur.execute("CREATE INDEX IF NOT EXISTS idx_orders_shop_id ON orders(shop_id);")
@@ -343,8 +338,8 @@ def init_db():
                     cur.execute("CREATE INDEX IF NOT EXISTS idx_orders_deleted_at ON orders(deleted_at);")
                     cur.execute("CREATE INDEX IF NOT EXISTS idx_notifications_user_id ON notifications(user_id);")
                     cur.execute("CREATE INDEX IF NOT EXISTS idx_chat_messages_created_at ON chat_messages(created_at DESC);")
-                except:
-                    pass
+                except Exception as e:
+                    logger.warning(f"Индексы уже существуют или не поддерживаются: {e}")
             
             print("✅ База данных инициализирована")
             
@@ -352,7 +347,7 @@ def init_db():
             insert_test_data(cur, is_sqlite)
             
     except Exception as e:
-        print(f"❌ Ошибка инициализации БД: {e}")
+        logger.error(f"❌ Ошибка инициализации БД: {e}")
 
 def insert_test_data(cur, is_sqlite):
     """Вставка тестовых данных, если таблицы пустые"""
@@ -372,9 +367,6 @@ def insert_test_data(cur, is_sqlite):
         ('Анна Иванова', '+375447778899', 'ул. Советская, 23', 'Комплект тормозных колодок передних', 120.00, 60.00, 'Высокий', 'Павел Иванович', 'Новый', 'Ждёт подтверждения', 'moskovskaya'),
         ('Михаил Козлов', '+375298887766', 'ул. Минская, 45', 'Свечи зажигания NGK (4 шт)', 32.00, 0, 'Низкий', 'Александр', 'Новый', '', 'kariernaya'),
         ('Елена Мороз', '+375336665544', 'ул. Гагарина, 12', 'Аккумулятор 60 Ач', 160.00, 100.00, 'Высокий', 'Павел', 'В работе', 'Замена аккумулятора', 'moskovskaya'),
-        ('Алексей Новиков', '+375445554433', 'ул. Партизанская, 8', 'Колодки задние + диски', 210.00, 0, 'Обычный', 'Дмитрий', 'Новый', 'Срочный заказ', 'kariernaya'),
-        ('Ольга Смирнова', '+375297774422', 'ул. Кирова, 56', 'Щётки стеклоочистителя (комплект)', 18.00, 18.00, 'Низкий', 'Александр', 'Выдан', '', 'moskovskaya'),
-        ('Денис Фёдоров', '+375336668899', 'ул. Калинина, 3', 'Моторное масло 5W-40 (4л)', 55.00, 55.00, 'Обычный', 'Павел Иванович', 'Выдан', '', 'kariernaya'),
     ]
     
     for order in orders:
@@ -396,8 +388,6 @@ def insert_test_data(cur, is_sqlite):
         ('admin', 'Администратор', 'Добро пожаловать в командный чат! 🎯'),
         ('pavel', 'Павел', 'Привет всем! Завтра приезжают новые запчасти.'),
         ('dmitry', 'Дмитрий', 'Отлично, ждём! У меня сегодня 3 заказа на выдачу.'),
-        ('alexander', 'Александр', 'Я заканчиваю с заказом #10, буду свободен через час.'),
-        ('pavel_ivanovich', 'Павел Иванович', 'Проверьте все заказы перед закрытием смены.'),
     ]
     
     for msg in chat_messages:
@@ -418,22 +408,10 @@ def insert_test_data(cur, is_sqlite):
 # ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ
 # ==========================================
 
-def hash_password(password: str) -> str:
-    salt = bcrypt.gensalt()
-    return bcrypt.hashpw(password.encode('utf-8'), salt).decode('utf-8')
-
 def verify_password(password: str, password_hash: str) -> bool:
     if not password_hash:
         return False
     return bcrypt.checkpw(password.encode('utf-8'), password_hash.encode('utf-8'))
-
-def safe_float(value, default=0.0):
-    if not value or not str(value).strip():
-        return default
-    try:
-        return float(str(value).strip().replace(',', '.'))
-    except ValueError:
-        return default
 
 def login_required(f):
     @wraps(f)
@@ -465,25 +443,19 @@ def get_employee_by_id(emp_id):
             return emp
     return None
 
-# ==========================================
-# SECURITY-ЗАГОЛОВКИ
-# ==========================================
-
-@app.after_request
-def set_security_headers(response):
-    response.headers['X-Content-Type-Options'] = 'nosniff'
-    response.headers['X-Frame-Options'] = 'DENY'
-    response.headers['Referrer-Policy'] = 'strict-origin-when-cross-origin'
-    if not Config.DEBUG:
-        response.headers['Strict-Transport-Security'] = 'max-age=31536000; includeSubDomains'
-    return response
+def safe_float(value, default=0.0):
+    if not value or not str(value).strip():
+        return default
+    try:
+        return float(str(value).strip().replace(',', '.'))
+    except ValueError:
+        return default
 
 # ==========================================
-# МАРШРУТЫ АВТОРИЗАЦИИ
+# МАРШРУТЫ
 # ==========================================
 
 @app.route('/login', methods=['GET', 'POST'])
-@limiter.limit("10 per minute")
 def login():
     if session.get('logged_in'):
         return redirect(url_for('dashboard'))
@@ -530,36 +502,9 @@ def login():
 
 @app.route('/logout')
 def logout():
-    try:
-        with get_db_cursor() as cur:
-            cur.execute("""
-                UPDATE user_sessions 
-                SET is_online = 0, last_seen = CURRENT_TIMESTAMP
-                WHERE user_id = ?
-            """, (session.get('user_id'),)) if Config.DATABASE_URL.startswith('sqlite://') else cur.execute("""
-                UPDATE user_sessions 
-                SET is_online = FALSE, last_seen = CURRENT_TIMESTAMP
-                WHERE user_id = %s
-            """, (session.get('user_id'),))
-    except:
-        pass
-    
     session.clear()
     flash('Вы вышли из системы', 'info')
     return redirect(url_for('login'))
-
-@app.route('/switch-shop/<shop_id>')
-@login_required
-def switch_shop(shop_id):
-    if shop_id in Config.SHOPS:
-        session['shop_id'] = shop_id
-        session['shop_name'] = Config.SHOPS[shop_id]
-        flash(f'🔄 Переключено на {session["shop_name"]}', 'success')
-    return redirect(request.referrer or url_for('dashboard'))
-
-# ==========================================
-# АДМИН-ПАНЕЛЬ
-# ==========================================
 
 @app.route('/')
 @login_required
@@ -576,36 +521,38 @@ def dashboard():
                 cur.execute("SELECT * FROM orders WHERE deleted_at IS NULL ORDER BY created_at DESC LIMIT 50;")
                 orders = cur.fetchall()
                 
-                cur.execute("SELECT COUNT(*), COUNT(*) FILTER (WHERE status != 'Выдан') FROM orders WHERE deleted_at IS NULL;") if not is_sqlite else cur.execute("SELECT COUNT(*), COUNT(*) FROM orders WHERE status != 'Выдан' AND deleted_at IS NULL;")
-                row = cur.fetchone()
-                total_orders = row[0] if row else 0
-                active_orders = row[1] if row and not is_sqlite else total_orders
+                cur.execute("SELECT COUNT(*) FROM orders WHERE deleted_at IS NULL;")
+                total_orders = cur.fetchone()[0] or 0
                 
-                cur.execute("SELECT COUNT(*) FROM orders WHERE DATE(created_at) = DATE('now') AND deleted_at IS NULL;") if is_sqlite else cur.execute("SELECT COUNT(*) FROM orders WHERE created_at::date = CURRENT_DATE AND deleted_at IS NULL;")
+                cur.execute("SELECT COUNT(*) FROM orders WHERE status != 'Выдан' AND deleted_at IS NULL;")
+                active_orders = cur.fetchone()[0] or 0
+                
+                cur.execute("SELECT COUNT(*) FROM orders WHERE DATE(created_at) = DATE('now') AND deleted_at IS NULL;")
                 today_orders = cur.fetchone()[0] or 0
                 
-                cur.execute("SELECT status, COUNT(*) FROM orders WHERE deleted_at IS NULL GROUP BY status;") if not is_sqlite else cur.execute("SELECT status, COUNT(*) FROM orders WHERE deleted_at IS NULL GROUP BY status;")
+                cur.execute("SELECT status, COUNT(*) FROM orders WHERE deleted_at IS NULL GROUP BY status;")
                 status_stats = cur.fetchall()
             else:
-                cur.execute("SELECT * FROM orders WHERE shop_id = ? AND deleted_at IS NULL ORDER BY created_at DESC LIMIT 50;", (shop_id,)) if is_sqlite else cur.execute("SELECT * FROM orders WHERE shop_id = %s AND deleted_at IS NULL ORDER BY created_at DESC LIMIT 50;", (shop_id,))
+                cur.execute("SELECT * FROM orders WHERE shop_id = ? AND deleted_at IS NULL ORDER BY created_at DESC LIMIT 50;", (shop_id,))
                 orders = cur.fetchall()
                 
-                cur.execute("SELECT COUNT(*), COUNT(*) FILTER (WHERE status != 'Выдан') FROM orders WHERE shop_id = ? AND deleted_at IS NULL;", (shop_id,)) if not is_sqlite else cur.execute("SELECT COUNT(*), COUNT(*) FROM orders WHERE shop_id = ? AND status != 'Выдан' AND deleted_at IS NULL;", (shop_id,))
-                row = cur.fetchone()
-                total_orders = row[0] if row else 0
-                active_orders = row[1] if row and not is_sqlite else total_orders
+                cur.execute("SELECT COUNT(*) FROM orders WHERE shop_id = ? AND deleted_at IS NULL;", (shop_id,))
+                total_orders = cur.fetchone()[0] or 0
                 
-                cur.execute("SELECT COUNT(*) FROM orders WHERE shop_id = ? AND DATE(created_at) = DATE('now') AND deleted_at IS NULL;", (shop_id,)) if is_sqlite else cur.execute("SELECT COUNT(*) FROM orders WHERE shop_id = %s AND created_at::date = CURRENT_DATE AND deleted_at IS NULL;", (shop_id,))
+                cur.execute("SELECT COUNT(*) FROM orders WHERE shop_id = ? AND status != 'Выдан' AND deleted_at IS NULL;", (shop_id,))
+                active_orders = cur.fetchone()[0] or 0
+                
+                cur.execute("SELECT COUNT(*) FROM orders WHERE shop_id = ? AND DATE(created_at) = DATE('now') AND deleted_at IS NULL;", (shop_id,))
                 today_orders = cur.fetchone()[0] or 0
                 
-                cur.execute("SELECT status, COUNT(*) FROM orders WHERE shop_id = ? AND deleted_at IS NULL GROUP BY status;", (shop_id,)) if not is_sqlite else cur.execute("SELECT status, COUNT(*) FROM orders WHERE shop_id = ? AND deleted_at IS NULL GROUP BY status;", (shop_id,))
+                cur.execute("SELECT status, COUNT(*) FROM orders WHERE shop_id = ? AND deleted_at IS NULL GROUP BY status;", (shop_id,))
                 status_stats = cur.fetchall()
         
         return render_template('dashboard.html',
                              orders=orders,
-                             total_orders=total_orders or 0,
-                             active_orders=active_orders or 0,
-                             today_orders=today_orders or 0,
+                             total_orders=total_orders,
+                             active_orders=active_orders,
+                             today_orders=today_orders,
                              status_stats=status_stats,
                              shops=Config.SHOPS,
                              employees=Config.EMPLOYEES,
@@ -615,10 +562,6 @@ def dashboard():
         logger.exception("Ошибка дашборда")
         flash('Ошибка загрузки данных', 'error')
         return render_template('dashboard.html', orders=[], shops=Config.SHOPS, employees=Config.EMPLOYEES, active_page='dashboard', datetime=datetime)
-
-# ==========================================
-# КАБИНЕТ СОТРУДНИКА
-# ==========================================
 
 @app.route('/employee')
 @login_required
@@ -631,71 +574,7 @@ def employee_dashboard():
         is_sqlite = Config.DATABASE_URL.startswith('sqlite://')
         
         with get_db_cursor() as cur:
-            orders_by_shop = {}
-            for shop_id, shop_name in Config.SHOPS.items():
-                cur.execute("""
-                    SELECT * FROM orders 
-                    WHERE shop_id = ? AND status != 'Выдан' AND is_archived = 0 AND deleted_at IS NULL
-                    ORDER BY 
-                        CASE priority 
-                            WHEN 'Высокий' THEN 1 
-                            WHEN 'Обычный' THEN 2 
-                            ELSE 3 
-                        END,
-                        created_at ASC
-                """, (shop_id,)) if is_sqlite else cur.execute("""
-                    SELECT * FROM orders 
-                    WHERE shop_id = %s AND status != 'Выдан' AND is_archived = FALSE AND deleted_at IS NULL
-                    ORDER BY 
-                        CASE priority 
-                            WHEN 'Высокий' THEN 1 
-                            WHEN 'Обычный' THEN 2 
-                            ELSE 3 
-                        END,
-                        created_at ASC
-                """, (shop_id,))
-                active_orders = cur.fetchall()
-                
-                cur.execute("""
-                    SELECT * FROM orders 
-                    WHERE shop_id = ? AND status = 'Выдан' AND deleted_at IS NULL
-                    ORDER BY created_at DESC
-                    LIMIT 10
-                """, (shop_id,)) if is_sqlite else cur.execute("""
-                    SELECT * FROM orders 
-                    WHERE shop_id = %s AND status = 'Выдан' AND deleted_at IS NULL
-                    ORDER BY completed_at DESC NULLS LAST, created_at DESC
-                    LIMIT 10
-                """, (shop_id,))
-                completed_orders = cur.fetchall()
-                
-                cur.execute("""
-                    SELECT 
-                        COUNT(*) as total,
-                        COUNT(*) FILTER (WHERE status != 'Выдан') as active,
-                        COUNT(*) FILTER (WHERE executor = ? AND status != 'Выдан') as my_active,
-                        COUNT(*) FILTER (WHERE status = 'Выдан' AND DATE(completed_at) = DATE('now')) as completed_today
-                    FROM orders 
-                    WHERE shop_id = ? AND deleted_at IS NULL
-                """, (user_name, shop_id)) if is_sqlite else cur.execute("""
-                    SELECT 
-                        COUNT(*) as total,
-                        COUNT(*) FILTER (WHERE status != 'Выдан') as active,
-                        COUNT(*) FILTER (WHERE executor = %s AND status != 'Выдан') as my_active,
-                        COUNT(*) FILTER (WHERE status = 'Выдан' AND completed_at::date = CURRENT_DATE) as completed_today
-                    FROM orders 
-                    WHERE shop_id = %s AND deleted_at IS NULL
-                """, (user_name, shop_id))
-                shop_stats = cur.fetchone()
-                
-                orders_by_shop[shop_id] = {
-                    'name': shop_name,
-                    'active_orders': active_orders,
-                    'completed_orders': completed_orders,
-                    'stats': shop_stats
-                }
-            
-            # Мои личные заказы
+            # Мои заказы
             cur.execute("""
                 SELECT * FROM orders 
                 WHERE executor = ? AND status != 'Выдан' AND is_archived = 0 AND deleted_at IS NULL
@@ -706,20 +585,10 @@ def employee_dashboard():
                         ELSE 3 
                     END,
                     created_at ASC
-            """, (user_name,)) if is_sqlite else cur.execute("""
-                SELECT * FROM orders 
-                WHERE executor = %s AND status != 'Выдан' AND is_archived = FALSE AND deleted_at IS NULL
-                ORDER BY 
-                    CASE priority 
-                        WHEN 'Высокий' THEN 1 
-                        WHEN 'Обычный' THEN 2 
-                        ELSE 3 
-                    END,
-                    created_at ASC
             """, (user_name,))
             my_orders = cur.fetchall()
             
-            # Моя статистика
+            # Статистика
             cur.execute("""
                 SELECT 
                     COUNT(*) as total,
@@ -728,14 +597,6 @@ def employee_dashboard():
                     COUNT(*) FILTER (WHERE status = 'Новый') as new_orders
                 FROM orders 
                 WHERE executor = ? AND deleted_at IS NULL
-            """, (user_name,)) if is_sqlite else cur.execute("""
-                SELECT 
-                    COUNT(*) as total,
-                    COUNT(*) FILTER (WHERE status != 'Выдан') as active,
-                    COUNT(*) FILTER (WHERE status = 'Выдан' AND completed_at::date = CURRENT_DATE) as completed_today,
-                    COUNT(*) FILTER (WHERE status = 'Новый') as new_orders
-                FROM orders 
-                WHERE executor = %s AND deleted_at IS NULL
             """, (user_name,))
             my_stats = cur.fetchone()
             
@@ -747,44 +608,14 @@ def employee_dashboard():
                 AND is_archived = 0
                 AND deleted_at IS NULL
                 AND DATE(created_at) = DATE('now')
-                ORDER BY 
-                    CASE priority 
-                        WHEN 'Высокий' THEN 1 
-                        WHEN 'Обычный' THEN 2 
-                        ELSE 3 
-                    END,
-                    created_at ASC
-            """, (user_name,)) if is_sqlite else cur.execute("""
-                SELECT * FROM orders 
-                WHERE executor = %s 
-                AND status != 'Выдан' 
-                AND is_archived = FALSE
-                AND deleted_at IS NULL
-                AND created_at::date = CURRENT_DATE
-                ORDER BY 
-                    CASE priority 
-                        WHEN 'Высокий' THEN 1 
-                        WHEN 'Обычный' THEN 2 
-                        ELSE 3 
-                    END,
-                    created_at ASC
+                ORDER BY created_at ASC
             """, (user_name,))
             today_tasks = cur.fetchall()
-            
-            # Чат
-            try:
-                cur.execute("SELECT * FROM chat_messages ORDER BY created_at DESC LIMIT 50;")
-                chat_messages = cur.fetchall()
-                chat_messages = list(reversed(chat_messages))
-            except:
-                chat_messages = []
         
         return render_template('employee_dashboard.html',
-                             orders_by_shop=orders_by_shop,
                              my_orders=my_orders,
                              my_stats=my_stats,
                              today_tasks=today_tasks,
-                             chat_messages=chat_messages,
                              shops=Config.SHOPS,
                              employees=Config.EMPLOYEES,
                              now=datetime,
@@ -793,19 +624,13 @@ def employee_dashboard():
         logger.exception("Ошибка кабинета сотрудника")
         flash('Ошибка загрузки данных', 'error')
         return render_template('employee_dashboard.html', 
-                             orders_by_shop={},
                              my_orders=[], 
                              today_tasks=[],
-                             chat_messages=[],
                              my_stats={'total': 0, 'active': 0, 'completed_today': 0, 'new_orders': 0},
                              shops=Config.SHOPS,
                              employees=Config.EMPLOYEES,
                              now=datetime,
                              active_page='employee')
-
-# ==========================================
-# ЗАКАЗЫ
-# ==========================================
 
 @app.route('/orders')
 @login_required
@@ -822,13 +647,8 @@ def orders_page():
         is_sqlite = Config.DATABASE_URL.startswith('sqlite://')
         
         with get_db_cursor() as cur:
-            # Базовый запрос
-            if is_sqlite:
-                query = "SELECT * FROM orders WHERE shop_id = ? AND deleted_at IS NULL"
-                count_query = "SELECT COUNT(*) FROM orders WHERE shop_id = ? AND deleted_at IS NULL"
-            else:
-                query = "SELECT * FROM orders WHERE shop_id = %s AND deleted_at IS NULL"
-                count_query = "SELECT COUNT(*) FROM orders WHERE shop_id = %s AND deleted_at IS NULL"
+            query = "SELECT * FROM orders WHERE shop_id = ? AND deleted_at IS NULL" if is_sqlite else "SELECT * FROM orders WHERE shop_id = %s AND deleted_at IS NULL"
+            count_query = "SELECT COUNT(*) FROM orders WHERE shop_id = ? AND deleted_at IS NULL" if is_sqlite else "SELECT COUNT(*) FROM orders WHERE shop_id = %s AND deleted_at IS NULL"
             params = [shop_id]
             
             if not show_archived:
@@ -858,28 +678,21 @@ def orders_page():
             
             # Пагинация
             offset = (page - 1) * per_page
-            query += " ORDER BY created_at DESC"
             if is_sqlite:
-                query += f" LIMIT {per_page} OFFSET {offset};"
+                query += f" ORDER BY created_at DESC LIMIT {per_page} OFFSET {offset};"
             else:
-                query += f" LIMIT {per_page} OFFSET {offset};"
+                query += f" ORDER BY created_at DESC LIMIT {per_page} OFFSET {offset};"
             
-            # Счетчик
-            cur.execute(count_query, params[:len(params) - (2 if offset else 0)])
-            total_count = cur.fetchone()[0] if cur.fetchone() else 0
+            cur.execute(count_query, params)
+            total_count = cur.fetchone()[0] or 0
             
-            # Получение заказов
-            cur.execute(query, params[:len(params) - (2 if offset else 0)] if offset else params)
+            cur.execute(query, params)
             orders = cur.fetchall()
             
-            # Статусы для фильтра
-            status_query = "SELECT DISTINCT status FROM orders WHERE shop_id = ? AND deleted_at IS NULL;" if is_sqlite else "SELECT DISTINCT status FROM orders WHERE shop_id = %s AND deleted_at IS NULL;"
-            cur.execute(status_query, (shop_id,))
+            cur.execute("SELECT DISTINCT status FROM orders WHERE shop_id = ? AND deleted_at IS NULL;", (shop_id,)) if is_sqlite else cur.execute("SELECT DISTINCT status FROM orders WHERE shop_id = %s AND deleted_at IS NULL;", (shop_id,))
             statuses = [row[0] for row in cur.fetchall()]
             
-            # Архив
-            arch_query = "SELECT COUNT(*) FROM orders WHERE shop_id = ? AND is_archived = 1 AND deleted_at IS NULL;" if is_sqlite else "SELECT COUNT(*) FROM orders WHERE shop_id = %s AND is_archived = TRUE AND deleted_at IS NULL;"
-            cur.execute(arch_query, (shop_id,))
+            cur.execute("SELECT COUNT(*) FROM orders WHERE shop_id = ? AND is_archived = 1 AND deleted_at IS NULL;", (shop_id,)) if is_sqlite else cur.execute("SELECT COUNT(*) FROM orders WHERE shop_id = %s AND is_archived = TRUE AND deleted_at IS NULL;", (shop_id,))
             archived_count = cur.fetchone()[0] or 0
         
         return render_template('orders.html',
@@ -910,7 +723,6 @@ def create_order_form():
 
 @app.route('/orders/add', methods=['POST'])
 @login_required
-@limiter.limit("30 per minute")
 def add_order():
     try:
         shop_id = get_user_shop()
@@ -1139,10 +951,6 @@ def complete_order(order_id):
         flash(f'❌ Ошибка: {e}', 'error')
         return redirect(url_for('employee_dashboard'))
 
-# ==========================================
-# КЛИЕНТЫ
-# ==========================================
-
 @app.route('/clients')
 @login_required
 def clients_page():
@@ -1176,10 +984,6 @@ def clients_page():
         logger.exception("Ошибка клиентов")
         flash('Ошибка загрузки клиентов', 'error')
         return render_template('clients.html', clients=[], shops=Config.SHOPS, employees=Config.EMPLOYEES, active_page='clients')
-
-# ==========================================
-# ЧАТ
-# ==========================================
 
 @app.route('/chat')
 @login_required
@@ -1217,8 +1021,8 @@ def get_chat_messages():
                     'id': msg[0],
                     'user_id': msg[1],
                     'user_name': msg[2],
-                    'message': msg[3],
-                    'created_at': msg[4].isoformat() if hasattr(msg[4], 'isoformat') else str(msg[4])
+                    'message': msg[4] if len(msg) > 4 else msg[3],
+                    'created_at': msg[5].isoformat() if len(msg) > 5 and hasattr(msg[5], 'isoformat') else str(msg[4] if len(msg) > 4 else '')
                 })
         
         return jsonify(result)
@@ -1262,10 +1066,6 @@ def send_chat_message():
     except Exception as e:
         logger.exception("Ошибка отправки сообщения")
         return jsonify({"error": str(e)}), 500
-
-# ==========================================
-# КАЛЕНДАРЬ
-# ==========================================
 
 @app.route('/calendar')
 @login_required
@@ -1320,13 +1120,13 @@ def calendar_events_api():
         }
         
         for order in orders:
-            created_at = order[5] if len(order) > 5 else None
-            completed_at = order[6] if len(order) > 6 else None
             order_id = order[0]
             customer = order[1]
             product = order[2]
             status = order[3]
             priority = order[4]
+            created_at = order[5] if len(order) > 5 else None
+            completed_at = order[6] if len(order) > 6 else None
             executor = order[7] if len(order) > 7 else 'Не назначен'
             
             if created_at:
@@ -1364,10 +1164,6 @@ def calendar_events_api():
         logger.exception("Ошибка API календаря")
         return jsonify([]), 500
 
-# ==========================================
-# УВЕДОМЛЕНИЯ
-# ==========================================
-
 @app.route('/notifications')
 @login_required
 def notifications_page():
@@ -1399,13 +1195,10 @@ def notifications_page():
             
             cur.execute("SELECT COUNT(*) FROM notifications WHERE user_id = ? AND is_read = 0 AND is_archived = 0", (user_id,)) if is_sqlite else cur.execute("SELECT COUNT(*) FROM notifications WHERE user_id = %s AND is_read = FALSE AND is_archived = FALSE", (user_id,))
             unread = cur.fetchone()[0] or 0
-            
-            cur.execute("SELECT COUNT(*) FROM notifications WHERE user_id = ? AND is_archived = 1", (user_id,)) if is_sqlite else cur.execute("SELECT COUNT(*) FROM notifications WHERE user_id = %s AND is_archived = TRUE", (user_id,))
-            archived = cur.fetchone()[0] or 0
         
         return render_template('notifications.html',
                              notifications=notifications,
-                             stats={'total': total, 'unread': unread, 'archived': archived},
+                             stats={'total': total, 'unread': unread, 'archived': 0},
                              filter_type=filter_type,
                              shops=Config.SHOPS,
                              employees=Config.EMPLOYEES,
@@ -1439,6 +1232,7 @@ def check_notifications_api():
         
         return jsonify({'new_orders': new_orders, 'unread': unread})
     except Exception as e:
+        logger.exception("Ошибка проверки уведомлений")
         return jsonify({'error': str(e)}), 500
 
 @app.route('/api/notifications/latest')
@@ -1457,15 +1251,16 @@ def get_latest_notifications():
             for n in notifications:
                 result.append({
                     'id': n[0],
-                    'title': n[5],
-                    'message': n[6],
-                    'is_read': n[8] == 1 if is_sqlite else n[8],
-                    'created_at': n[11].isoformat() if hasattr(n[11], 'isoformat') else str(n[11]),
-                    'action_url': n[10] or '/notifications'
+                    'title': n[5] if len(n) > 5 else '',
+                    'message': n[6] if len(n) > 6 else '',
+                    'is_read': n[8] == 1 if is_sqlite and len(n) > 8 else False,
+                    'created_at': n[11].isoformat() if len(n) > 11 and hasattr(n[11], 'isoformat') else str(n[11] if len(n) > 11 else ''),
+                    'action_url': n[10] if len(n) > 10 and n[10] else '/notifications'
                 })
         
         return jsonify(result)
     except Exception as e:
+        logger.exception("Ошибка получения уведомлений")
         return jsonify([]), 500
 
 @app.route('/api/notifications/mark-read/<int:notif_id>', methods=['POST'])
@@ -1503,10 +1298,6 @@ def archive_notification(notif_id):
         return jsonify({'success': True})
     except Exception as e:
         return jsonify({'error': str(e)}), 500
-
-# ==========================================
-# ОНЛАЙН-СТАТУС
-# ==========================================
 
 @app.route('/api/online/update', methods=['POST'])
 @login_required
