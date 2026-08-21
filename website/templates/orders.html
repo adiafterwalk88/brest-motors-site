@@ -1,78 +1,103 @@
 {% extends "base.html" %}
 
-{% block title %}Управление заказами — InTarget Brest Motors{% endblock %}
-
-{% block page_title %}
-<div style="display: flex; align-items: center; gap: 12px;">
-    <h1 style="font-size: 22px; font-weight: 700; color: #ffffff; margin: 0;">📋 Управление заказами</h1>
-</div>
-<span style="color: #a0a0ab; font-size: 13px;">Всего: {{ orders|length if orders else 0 }} заказов</span>
-{% endblock %}
+{% block title %}Список заказов{% endblock %}
 
 {% block content %}
-<div style="display: flex; justify-content: flex-end; margin-bottom: 20px;">
-    <a href="/orders/create" class="btn btn-primary">➕ Новый заказ</a>
-</div>
+<div class="container-fluid mt-4">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <h2>Список заказов</h2>
+        <a href="{{ url_for('new_order') }}" class="btn btn-primary">+ Новый заказ</a>
+    </div>
 
-<!-- ФИЛЬТРЫ -->
-<div class="card" style="background-color: var(--card-bg) !important; color: #fff !important;">
-    <form method="GET" action="{{ url_for('orders_page') }}" style="display: flex; flex-direction: column; gap: 16px;">
-        <div style="display: flex; gap: 12px; flex-wrap: wrap; align-items: center;">
-            <input type="text" name="q" value="{{ request.args.get('q', '') }}" placeholder="🔍 Клиент / Телефон / Товар..." style="flex: 1; min-width: 200px; padding: 10px 14px; background: #121214; border: 1px solid rgba(255,255,255,0.1); border-radius: 6px; color: #fff;">
-            <select name="status" style="padding: 10px 14px; background: #121214; border: 1px solid rgba(255,255,255,0.1); border-radius: 6px; color: #fff;">
-                <option value="">Все статусы</option>
-                <option value="new">Новый</option>
-                <option value="in_progress">В работе</option>
-                <option value="completed">Выдан</option>
-            </select>
-            <button type="submit" class="btn btn-primary">Применить</button>
-            <a href="{{ url_for('orders_page') }}" class="btn" style="background: rgba(255,255,255,0.08); color: #a0a0ab;">Очистить</a>
+    <!-- Фильтры и поиск -->
+    <div class="card mb-4 shadow-sm">
+        <div class="card-body">
+            <form method="GET" action="{{ url_for('orders_page') }}" class="row g-3">
+                <div class="col-md-4">
+                    <input type="text" name="search" class="form-control" placeholder="Поиск по имени, телефону, модели..." value="{{ search }}">
+                </div>
+                <div class="col-md-3">
+                    <div class="form-check mt-2">
+                        <input class="form-check-input" type="checkbox" name="show_archived" value="true" id="archivedCheck" {% if show_archived %}checked{% endif %} onchange="this.form.submit()">
+                        <label class="form-check-label" for="archivedCheck">
+                            Показывать архивные ({{ archived_count }})
+                        </label>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <button type="submit" class="btn btn-secondary w-100">Применить</button>
+                </div>
+                <div class="col-md-2">
+                    <a href="{{ url_for('orders_page') }}" class="btn btn-outline-secondary w-100">Сбросить</a>
+                </div>
+            </form>
         </div>
-    </form>
-</div>
+    </div>
 
-<!-- ТАБЛИЦА / ПУСТОЕ СОСТОЯНИЕ -->
-<div class="card" style="background-color: var(--card-bg) !important; color: #fff !important;">
-    {% if orders %}
-        <div class="table-wrapper">
-            <table>
-                <thead>
-                    <tr>
-                        <th>#</th>
-                        <th>Клиент</th>
-                        <th>Товар</th>
-                        <th>Цена</th>
-                        <th>Статус</th>
-                        <th>Исполнитель</th>
-                        <th>Действия</th>
-                    </tr>
-                </thead>
-                <tbody>
+    <!-- Информация о фильтре по магазинам -->
+    <div class="alert alert-info d-flex justify-content-between align-items-center" role="alert">
+        <div>
+            Текущий филиал: <strong>{{ shops.get(session.get('shop_id', 'all'), 'Все филиалы') }}</strong>
+            (Всего найдено записей: {{ total_count }})
+        </div>
+        <div class="btn-group">
+            <button type="button" class="btn btn-sm btn-outline-info dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="false">
+                Сменить филиал
+            </button>
+            <ul class="dropdown-menu">
+                {% for key, val in shops.items() %}
+                <li><a class="dropdown-item" href="{{ url_for('set_shop', shop_id=key) }}">{{ val }}</a></li>
+                {% endfor %}
+            </ul>
+        </div>
+    </div>
+
+    <!-- Таблица заказов -->
+    <div class="table-responsive shadow-sm bg-white rounded">
+        <table class="table table-hover align-middle mb-0">
+            <thead class="table-dark">
+                <tr>
+                    <th>№</th>
+                    <th>Дата</th>
+                    <th>Клиент</th>
+                    <th>Телефон</th>
+                    <th>Устройство</th>
+                    <th>Мастер</th>
+                    <th>Статус</th>
+                    <th>Сумма</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% if orders %}
                     {% for order in orders %}
-                    <tr>
+                    <tr {% if order.is_archived %}class="table-secondary"{% endif %}>
                         <td><strong>#{{ order.id }}</strong></td>
-                        <td>{{ order.client_name or 'кто-то' }}</td>
-                        <td>{{ order.item_title }}</td>
-                        <td>{{ order.price }} Br</td>
-                        <td><span class="status-badge {{ order.status_class }}">{{ order.status }}</span></td>
-                        <td>{{ order.executor }}</td>
+                        <td>{{ order.created_at.strftime('%d.%m.%Y %H:%M') if order.created_at else '-' }}</td>
+                        <td>{{ order.customer_name }}</td>
+                        <td>{{ order.customer_phone }}</td>
+                        <td>{{ order.device_type }} {{ order.device_model }}</td>
+                        <td><span class="badge bg-secondary">{{ order.executor or 'Не назначен' }}</span></td>
                         <td>
-                            <div style="display: flex; gap: 6px;">
-                                <a href="/orders/edit/{{ order.id }}" class="btn-action edit">✏️</a>
-                                <a href="/orders/delete/{{ order.id }}" class="btn-action delete">🗑️</a>
-                            </div>
+                            <span class="badge 
+                                {% if order.status == 'Выдан' %}bg-success
+                                {% elif order.status == 'Готов' %}bg-info
+                                {% elif order.status == 'В работе' %}bg-warning text-dark
+                                {% else %}bg-primary{% endif %}">
+                                {{ order.status }}
+                            </span>
                         </td>
+                        <td>{{ order.estimated_cost }} руб.</td>
                     </tr>
                     {% endfor %}
-                </tbody>
-            </table>
-        </div>
-    {% else %}
-        <div style="text-align: center; padding: 40px 20px;">
-            <div style="font-size: 40px; margin-bottom: 12px;">📬</div>
-            <div style="font-size: 16px; color: #ffffff; font-weight: 600;">Нет заказов</div>
-            <a href="/orders/create" style="color: var(--accent-gold); text-decoration: none; font-size: 14px; display: inline-block; margin-top: 8px;">➕ Создать первый заказ</a>
-        </div>
-    {% endif %}
+                {% else %}
+                    <tr>
+                        <td colspan="8" class="text-center py-4 text-muted">
+                            Заказы не найдены. Попробуйте <a href="{{ url_for('force_login') }}">сбросить фильтры доступа</a>.
+                        </td>
+                    </tr>
+                {% endif %}
+            </tbody>
+        </table>
+    </div>
 </div>
 {% endblock %}
