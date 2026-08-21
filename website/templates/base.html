@@ -4,212 +4,163 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% block title %}InTarget Brest Motors{% endblock %}</title>
-    
-    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%230a0a0a'/><text x='50' y='68' font-size='48' font-family='Arial' font-weight='bold' text-anchor='middle' fill='%23d4a84b'>BM</text></svg>">
-    <meta name="theme-color" content="#0a0a0a">
-    
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
-    {% block extra_css %}{% endblock %}
+    <style>
+        :root {
+            --bg-color: #0d0d0f;
+            --sidebar-bg: #141418;
+            --card-bg: #1a1a1e;
+            --border-color: rgba(255, 255, 255, 0.08);
+            --text-main: #ffffff;
+            --text-muted: #a0a0ab;
+            --accent-gold: #f5c518;
+            --accent-green: #2eb85c;
+        }
+
+        body {
+            margin: 0;
+            padding: 0;
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            display: flex;
+            min-height: 100vh;
+        }
+
+        .sidebar {
+            width: 240px;
+            background-color: var(--sidebar-bg);
+            border-right: 1px solid var(--border-color);
+            display: flex;
+            flex-direction: column;
+            padding: 20px 0;
+            position: fixed;
+            top: 0;
+            bottom: 0;
+            left: 0;
+            z-index: 100;
+        }
+
+        .logo {
+            padding: 0 20px 20px;
+            font-size: 18px;
+            font-weight: 700;
+            color: #fff;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .menu {
+            list-style: none;
+            padding: 15px 10px;
+            margin: 0;
+            flex: 1;
+        }
+
+        .menu-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 10px 14px;
+            color: var(--text-muted);
+            text-decoration: none;
+            border-radius: 6px;
+            font-size: 14px;
+            margin-bottom: 4px;
+            transition: all 0.2s;
+        }
+
+        .menu-item:hover, .menu-item.active {
+            background: rgba(255, 255, 255, 0.05);
+            color: #fff;
+        }
+
+        .menu-item.active {
+            border-left: 3px solid var(--accent-gold);
+        }
+
+        .main-wrapper {
+            margin-left: 240px;
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .header {
+            height: 60px;
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 30px;
+            background-color: var(--bg-color);
+        }
+
+        .content {
+            padding: 30px;
+            flex: 1;
+        }
+
+        .card {
+            background-color: var(--card-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+
+        .btn {
+            padding: 8px 16px;
+            border-radius: 6px;
+            border: none;
+            cursor: pointer;
+            text-decoration: none;
+            font-size: 14px;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .btn-primary {
+            background-color: var(--accent-green);
+            color: #fff;
+        }
+    </style>
 </head>
 <body>
-    <!-- Мобильное меню (бургер) -->
-    <button class="mobile-menu-toggle" id="mobileMenuToggle" aria-label="Открыть меню">☰</button>
-    
-    <div class="app-layout">
-        <!-- ===== САЙДБАР ===== -->
-        <aside class="sidebar" id="mainSidebar" aria-label="Основное меню">
-            <div class="sidebar-header">
-                <div class="logo">
-                    🎯 In<span>Target</span>
-                </div>
-                <button class="sidebar-close" id="sidebarClose" aria-label="Закрыть меню">✕</button>
+
+    <aside class="sidebar">
+        <div class="logo">
+            🎯 InTarget
+        </div>
+        <ul class="menu">
+            <li><a href="/" class="menu-item {% if request.path == '/' %}active{% endif %}">📊 Дашборд</a></li>
+            <li><a href="/orders" class="menu-item {% if '/orders' in request.path %}active{% endif %}">📋 Заказы</a></li>
+            <li><a href="/clients" class="menu-item {% if '/clients' in request.path %}active{% endif %}">👥 Клиенты</a></li>
+            <li><a href="/employee" class="menu-item {% if '/employee' in request.path %}active{% endif %}">👨‍🔧 Сотрудники</a></li>
+            <li><a href="/chat" class="menu-item {% if '/chat' in request.path %}active{% endif %}">💬 Чат</a></li>
+            <li><a href="/calendar" class="menu-item {% if '/calendar' in request.path %}active{% endif %}">📅 Календарь</a></li>
+        </ul>
+        <div style="padding: 10px;">
+            <a href="/logout" class="menu-item" style="color: #ff4d4f;">🚪 Выйти</a>
+        </div>
+    </aside>
+
+    <div class="main-wrapper">
+        <header class="header">
+            <div>{% block page_title %}{% endblock %}</div>
+            <div style="display: flex; align-items: center; gap: 15px;">
+                <span>🔔</span>
+                <span>👤 {{ session.get('username', 'Администратор') }}</span>
             </div>
-            
-            <nav>
-                <ul class="menu">
-                    <li>
-                        <a href="{{ url_for('dashboard') }}" class="{% if active_page == 'dashboard' %}active{% endif %}">
-                            <span aria-hidden="true">📊</span> Дашборд
-                        </a>
-                    </li>
-                    <li>
-                        <a href="{{ url_for('orders_page') }}" class="{% if active_page == 'orders' %}active{% endif %}">
-                            <span aria-hidden="true">📋</span> Заказы
-                        </a>
-                    </li>
-                    <li>
-                        <a href="{{ url_for('clients_page') }}" class="{% if active_page == 'clients' %}active{% endif %}">
-                            <span aria-hidden="true">👥</span> Клиенты
-                        </a>
-                    </li>
-                    {% if session.get('is_admin') %}
-                    <li>
-                        <a href="{{ url_for('employee_dashboard') }}" class="{% if active_page == 'employee' %}active{% endif %}">
-                            <span aria-hidden="true">👨‍🔧</span> Сотрудники
-                        </a>
-                    </li>
-                    {% endif %}
-                    <li>
-                        <a href="{{ url_for('logout') }}" class="logout">
-                            <span aria-hidden="true">🚪</span> Выйти
-                        </a>
-                    </li>
-                </ul>
-            </nav>
-        </aside>
-        
-        <!-- Оверлей для мобильных -->
-        <div class="sidebar-overlay" id="sidebarOverlay"></div>
-        
-        <!-- ===== ОСНОВНОЙ КОНТЕНТ ===== -->
-        <main class="main-content" id="mainContent">
-            <!-- Верхняя панель -->
-            <header class="top-bar">
-                <div>
-                    {% block page_title %}{% endblock %}
-                </div>
-                <div class="user-info">
-                    <div class="header-notifications" id="notifToggle" tabindex="0" role="button" aria-haspopup="true" aria-expanded="false">
-                        <span style="font-size:20px; color:var(--text-muted);" aria-hidden="true">🔔</span>
-                        <span class="badge zero" id="notifBadge" style="display:none;">0</span>
-                        
-                        <div class="notif-dropdown" id="notifDropdown" role="menu">
-                            <div id="notifDropdownContent">
-                                <div class="notif-empty">📭 Нет уведомлений</div>
-                            </div>
-                            <div class="notif-footer">
-                                <a href="{{ url_for('notifications_page') }}">Все уведомления →</a>
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <span class="user-name">
-                        <span aria-hidden="true">👤</span> <strong>{{ session.get('user_name', 'Пользователь') }}</strong>
-                    </span>
-                    
-                    <a href="{{ url_for('logout') }}" style="color:var(--danger); font-size:var(--font-size-lg); text-decoration:none;" title="Выйти" aria-label="Выйти">
-                        <span aria-hidden="true">🚪</span>
-                    </a>
-                </div>
-            </header>
-            
-            <!-- Flash-сообщения -->
-            {% with messages = get_flashed_messages(with_categories=true) %}
-                {% if messages %}
-                    <div class="flash-container" style="margin-bottom:var(--spacing-md);">
-                        {% for category, message in messages %}
-                            <div class="flash-message {{ category }}">{{ message }}</div>
-                        {% endfor %}
-                    </div>
-                {% endif %}
-            {% endwith %}
-            
-            <!-- Контент страницы -->
+        </header>
+
+        <main class="content">
             {% block content %}{% endblock %}
         </main>
     </div>
-    
-    <!-- Скрипты -->
-    <script>
-        document.addEventListener('DOMContentLoaded', function() {
-            // --- Уведомления ---
-            const badge = document.getElementById('notifBadge');
-            const notifToggle = document.getElementById('notifToggle');
-            const notifDropdown = document.getElementById('notifDropdown');
-            const dropdownContent = document.getElementById('notifDropdownContent');
 
-            function fetchNotifications() {
-                fetch('/api/notifications/check')
-                    .then(response => {
-                        if (!response.ok) return null;
-                        return response.json();
-                    })
-                    .then(data => {
-                        if (!data) return;
-
-                        if (badge) {
-                            if (data.unread > 0) {
-                                badge.textContent = data.unread > 99 ? '99+' : data.unread;
-                                badge.style.display = 'inline-block';
-                            } else {
-                                badge.style.display = 'none';
-                            }
-                        }
-
-                        if (dropdownContent && data.items && data.items.length > 0) {
-                            dropdownContent.innerHTML = data.items.map(item => `
-                                <div class="notif-item ${item.read ? '' : 'unread'}">
-                                    <div class="notif-title">${item.title}</div>
-                                    <div class="notif-time">${item.time}</div>
-                                </div>
-                            `).join('');
-                        }
-                    })
-                    .catch(() => {});
-            }
-
-            if (notifToggle && notifDropdown) {
-                notifToggle.addEventListener('click', function(e) {
-                    e.stopPropagation();
-                    const isOpen = notifDropdown.classList.toggle('show');
-                    notifToggle.setAttribute('aria-expanded', isOpen);
-                });
-
-                notifDropdown.addEventListener('click', function(e) {
-                    e.stopPropagation();
-                });
-
-                document.addEventListener('click', function() {
-                    notifDropdown.classList.remove('show');
-                    notifToggle.setAttribute('aria-expanded', 'false');
-                });
-            }
-
-            fetchNotifications();
-            setInterval(fetchNotifications, 30000);
-
-            // --- Мобильное меню ---
-            const toggle = document.getElementById('mobileMenuToggle');
-            const sidebar = document.getElementById('mainSidebar');
-            const overlay = document.getElementById('sidebarOverlay');
-            const closeBtn = document.getElementById('sidebarClose');
-
-            function openMenu() {
-                sidebar?.classList.add('open');
-                overlay?.classList.add('active');
-                document.body.style.overflow = 'hidden';
-            }
-
-            function closeMenu() {
-                sidebar?.classList.remove('open');
-                overlay?.classList.remove('active');
-                document.body.style.overflow = '';
-            }
-
-            toggle?.addEventListener('click', openMenu);
-            closeBtn?.addEventListener('click', closeMenu);
-            overlay?.addEventListener('click', closeMenu);
-
-            document.addEventListener('keydown', function(e) {
-                if (e.key === 'Escape') closeMenu();
-            });
-
-            sidebar?.querySelectorAll('a').forEach(link => {
-                link.addEventListener('click', closeMenu);
-            });
-
-            // --- Автоскрытие Flash-сообщений ---
-            document.querySelectorAll('.flash-message').forEach(function(msg) {
-                setTimeout(function() {
-                    msg.style.transition = 'opacity 0.5s ease-out, transform 0.5s ease-out';
-                    msg.style.opacity = '0';
-                    msg.style.transform = 'translateY(-10px)';
-                    setTimeout(function() { msg.remove(); }, 500);
-                }, 5000);
-            });
-        });
-    </script>
-    
-    {% block extra_js %}{% endblock %}
 </body>
 </html>
