@@ -27,8 +27,12 @@
     .badge-new { background: #e3f2fd; color: #0d47a1; }
     .badge-work { background: #fff3e0; color: #e65100; }
     .badge-done { background: #e8f5e9; color: #27ae60; }
-    .btn-sm { padding: 4px 12px; border: none; border-radius: 6px; font-size: 12px; font-weight: 600; cursor: pointer; text-decoration: none; display: inline-block; }
+    .actions-cell { display: flex; gap: 6px; align-items: center; }
+    .btn-sm { padding: 4px 10px; border: none; border-radius: 6px; font-size: 12px; font-weight: 600; cursor: pointer; text-decoration: none; display: inline-flex; align-items: center; justify-content: center; transition: background .2s; }
     .btn-edit { background: #3498db; color: white; }
+    .btn-edit:hover { background: #2980b9; }
+    .btn-delete { background: #e74c3c; color: white; }
+    .btn-delete:hover { background: #c0392b; }
     @media (max-width: 768px) { .sidebar { display: none; } .main-content { margin-left: 0; } }
 </style>
 {% endblock %}
@@ -74,7 +78,14 @@
                             <td>{{ order.price }} Br</td>
                             <td><span class="badge-status {% if order.status == 'Новый' %}badge-new{% elif order.status == 'В работе' %}badge-work{% elif order.status == 'Выдан' %}badge-done{% endif %}">{{ order.status }}</span></td>
                             <td>{{ order.executor or 'Не назначен' }}</td>
-                            <td><a href="/orders" class="btn-sm btn-edit">✏️</a></td>
+                            <td>
+                                <div class="actions-cell">
+                                    <a href="/orders/{{ order.id }}/edit" class="btn-sm btn-edit" title="Редактировать">✏️</a>
+                                    <form method="POST" action="/orders/{{ order.id }}/delete" style="display:inline;margin:0;" onsubmit="return confirm('Удалить заказ #{{ order.id }}?');">
+                                        <button type="submit" class="btn-sm btn-delete" title="Удалить">🗑️</button>
+                                    </form>
+                                </div>
+                            </td>
                         </tr>
                         {% endfor %}
                     </tbody>
