@@ -7,13 +7,13 @@
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body { font-family: 'Segoe UI', sans-serif; background: #f0f2f5; }
-        .header { background: #1a1a2e; color: white; padding: 16px 24px; display: flex; justify-content: space-between; align-items: center; }
+        .header { background: #1a1a2e; color: white; padding: 16px 24px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; }
         .header h1 { font-size: 1.3em; }
         .stats { display: flex; gap: 16px; }
         .stat { background: rgba(255,255,255,0.1); padding: 8px 16px; border-radius: 8px; }
         .stat span { font-weight: bold; font-size: 1.2em; }
         .container { max-width: 1400px; margin: 0 auto; padding: 20px; }
-        .form-row { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; margin-bottom: 12px; }
+        .form-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 12px; margin-bottom: 12px; }
         .form-group { margin-bottom: 12px; }
         .form-group label { display: block; font-weight: 600; margin-bottom: 4px; font-size: 13px; color: #555; }
         .form-group input, .form-group textarea, .form-group select {
@@ -40,6 +40,10 @@
         .tab.active { background: #1a1a2e; color: white; border-color: #1a1a2e; }
         .hidden { display: none; }
         .two-cols { display: grid; grid-template-columns: 1fr 2fr; gap: 20px; }
+
+        @media (max-width: 900px) {
+            .two-cols { grid-template-columns: 1fr; }
+        }
     </style>
 </head>
 <body>
@@ -78,11 +82,11 @@
                     <div class="form-row">
                         <div class="form-group">
                             <label>💰 Цена (Br)</label>
-                            <input type="number" id="price" value="0">
+                            <input type="number" id="price" step="0.01" min="0" value="0">
                         </div>
                         <div class="form-group">
                             <label>💳 Предоплата (Br)</label>
-                            <input type="number" id="prepaid" value="0">
+                            <input type="number" id="prepaid" step="0.01" min="0" value="0">
                         </div>
                         <div class="form-group">
                             <label>⭐ Приоритет</label>
@@ -96,11 +100,11 @@
                     <div class="form-group">
                         <label>👨‍🔧 Исполнитель</label>
                         <select id="executor">
-                            <option>Не назначен</option>
-                            <option>Иван</option>
-                            <option>Петр</option>
-                            <option>Сергей</option>
-                            <option>Админ</option>
+                            <option value="Не назначен">Не назначен</option>
+                            <option value="Иван">Иван</option>
+                            <option value="Петр">Петр</option>
+                            <option value="Сергей">Сергей</option>
+                            <option value="Админ">Админ</option>
                         </select>
                     </div>
                     <div class="form-group">
@@ -117,14 +121,14 @@
             <!-- Список заказов -->
             <div>
                 <div class="tabs">
-                    <button class="tab active" onclick="showTab('active')">🔄 Активные</button>
-                    <button class="tab" onclick="showTab('done')">✅ Выполненные</button>
+                    <button class="tab active" onclick="showTab(event, 'active')">🔄 Активные</button>
+                    <button class="tab" onclick="showTab(event, 'done')">✅ Выполненные</button>
                 </div>
 
                 <div id="tab-active">
                     {% for o in active %}
                     <div class="card {% if o.priority == 'high' %}priority-high{% endif %}" id="order-{{ o.id }}">
-                        <div style="display:flex;justify-content:space-between;align-items:start;">
+                        <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px;">
                             <div>
                                 <strong>№{{ o.id }}</strong> | {{ o.date }} | 
                                 <span class="status-badge status-{{ 'new' if o.status == 'Новый' else 'progress' if o.status == 'В работе' else 'done' }}">{{ o.status }}</span>
@@ -153,7 +157,7 @@
                 <div id="tab-done" class="hidden">
                     {% for o in done %}
                     <div class="card" id="order-{{ o.id }}">
-                        <div style="display:flex;justify-content:space-between;">
+                        <div style="display:flex;justify-content:space-between;align-items:flex-start;">
                             <div>
                                 <strong>№{{ o.id }}</strong> | {{ o.date }} | 
                                 <span class="status-badge status-done">{{ o.status }}</span>
@@ -171,9 +175,9 @@
     </div>
 
     <script>
-        function showTab(tab) {
+        function showTab(evt, tab) {
             document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
-            event.target.classList.add('active');
+            evt.currentTarget.classList.add('active');
             document.getElementById('tab-active').classList.toggle('hidden', tab !== 'active');
             document.getElementById('tab-done').classList.toggle('hidden', tab !== 'done');
         }
@@ -192,29 +196,52 @@
                 comment: document.getElementById('comment').value,
                 source: 'ПК'
             };
-            await fetch('/api/orders', {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify(data)
-            });
-            document.getElementById('orderForm').classList.add('hidden');
-            document.getElementById('formSuccess').classList.remove('hidden');
-            setTimeout(() => location.reload(), 1500);
+
+            try {
+                const response = await fetch('/api/orders', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify(data)
+                });
+
+                if (response.ok) {
+                    document.getElementById('orderForm').classList.add('hidden');
+                    document.getElementById('formSuccess').classList.remove('hidden');
+                    setTimeout(() => location.reload(), 1200);
+                } else {
+                    alert('Ошибка при создании заказа');
+                }
+            } catch (err) {
+                console.error('Ошибка сети:', err);
+            }
         });
 
         async function changeStatus(id, status) {
-            await fetch(`/api/orders/${id}/status`, {
-                method: 'PUT',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({status: status})
-            });
-            location.reload();
+            try {
+                const response = await fetch(`/api/orders/${id}/status`, {
+                    method: 'PUT',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({status: status})
+                });
+                if (response.ok) {
+                    location.reload();
+                }
+            } catch (err) {
+                console.error('Ошибка при обновлении статуса:', err);
+            }
         }
 
         async function deleteOrder(id) {
             if (confirm('Удалить заказ?')) {
-                await fetch(`/api/orders/${id}`, {method: 'DELETE'});
-                document.getElementById(`order-${id}`).remove();
+                try {
+                    const response = await fetch(`/api/orders/${id}`, {method: 'DELETE'});
+                    if (response.ok) {
+                        const el = document.getElementById(`order-${id}`);
+                        if (el) el.remove();
+                    }
+                } catch (err) {
+                    console.error('Ошибка при удалении заказа:', err);
+                }
             }
         }
     </script>
