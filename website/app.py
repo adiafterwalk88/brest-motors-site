@@ -10,6 +10,7 @@ from flask import (
 )
 from werkzeug.security import check_password_hash, generate_password_hash
 import psycopg2
+import psycopg2.pool  # <--- ИСПРАВЛЕНИЕ: явный импорт подмодуля pool
 from psycopg2.extras import RealDictCursor
 
 logging.basicConfig(level=logging.INFO)
@@ -49,7 +50,7 @@ def init_db_pool():
                 maxconn=10,
                 dsn=db_url
             )
-            logger.info("Пул соединений PostgreSQL создан.")
+            logger.info("Пул соединений PostgreSQL успешно создан.")
         except Exception as e:
             logger.exception("Ошибка подключения к PostgreSQL")
 
@@ -72,25 +73,17 @@ def get_db_cursor(commit=False):
         db_pool.putconn(conn)
 
 def normalize_order(order):
-    """Нормализует ключи словаря заказа для гарантированного отображения в шаблоне"""
+    """Приводит ключи словаря заказа к единому виду для шаблона Jinja"""
     if not order:
         return order
     
-    # Преобразуем RealDictRow в обычный dict
     d = dict(order)
-    
-    # Клиент
     d['customer_name'] = d.get('customer_name') or d.get('client_name') or d.get('client') or d.get('fio') or ''
-    # Телефон
     d['customer_phone'] = d.get('customer_phone') or d.get('phone') or d.get('client_phone') or ''
-    # Устройство
     d['device_model'] = d.get('device_model') or d.get('device') or d.get('model') or ''
     d['device_type'] = d.get('device_type') or d.get('type') or ''
-    # Мастер
     d['executor'] = d.get('executor') or d.get('master') or d.get('mechanic') or ''
-    # Сумма
     d['estimated_cost'] = d.get('estimated_cost') or d.get('price') or d.get('cost') or d.get('sum') or 0
-    
     return d
 
 def login_required(f):
@@ -102,7 +95,7 @@ def login_required(f):
     return decorated_function
 
 # ==========================================
-# РОУТЫ
+# МАРШРУТЫ
 # ==========================================
 
 @app.route('/login', methods=['GET', 'POST'])
@@ -165,7 +158,6 @@ def orders_page():
             cur.execute(query, tuple(params))
             raw_orders = cur.fetchall()
             
-            # Применяем нормализацию к каждому заказу
             orders = [normalize_order(o) for o in raw_orders]
 
             cur.execute("SELECT COUNT(*) FROM orders WHERE is_archived = TRUE;")
@@ -194,7 +186,7 @@ def set_shop(shop_id):
         session['shop_id'] = shop_id
     return redirect(request.referrer or url_for('orders_page'))
 
-# --- Роуты бокового меню (убирают 404) ---
+# --- Заглушки для меню (убирают 404) ---
 
 @app.route('/clients')
 @login_required
