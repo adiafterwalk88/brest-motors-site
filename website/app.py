@@ -16,7 +16,9 @@ from flask_caching import Cache
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
 from flask_session import Session
-from flask_wtf import CSRFProtect
+
+# ===== ВРЕМЕННО УБИРАЕМ CSRF =====
+# from flask_wtf import CSRFProtect
 
 load_dotenv()
 
@@ -32,23 +34,19 @@ class Config:
     DEBUG = os.environ.get('FLASK_DEBUG', 'True') == 'True'
     SITE_NAME = 'InTarget Brest Motors'
     
-    # Сессии (файловые, не требуют Redis)
     SESSION_TYPE = 'filesystem'
     SESSION_FILE_DIR = '/tmp/flask_sessions'
     SESSION_PERMANENT = True
     SESSION_USE_SIGNER = True
     
-    # Кеширование
     CACHE_TYPE = 'simple'
     CACHE_DEFAULT_TIMEOUT = 300
     
-    # Магазины
     SHOPS = {
         'moskovskaya': '🏪 ул. Московская, 123',
         'kariernaya': '🏪 ул. Карьерная, 45'
     }
     
-    # Сотрудники
     EMPLOYEES = [
         {'id': 'pavel_ivanovich', 'name': 'Павел Иванович', 'password_hash': os.environ.get('PASSWORD_HASH_PAVEL_IVANOVICH')},
         {'id': 'pavel', 'name': 'Павел', 'password_hash': os.environ.get('PASSWORD_HASH_PAVEL')},
@@ -56,7 +54,6 @@ class Config:
         {'id': 'alexander', 'name': 'Александр', 'password_hash': os.environ.get('PASSWORD_HASH_ALEXANDER')}
     ]
 
-# Тестовые пароли, если нет хешей
 if not Config.ADMIN_PASSWORD_HASH:
     Config.ADMIN_PASSWORD_HASH = bcrypt.hashpw(b'admin123', bcrypt.gensalt()).decode('utf-8')
 
@@ -72,8 +69,8 @@ app = Flask(__name__)
 app.config.from_object(Config)
 app.secret_key = Config.SECRET_KEY
 
-# CSRF-защита
-csrf = CSRFProtect(app)
+# ===== CSRF ОТКЛЮЧЁН (для отладки) =====
+# csrf = CSRFProtect(app)
 
 # Сессии
 Session(app)
@@ -89,7 +86,6 @@ limiter = Limiter(
     storage_uri="memory://"
 )
 
-# Логирование
 logging.basicConfig(
     level=logging.DEBUG if Config.DEBUG else logging.INFO,
     format='%(asctime)s [%(levelname)s] %(name)s: %(message)s'
@@ -101,7 +97,6 @@ logger = logging.getLogger('brest_motors')
 # ==========================================
 
 def get_db_connection():
-    """Получить соединение с БД"""
     if Config.DATABASE_URL.startswith('sqlite://'):
         db_path = Config.DATABASE_URL.replace('sqlite:///', '')
         os.makedirs(os.path.dirname(db_path) if os.path.dirname(db_path) else '.', exist_ok=True)
@@ -117,7 +112,6 @@ def get_db_connection():
 
 @contextmanager
 def get_db_cursor():
-    """Контекстный менеджер для работы с БД"""
     conn = get_db_connection()
     cur = conn.cursor()
     try:
@@ -131,12 +125,10 @@ def get_db_cursor():
         conn.close()
 
 def init_db():
-    """Инициализация базы данных — создание всех таблиц"""
     try:
         with get_db_cursor() as cur:
             is_sqlite = Config.DATABASE_URL.startswith('sqlite://')
             
-            # Таблица заказов
             cur.execute("""
                 CREATE TABLE IF NOT EXISTS orders (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -185,7 +177,6 @@ def init_db():
                 )
             """)
             
-            # Таблица уведомлений
             cur.execute("""
                 CREATE TABLE IF NOT EXISTS notifications (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -224,7 +215,6 @@ def init_db():
                 )
             """)
             
-            # Таблица чата
             cur.execute("""
                 CREATE TABLE IF NOT EXISTS chat_messages (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -245,7 +235,6 @@ def init_db():
                 )
             """)
             
-            # Таблица настроек уведомлений
             cur.execute("""
                 CREATE TABLE IF NOT EXISTS notification_settings (
                     user_id TEXT PRIMARY KEY,
@@ -284,7 +273,6 @@ def init_db():
                 )
             """)
             
-            # Таблица онлайн-сессий
             cur.execute("""
                 CREATE TABLE IF NOT EXISTS user_sessions (
                     user_id TEXT PRIMARY KEY,
@@ -301,7 +289,6 @@ def init_db():
                 )
             """)
             
-            # Таблица аудита
             cur.execute("""
                 CREATE TABLE IF NOT EXISTS audit_logs (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -335,7 +322,6 @@ def init_db():
         logger.error(f"❌ Ошибка инициализации БД: {e}")
 
 def insert_test_data(cur, is_sqlite):
-    """Вставка тестовых данных"""
     cur.execute("SELECT COUNT(*) FROM orders")
     count = cur.fetchone()[0]
     if count > 0:
@@ -492,7 +478,6 @@ def logout():
 # ==========================================
 @app.route('/force-login')
 def force_login():
-    """Принудительный вход без пароля (ТОЛЬКО ДЛЯ ОТЛАДКИ)"""
     session['logged_in'] = True
     session['is_admin'] = True
     session['user_id'] = 'admin'
@@ -504,7 +489,6 @@ def force_login():
 
 @app.route('/force-employee/<emp_id>')
 def force_employee(emp_id):
-    """Принудительный вход как сотрудник"""
     employees = {
         'pavel_ivanovich': 'Павел Иванович',
         'pavel': 'Павел',
@@ -1430,7 +1414,6 @@ def leave_online():
 # ==========================================
 
 if __name__ == '__main__':
-    # Инициализация БД при старте
     init_db()
     
     print("=" * 60)
@@ -1440,6 +1423,8 @@ if __name__ == '__main__':
     print(f"🔑 Пароль администратора: admin123")
     print(f"🔑 Пароль сотрудников: 123456")
     print(f"🌐 Запуск на: http://localhost:{Config.PORT}")
+    print("=" * 60)
+    print("⚡ Отладочный вход: /force-login")
     print("=" * 60)
     
     app.run(host='0.0.0.0', port=Config.PORT, debug=Config.DEBUG)
