@@ -118,7 +118,7 @@ def init_db():
         with get_db_cursor() as cur:
             is_sqlite = Config.DATABASE_URL.startswith('sqlite://')
             
-            # Таблица заказов (БЕЗ deleted_at)
+            # Таблица заказов
             cur.execute("""
                 CREATE TABLE IF NOT EXISTS orders (
                     id SERIAL PRIMARY KEY,
@@ -657,7 +657,7 @@ def employee_dashboard():
                              active_page='employee')
 
 # ==========================================
-# ЗАКАЗЫ (упрощённые, без deleted_at)
+# ЗАКАЗЫ
 # ==========================================
 
 @app.route('/orders')
@@ -1201,7 +1201,7 @@ def calendar_events_api():
         return jsonify([]), 500
 
 # ==========================================
-# УВЕДОМЛЕНИЯ
+# УВЕДОМЛЕНИЯ (ИСПРАВЛЕНО — БЕЗ deleted_at)
 # ==========================================
 
 @app.route('/notifications')
@@ -1253,6 +1253,7 @@ def notifications_page():
                              employees=Config.EMPLOYEES,
                              active_page='notifications')
 
+# ===== ИСПРАВЛЕНО: Убрано deleted_at =====
 @app.route('/api/notifications/check')
 @login_required
 def check_notifications_api():
