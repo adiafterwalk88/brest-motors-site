@@ -3,275 +3,40 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Вход — InTarget Brest Motors</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <title>InTarget — Вход</title>
     <style>
-        body {
-            background: var(--color-bg);
-            min-height: 100vh;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            padding: var(--spacing-md);
-            font-family: var(--font-family);
-        }
-        
-        .login-wrapper {
-            width: 100%;
-            max-width: 420px;
-        }
-        
-        .login-card {
-            background: var(--color-bg-card);
-            border-radius: var(--radius-xl);
-            padding: var(--spacing-xl);
-            border: 1px solid rgba(255, 255, 255, 0.05);
-            box-shadow: var(--shadow-lg);
-            animation: slideUp 0.6s ease;
-        }
-        
-        @keyframes slideUp {
-            from { opacity: 0; transform: translateY(30px); }
-            to { opacity: 1; transform: translateY(0); }
-        }
-        
-        .login-header {
-            text-align: center;
-            margin-bottom: var(--spacing-xl);
-        }
-        .login-header .logo { font-size: 56px; margin-bottom: var(--spacing-xs); }
-        .login-header h1 {
-            font-size: var(--font-size-xl);
-            font-weight: 700;
-            color: var(--color-gold);
-            letter-spacing: 1px;
-        }
-        .login-header h1 span {
-            color: var(--color-text);
-            font-weight: 300;
-        }
-        .login-header p {
-            color: var(--color-text-secondary);
-            font-size: var(--font-size-sm);
-        }
-        
-        .tab-switch {
-            display: flex;
-            background: var(--color-bg-secondary);
-            border-radius: var(--radius-md);
-            padding: 4px;
-            margin-bottom: var(--spacing-lg);
-            border: 1px solid rgba(255, 255, 255, 0.05);
-        }
-        .tab-switch button {
-            flex: 1;
-            padding: 10px;
-            border: none;
-            border-radius: var(--radius-sm);
-            font-weight: 600;
-            font-size: var(--font-size-sm);
-            cursor: pointer;
-            transition: all var(--transition-normal);
-            background: transparent;
-            color: var(--color-text-secondary);
-        }
-        .tab-switch button.active {
-            background: var(--color-gold);
-            color: var(--color-bg);
-        }
-        .tab-switch button:hover:not(.active) {
-            color: var(--color-text);
-        }
-        
-        .login-form { display: none; }
-        .login-form.active { display: block; animation: fadeIn 0.3s ease; }
-        
-        @keyframes fadeIn {
-            from { opacity: 0; }
-            to { opacity: 1; }
-        }
-        
-        .btn-login {
-            width: 100%;
-            padding: 14px;
-            border: none;
-            border-radius: var(--radius-md);
-            font-size: var(--font-size-md);
-            font-weight: 700;
-            cursor: pointer;
-            transition: all var(--transition-normal);
-            margin-top: var(--spacing-sm);
-            color: var(--color-bg);
-            letter-spacing: 0.5px;
-        }
-        .btn-login.admin {
-            background: var(--color-gold);
-        }
-        .btn-login.admin:hover {
-            background: var(--color-gold-light);
-            box-shadow: 0 0 40px rgba(212, 168, 75, 0.15);
-        }
-        .btn-login.employee {
-            background: rgba(255, 255, 255, 0.1);
-            color: var(--color-text);
-            border: 1px solid rgba(255, 255, 255, 0.05);
-        }
-        .btn-login.employee:hover {
-            background: rgba(255, 255, 255, 0.15);
-            border-color: var(--color-gold);
-        }
-        
-        .login-footer {
-            text-align: center;
-            margin-top: var(--spacing-lg);
-            color: var(--color-text-muted);
-            font-size: var(--font-size-xs);
-        }
-        .login-footer .version {
-            background: var(--color-bg-secondary);
-            padding: 2px 12px;
-            border-radius: 50px;
-            display: inline-block;
-            border: 1px solid rgba(255, 255, 255, 0.05);
-        }
-        
-        .debug-section {
-            text-align: center;
-            margin-top: var(--spacing-lg);
-            padding-top: var(--spacing-lg);
-            border-top: 1px solid rgba(255, 255, 255, 0.05);
-        }
-        .debug-section p {
-            font-size: var(--font-size-xs);
-            color: var(--color-text-muted);
-            margin-bottom: var(--spacing-sm);
-        }
-        .debug-buttons {
-            display: flex;
-            gap: var(--spacing-sm);
-            flex-wrap: wrap;
-            justify-content: center;
-        }
-        .debug-buttons .btn {
-            min-width: 60px;
-            flex: 0 1 auto;
-        }
-        
-        @media (max-width: 480px) {
-            .login-card {
-                padding: var(--spacing-lg);
-            }
-            .login-header .logo { font-size: 40px; }
-            .login-header h1 { font-size: var(--font-size-lg); }
-            .debug-buttons {
-                flex-direction: column;
-                align-items: stretch;
-            }
-        }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { background: #0d0d0e; color: #fff; font-family: sans-serif; display: flex; align-items: center; justify-content: center; min-height: 100vh; }
+        .login-card { background: #1c1c1f; border: 1px solid rgba(255,255,255,0.08); padding: 32px; border-radius: 12px; width: 100%; max-width: 360px; text-align: center; }
+        .logo { font-size: 24px; font-weight: bold; margin-bottom: 24px; }
+        .logo span { color: #d4a84b; }
+        .form-group { margin-bottom: 16px; text-align: left; }
+        input { width: 100%; padding: 10px 12px; background: #121214; border: 1px solid rgba(255,255,255,0.1); border-radius: 6px; color: #fff; font-size: 14px; margin-top: 4px; }
+        input:focus { border-color: #d4a84b; outline: none; }
+        .btn { width: 100%; padding: 10px; background: #d4a84b; color: #000; border: none; border-radius: 6px; font-weight: bold; cursor: pointer; margin-top: 12px; }
+        .btn:hover { background: #c3973a; }
+        .users-fast { display: flex; gap: 8px; justify-content: center; margin-top: 20px; flex-wrap: wrap; }
+        .user-badge { background: rgba(255,255,255,0.05); padding: 6px 12px; border-radius: 6px; text-decoration: none; color: #d4a84b; font-size: 12px; border: 1px solid rgba(212,168,75,0.2); }
     </style>
 </head>
 <body>
-    <div class="login-wrapper">
-        <div class="login-card">
-            <div class="login-header">
-                <div class="logo">🎯</div>
-                <h1>In<span>Target</span></h1>
-                <p>Brest Motors — Управление заказами</p>
+    <div class="login-card">
+        <div class="logo">🎯 In<span>Target</span></div>
+        <form method="POST" action="/login">
+            <div class="form-group">
+                <input type="text" name="username" placeholder="Логин" required>
             </div>
-
-            {% with messages = get_flashed_messages(with_categories=true) %}
-                {% if messages %}
-                    {% for category, message in messages %}
-                        <div class="flash-message {{ category }}">{{ message }}</div>
-                    {% endfor %}
-                {% endif %}
-            {% endwith %}
-
-            <div class="tab-switch">
-                <button id="tabAdmin" class="active" onclick="switchTab('admin')">👤 Админ</button>
-                <button id="tabEmployee" onclick="switchTab('employee')">👨‍🔧 Сотрудник</button>
+            <div class="form-group">
+                <input type="password" name="password" placeholder="Пароль" required>
             </div>
-
-            <!-- Форма Админа -->
-            <form id="formAdmin" class="login-form active" method="POST" action="/login">
-                {% if csrf_token %}<input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>{% endif %}
-                <input type="hidden" name="login_type" value="admin">
-                
-                <div class="form-group">
-                    <label class="form-label">🏪 Магазин</label>
-                    <select name="shop_id" class="form-control">
-                        {% for id, name in shops.items() %}
-                            <option value="{{ id }}">{{ name }}</option>
-                        {% endfor %}
-                    </select>
-                </div>
-
-                <div class="form-group">
-                    <label class="form-label">🔑 Пароль</label>
-                    <input type="password" id="adminPassword" name="password" class="form-control" placeholder="Введите пароль..." required autofocus>
-                </div>
-
-                <button type="submit" class="btn-login admin">🚀 Войти</button>
-            </form>
-
-            <!-- Форма Сотрудника -->
-            <form id="formEmployee" class="login-form" method="POST" action="/login">
-                {% if csrf_token %}<input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>{% endif %}
-                <input type="hidden" name="login_type" value="employee">
-                
-                <div class="form-group">
-                    <label class="form-label">👨‍🔧 ID сотрудника</label>
-                    <input type="text" id="employeeId" name="employee_id" class="form-control" placeholder="Например: pavel" required>
-                </div>
-
-                <div class="form-group">
-                    <label class="form-label">🔑 Пароль</label>
-                    <input type="password" name="password" class="form-control" placeholder="Введите пароль..." required>
-                </div>
-
-                <button type="submit" class="btn-login employee">🚀 Войти</button>
-            </form>
-
-            <!-- Блок обхода паролей отображается строго в режиме отладки -->
-            {% if config.get('DEBUG') %}
-            <div class="debug-section">
-                <p>⚡ Быстрый вход (без пароля)</p>
-                <div class="debug-buttons">
-                    <a href="/force-login" class="btn btn-primary btn-sm">👤 Админ</a>
-                    <a href="/force-employee/pavel" class="btn btn-secondary btn-sm">👨‍🔧 Павел</a>
-                    <a href="/force-employee/dmitry" class="btn btn-secondary btn-sm">👨‍🔧 Дмитрий</a>
-                    <a href="/force-employee/alexander" class="btn btn-secondary btn-sm">👨‍🔧 Александр</a>
-                </div>
-            </div>
-            {% endif %}
-
-            <div class="login-footer">
-                <span class="version">v2.0 • Premium Edition</span>
-            </div>
+            <button type="submit" class="btn">🚀 Войти</button>
+        </form>
+        <div class="users-fast">
+            <a href="#" class="user-badge">Админ</a>
+            <a href="#" class="user-badge">Павел</a>
+            <a href="#" class="user-badge">Дмитрий</a>
+            <a href="#" class="user-badge">Александр</a>
         </div>
     </div>
-
-    <script>
-        function switchTab(tab) {
-            const adminBtn = document.getElementById('tabAdmin');
-            const empBtn = document.getElementById('tabEmployee');
-            const adminForm = document.getElementById('formAdmin');
-            const empForm = document.getElementById('formEmployee');
-
-            if (tab === 'admin') {
-                adminBtn.classList.add('active');
-                empBtn.classList.remove('active');
-                adminForm.classList.add('active');
-                empForm.classList.remove('active');
-                document.getElementById('adminPassword').focus();
-            } else {
-                empBtn.classList.add('active');
-                adminBtn.classList.remove('active');
-                empForm.classList.add('active');
-                adminForm.classList.remove('active');
-                document.getElementById('employeeId').focus();
-            }
-        }
-    </script>
 </body>
 </html>
