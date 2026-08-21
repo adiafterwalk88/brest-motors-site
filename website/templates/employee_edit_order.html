@@ -30,6 +30,7 @@
     .btn-primary { padding: 12px 24px; background: #3498db; color: white; border: none; border-radius: 8px; font-size: 16px; font-weight: 600; cursor: pointer; text-decoration: none; display: inline-block; }
     .btn-secondary { padding: 12px 24px; background: #95a5a6; color: white; border: none; border-radius: 8px; font-size: 16px; font-weight: 600; cursor: pointer; text-decoration: none; display: inline-block; }
     .btn-group { display: flex; gap: 12px; }
+    
     @media (max-width: 768px) { 
         .sidebar { display: none; } 
         .main-content { margin-left: 0; } 
@@ -61,37 +62,37 @@
             <form method="POST" action="/employee/orders/{{ order.id }}/edit" id="editOrderForm">
                 <div class="form-row">
                     <div class="form-group">
-                        <label>👤 Имя клиента *</label>
+                        <label for="customer">👤 Имя клиента *</label>
                         <input type="text" name="customer" id="customer" required value="{{ order.customer }}">
                     </div>
                     <div class="form-group">
-                        <label>📞 Телефон *</label>
-                        <input type="tel" name="phone" id="phone" required value="{{ order.phone }}">
+                        <label for="phone">📞 Телефон *</label>
+                        <input type="tel" name="phone" id="phone" required value="{{ order.phone }}" placeholder="+375 29 123-45-67">
                     </div>
                 </div>
                 
                 <div class="form-group">
-                    <label>📍 Адрес доставки</label>
-                    <input type="text" name="address" value="{{ order.address or '' }}">
+                    <label for="address">📍 Адрес доставки</label>
+                    <input type="text" name="address" id="address" value="{{ order.address or '' }}">
                 </div>
                 
                 <div class="form-group">
-                    <label>📦 Товар/Услуга *</label>
+                    <label for="product">📦 Товар/Услуга *</label>
                     <textarea name="product" id="product" rows="3" required>{{ order.product }}</textarea>
                 </div>
                 
                 <div class="form-row">
                     <div class="form-group">
-                        <label>💰 Стоимость</label>
+                        <label for="price">💰 Стоимость</label>
                         <div class="input-group">
-                            <input type="number" name="price" step="0.01" min="0" value="{{ order.price if order.price else '' }}">
+                            <input type="number" name="price" id="price" step="0.01" min="0" value="{{ order.price if order.price is not none else '' }}">
                             <span>руб.</span>
                         </div>
                     </div>
                     <div class="form-group">
-                        <label>💳 Предоплата</label>
+                        <label for="prepaid">💳 Предоплата</label>
                         <div class="input-group">
-                            <input type="number" name="prepaid" step="0.01" min="0" value="{{ order.prepaid if order.prepaid else '' }}">
+                            <input type="number" name="prepaid" id="prepaid" step="0.01" min="0" value="{{ order.prepaid if order.prepaid is not none else '' }}">
                             <span>руб.</span>
                         </div>
                     </div>
@@ -99,16 +100,16 @@
                 
                 <div class="form-row">
                     <div class="form-group">
-                        <label>🚩 Приоритет</label>
-                        <select name="priority">
+                        <label for="priority">🚩 Приоритет</label>
+                        <select name="priority" id="priority">
                             <option value="Обычный" {% if order.priority == 'Обычный' %}selected{% endif %}>Обычный</option>
                             <option value="Высокий" {% if order.priority == 'Высокий' %}selected{% endif %}>Высокий</option>
                             <option value="Низкий" {% if order.priority == 'Низкий' %}selected{% endif %}>Низкий</option>
                         </select>
                     </div>
                     <div class="form-group">
-                        <label>📊 Статус</label>
-                        <select name="status">
+                        <label for="status">📊 Статус</label>
+                        <select name="status" id="status">
                             <option value="Новый" {% if order.status == 'Новый' %}selected{% endif %}>Новый</option>
                             <option value="В обработке" {% if order.status == 'В обработке' %}selected{% endif %}>В обработке</option>
                             <option value="Ожидает клиента" {% if order.status == 'Ожидает клиента' %}selected{% endif %}>Ожидает клиента</option>
@@ -119,8 +120,8 @@
                 </div>
                 
                 <div class="form-group">
-                    <label>💬 Комментарий</label>
-                    <textarea name="comment" rows="2">{{ order.comment or '' }}</textarea>
+                    <label for="comment">💬 Комментарий</label>
+                    <textarea name="comment" id="comment" rows="2">{{ order.comment or '' }}</textarea>
                 </div>
                 
                 <div class="alert alert-info">
@@ -134,11 +135,11 @@
                     <br>
                     Создан: {{ order.created_at.strftime('%d.%m.%Y %H:%M') if order.created_at else 'Неизвестно' }}
                     <br>
-                    Магазин: {{ shops.get(order.shop_id, order.shop_id) }}
+                    Магазин: {{ shops[order.shop_id] if shops and order.shop_id in shops else order.shop_id }}
                 </div>
                 
                 <div class="btn-group">
-                    <button type="submit" class="btn-primary">💾 Сохранить изменения</button>
+                    <button type="submit" class="btn-primary" id="submitBtn">💾 Сохранить изменения</button>
                     <a href="/employee" class="btn-secondary">← Назад в кабинет</a>
                 </div>
             </form>
@@ -147,17 +148,6 @@
 </div>
 
 <script>
-document.getElementById('phone').addEventListener('input', function(e) {
-    let value = e.target.value.replace(/\D/g, '');
-    if (value.length > 0) {
-        if (value.startsWith('375')) value = '+' + value;
-        if (value.length > 6) value = value.slice(0, 6) + ' ' + value.slice(6);
-        if (value.length > 10) value = value.slice(0, 10) + '-' + value.slice(10);
-        if (value.length > 13) value = value.slice(0, 13) + '-' + value.slice(13);
-    }
-    e.target.value = value;
-});
-
 document.getElementById('editOrderForm').addEventListener('submit', function(e) {
     const customer = document.getElementById('customer').value.trim();
     const phone = document.getElementById('phone').value.trim();
@@ -169,7 +159,7 @@ document.getElementById('editOrderForm').addEventListener('submit', function(e) 
         return false;
     }
     
-    const btn = this.querySelector('.btn-primary');
+    const btn = document.getElementById('submitBtn');
     btn.textContent = '⏳ Сохранение...';
     btn.disabled = true;
 });
