@@ -6,260 +6,241 @@
     <title>Вход — InTarget Brest Motors</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
     <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
-            font-family: 'Segoe UI', Arial, sans-serif;
-            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+            background: var(--color-bg);
             min-height: 100vh;
             display: flex;
             align-items: center;
             justify-content: center;
-            padding: 20px;
+            padding: var(--spacing-md);
+            font-family: var(--font-family);
         }
-        .login-container {
-            background: white;
-            border-radius: 16px;
-            padding: 40px;
-            max-width: 420px;
+        
+        .login-wrapper {
             width: 100%;
-            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            max-width: 420px;
         }
+        
+        .login-card {
+            background: var(--color-bg-card);
+            border-radius: var(--radius-xl);
+            padding: var(--spacing-xl);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            box-shadow: var(--shadow-lg);
+            animation: slideUp 0.6s ease;
+        }
+        
+        @keyframes slideUp {
+            from { opacity: 0; transform: translateY(30px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
         .login-header {
             text-align: center;
-            margin-bottom: 32px;
+            margin-bottom: var(--spacing-xl);
         }
-        .login-header .logo { font-size: 48px; margin-bottom: 8px; }
-        .login-header h1 { font-size: 24px; color: #1a1a2e; font-weight: 700; }
-        .login-header p { color: #666; font-size: 14px; margin-top: 4px; }
+        .login-header .logo { font-size: 56px; margin-bottom: var(--spacing-xs); }
+        .login-header h1 {
+            font-size: var(--font-size-xl);
+            font-weight: 700;
+            color: var(--color-gold);
+            letter-spacing: 1px;
+        }
+        .login-header h1 span {
+            color: var(--color-text);
+            font-weight: 300;
+        }
+        .login-header p {
+            color: var(--color-text-secondary);
+            font-size: var(--font-size-sm);
+        }
         
         .tab-switch {
             display: flex;
-            gap: 8px;
-            margin-bottom: 24px;
-            background: #f0f2f5;
-            border-radius: 10px;
+            background: var(--color-bg-secondary);
+            border-radius: var(--radius-md);
             padding: 4px;
+            margin-bottom: var(--spacing-lg);
+            border: 1px solid rgba(255, 255, 255, 0.05);
         }
         .tab-switch button {
             flex: 1;
-            padding: 10px 16px;
+            padding: 10px;
             border: none;
-            border-radius: 8px;
-            font-size: 14px;
+            border-radius: var(--radius-sm);
             font-weight: 600;
+            font-size: var(--font-size-sm);
             cursor: pointer;
-            transition: all .2s;
+            transition: all var(--transition-normal);
             background: transparent;
-            color: #666;
+            color: var(--color-text-secondary);
         }
         .tab-switch button.active {
-            background: white;
-            color: #1a1a2e;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+            background: var(--color-gold);
+            color: var(--color-bg);
         }
-        .tab-switch button:hover { color: #1a1a2e; }
+        .tab-switch button:hover:not(.active) {
+            color: var(--color-text);
+        }
         
-        .form-group { margin-bottom: 16px; }
-        .form-group label { display: block; font-weight: 600; font-size: 13px; color: #333; margin-bottom: 4px; }
-        .form-control {
-            width: 100%;
-            padding: 10px 14px;
-            border: 2px solid #e0e0e0;
-            border-radius: 8px;
-            font-size: 14px;
-            transition: border-color .2s;
-            background: #fafafa;
-        }
-        .form-control:focus {
-            border-color: #2ecc71;
-            outline: none;
-            background: white;
-        }
-        .form-control::placeholder { color: #aaa; }
-        select.form-control {
-            appearance: none;
-            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' fill='%23666' viewBox='0 0 16 16'%3E%3Cpath d='M8 11L3 6h10z'/%3E%3C/svg%3E");
-            background-repeat: no-repeat;
-            background-position: right 12px center;
-            padding-right: 36px;
-            cursor: pointer;
+        .login-form { display: none; }
+        .login-form.active { display: block; animation: fadeIn 0.3s ease; }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
         }
         
         .btn-login {
             width: 100%;
             padding: 14px;
             border: none;
-            border-radius: 8px;
-            font-size: 16px;
+            border-radius: var(--radius-md);
+            font-size: var(--font-size-md);
             font-weight: 700;
             cursor: pointer;
-            transition: all .2s;
-            margin-top: 8px;
-            color: white;
-            text-align: center;
-            display: block;
-            text-decoration: none;
+            transition: all var(--transition-normal);
+            margin-top: var(--spacing-sm);
+            color: var(--color-bg);
+            letter-spacing: 0.5px;
         }
         .btn-login.admin {
-            background: linear-gradient(135deg, #2ecc71, #27ae60);
+            background: var(--color-gold);
         }
         .btn-login.admin:hover {
-            background: #27ae60;
-            transform: translateY(-2px);
-            box-shadow: 0 4px 12px rgba(46,204,113,0.3);
+            background: var(--color-gold-light);
+            box-shadow: 0 0 40px rgba(212, 168, 75, 0.15);
         }
         .btn-login.employee {
-            background: linear-gradient(135deg, #3498db, #2980b9);
+            background: rgba(255, 255, 255, 0.1);
+            color: var(--color-text);
+            border: 1px solid rgba(255, 255, 255, 0.05);
         }
         .btn-login.employee:hover {
-            background: #2980b9;
-            transform: translateY(-2px);
-            box-shadow: 0 4px 12px rgba(52,152,219,0.3);
-        }
-        .btn-login.small {
-            padding: 8px 16px;
-            font-size: 13px;
-            width: auto;
-            display: inline-block;
+            background: rgba(255, 255, 255, 0.15);
+            border-color: var(--color-gold);
         }
         
-        .flash-message {
-            padding: 10px 14px;
-            border-radius: 8px;
-            margin-bottom: 16px;
-            font-size: 14px;
-            border-left: 4px solid;
-        }
-        .flash-message.error {
-            background: #f8d7da;
-            color: #721c24;
-            border-color: #dc3545;
-        }
-        .flash-message.success {
-            background: #d4edda;
-            color: #155724;
-            border-color: #28a745;
-        }
-        .flash-message.warning {
-            background: #fff3cd;
-            color: #856404;
-            border-color: #ffc107;
-        }
-        .flash-message.info {
-            background: #d1ecf1;
-            color: #0c5460;
-            border-color: #17a2b8;
-        }
-        
-        .hidden { display: none !important; }
-        .text-muted {
-            color: #999;
-            font-size: 12px;
+        .login-footer {
             text-align: center;
-            margin-top: 16px;
+            margin-top: var(--spacing-lg);
+            color: var(--color-text-muted);
+            font-size: var(--font-size-xs);
         }
-        .shop-selector { margin-bottom: 16px; }
-        .employee-selector { margin-bottom: 16px; }
+        .login-footer .version {
+            background: var(--color-bg-secondary);
+            padding: 2px 12px;
+            border-radius: 50px;
+            display: inline-block;
+            border: 1px solid rgba(255, 255, 255, 0.05);
+        }
         
-        hr {
-            margin: 20px 0;
-            border: none;
-            border-top: 1px dashed #ddd;
-        }
         .debug-section {
             text-align: center;
-            margin-top: 16px;
+            margin-top: var(--spacing-lg);
+            padding-top: var(--spacing-lg);
+            border-top: 1px solid rgba(255, 255, 255, 0.05);
         }
         .debug-section p {
-            font-size: 12px;
-            color: #999;
-            margin-bottom: 8px;
+            font-size: var(--font-size-xs);
+            color: var(--color-text-muted);
+            margin-bottom: var(--spacing-sm);
         }
         .debug-buttons {
             display: flex;
-            gap: 8px;
+            gap: var(--spacing-sm);
             flex-wrap: wrap;
             justify-content: center;
+        }
+        .debug-buttons .btn {
+            min-width: 60px;
+            flex: 0 1 auto;
+        }
+        
+        @media (max-width: 480px) {
+            .login-card {
+                padding: var(--spacing-lg);
+            }
+            .login-header .logo { font-size: 40px; }
+            .login-header h1 { font-size: var(--font-size-lg); }
+            .debug-buttons {
+                flex-direction: column;
+                align-items: stretch;
+            }
         }
     </style>
 </head>
 <body>
-    <div class="login-container">
-        <div class="login-header">
-            <div class="logo">🎯</div>
-            <h1>InTarget Brest Motors</h1>
-            <p>Панель управления заказами</p>
-        </div>
+    <div class="login-wrapper">
+        <div class="login-card">
+            <div class="login-header">
+                <div class="logo">🎯</div>
+                <h1>In<span>Target</span></h1>
+                <p>Brest Motors — Управление заказами</p>
+            </div>
 
-        <!-- Flash-сообщения -->
-        {% with messages = get_flashed_messages(with_categories=true) %}
-            {% if messages %}
-                {% for category, message in messages %}
-                    <div class="flash-message {{ category }}">{{ message }}</div>
-                {% endfor %}
-            {% endif %}
-        {% endwith %}
-
-        <!-- Переключение между Админ и Сотрудник -->
-        <div class="tab-switch">
-            <button id="tabAdmin" class="active" onclick="switchTab('admin')">👤 Админ</button>
-            <button id="tabEmployee" onclick="switchTab('employee')">👨‍🔧 Сотрудник</button>
-        </div>
-
-        <!-- Форма Администратора -->
-        <form id="formAdmin" method="POST" action="/login">
-            <input type="hidden" name="login_type" value="admin">
-            
-            <div class="shop-selector">
-                <label for="shop_id">🏪 Магазин</label>
-                <select name="shop_id" class="form-control" id="shop_id">
-                    {% for id, name in shops.items() %}
-                    <option value="{{ id }}">{{ name }}</option>
+            {% with messages = get_flashed_messages(with_categories=true) %}
+                {% if messages %}
+                    {% for category, message in messages %}
+                        <div class="flash-message {{ category }}">{{ message }}</div>
                     {% endfor %}
-                </select>
+                {% endif %}
+            {% endwith %}
+
+            <div class="tab-switch">
+                <button id="tabAdmin" class="active" onclick="switchTab('admin')">👤 Админ</button>
+                <button id="tabEmployee" onclick="switchTab('employee')">👨‍🔧 Сотрудник</button>
             </div>
 
-            <div class="form-group">
-                <label for="adminPassword">🔑 Пароль администратора</label>
-                <input type="password" name="password" class="form-control" id="adminPassword" placeholder="Введите пароль..." required>
+            <form id="formAdmin" class="login-form active" method="POST" action="/login">
+                <input type="hidden" name="login_type" value="admin">
+                
+                <div class="form-group">
+                    <label class="form-label">🏪 Магазин</label>
+                    <select name="shop_id" class="form-control">
+                        {% for id, name in shops.items() %}
+                            <option value="{{ id }}">{{ name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">🔑 Пароль</label>
+                    <input type="password" name="password" class="form-control" placeholder="Введите пароль..." required autofocus>
+                </div>
+
+                <button type="submit" class="btn-login admin">🚀 Войти</button>
+            </form>
+
+            <form id="formEmployee" class="login-form" method="POST" action="/login">
+                <input type="hidden" name="login_type" value="employee">
+                
+                <div class="form-group">
+                    <label class="form-label">👨‍🔧 ID сотрудника</label>
+                    <input type="text" name="employee_id" class="form-control" placeholder="Например: pavel" required>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">🔑 Пароль</label>
+                    <input type="password" name="password" class="form-control" placeholder="Введите пароль..." required>
+                </div>
+
+                <button type="submit" class="btn-login employee">🚀 Войти</button>
+            </form>
+
+            <div class="debug-section">
+                <p>⚡ Быстрый вход (без пароля)</p>
+                <div class="debug-buttons">
+                    <a href="/force-login" class="btn btn-primary btn-sm">👤 Админ</a>
+                    <a href="/force-employee/pavel" class="btn btn-secondary btn-sm">👨‍🔧 Павел</a>
+                    <a href="/force-employee/dmitry" class="btn btn-secondary btn-sm">👨‍🔧 Дмитрий</a>
+                    <a href="/force-employee/alexander" class="btn btn-secondary btn-sm">👨‍🔧 Александр</a>
+                </div>
             </div>
 
-            <button type="submit" class="btn-login admin">🚀 Войти как Админ</button>
-        </form>
-
-        <!-- Форма Сотрудника -->
-        <form id="formEmployee" method="POST" action="/login" class="hidden">
-            <input type="hidden" name="login_type" value="employee">
-
-            <div class="employee-selector">
-                <label for="employee_id">👨‍🔧 ID сотрудника</label>
-                <input type="text" name="employee_id" class="form-control" placeholder="Например: pavel_ivanovich" required>
-                <small style="color:#999;font-size:12px;">Спросите у администратора ваш ID</small>
+            <div class="login-footer">
+                <span class="version">v2.0 • Premium Edition</span>
             </div>
-
-            <div class="form-group">
-                <label for="employeePassword">🔑 Пароль сотрудника</label>
-                <input type="password" name="password" class="form-control" id="employeePassword" placeholder="Введите пароль..." required>
-            </div>
-
-            <button type="submit" class="btn-login employee">🚀 Войти как Сотрудник</button>
-        </form>
-
-        <hr>
-
-        <!-- ===== ОТЛАДОЧНЫЙ ВХОД (БЕЗ ПАРОЛЯ) ===== -->
-        <div class="debug-section">
-            <p>⚡ Отладочный вход (без пароля)</p>
-            <div class="debug-buttons">
-                <a href="/force-login" class="btn-login admin small">👤 Админ</a>
-                <a href="/force-employee/pavel" class="btn-login employee small">👨‍🔧 Павел</a>
-                <a href="/force-employee/dmitry" class="btn-login employee small">👨‍🔧 Дмитрий</a>
-                <a href="/force-employee/alexander" class="btn-login employee small">👨‍🔧 Александр</a>
-            </div>
-        </div>
-
-        <div class="text-muted">
-            InTarget Brest Motors — внутренняя CRM
         </div>
     </div>
 
@@ -273,13 +254,13 @@
             if (tab === 'admin') {
                 adminBtn.classList.add('active');
                 empBtn.classList.remove('active');
-                adminForm.classList.remove('hidden');
-                empForm.classList.add('hidden');
+                adminForm.classList.add('active');
+                empForm.classList.remove('active');
             } else {
                 empBtn.classList.add('active');
                 adminBtn.classList.remove('active');
-                empForm.classList.remove('hidden');
-                adminForm.classList.add('hidden');
+                empForm.classList.add('active');
+                adminForm.classList.remove('active');
             }
         }
     </script>
