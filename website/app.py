@@ -104,13 +104,11 @@ def get_db_connection():
     """Получить соединение с БД"""
     if Config.DATABASE_URL.startswith('sqlite://'):
         db_path = Config.DATABASE_URL.replace('sqlite:///', '')
-        # Создаём директорию, если её нет
         os.makedirs(os.path.dirname(db_path) if os.path.dirname(db_path) else '.', exist_ok=True)
         conn = sqlite3.connect(db_path)
         conn.row_factory = sqlite3.Row
         return conn
     else:
-        # PostgreSQL
         import psycopg2
         from psycopg2.extras import DictCursor
         conn = psycopg2.connect(Config.DATABASE_URL)
@@ -138,7 +136,7 @@ def init_db():
         with get_db_cursor() as cur:
             is_sqlite = Config.DATABASE_URL.startswith('sqlite://')
             
-            # ===== ТАБЛИЦА ЗАКАЗОВ =====
+            # Таблица заказов
             cur.execute("""
                 CREATE TABLE IF NOT EXISTS orders (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -187,7 +185,7 @@ def init_db():
                 )
             """)
             
-            # ===== ТАБЛИЦА УВЕДОМЛЕНИЙ =====
+            # Таблица уведомлений
             cur.execute("""
                 CREATE TABLE IF NOT EXISTS notifications (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -226,7 +224,7 @@ def init_db():
                 )
             """)
             
-            # ===== ТАБЛИЦА ЧАТА =====
+            # Таблица чата
             cur.execute("""
                 CREATE TABLE IF NOT EXISTS chat_messages (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -247,7 +245,7 @@ def init_db():
                 )
             """)
             
-            # ===== ТАБЛИЦА НАСТРОЕК УВЕДОМЛЕНИЙ =====
+            # Таблица настроек уведомлений
             cur.execute("""
                 CREATE TABLE IF NOT EXISTS notification_settings (
                     user_id TEXT PRIMARY KEY,
@@ -286,7 +284,7 @@ def init_db():
                 )
             """)
             
-            # ===== ТАБЛИЦА ОНЛАЙН-СЕССИЙ =====
+            # Таблица онлайн-сессий
             cur.execute("""
                 CREATE TABLE IF NOT EXISTS user_sessions (
                     user_id TEXT PRIMARY KEY,
@@ -303,7 +301,7 @@ def init_db():
                 )
             """)
             
-            # ===== ТАБЛИЦА АУДИТА =====
+            # Таблица аудита
             cur.execute("""
                 CREATE TABLE IF NOT EXISTS audit_logs (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -330,29 +328,14 @@ def init_db():
                 )
             """)
             
-            # Индексы (только для PostgreSQL)
-            if not is_sqlite:
-                try:
-                    cur.execute("CREATE INDEX IF NOT EXISTS idx_orders_shop_id ON orders(shop_id);")
-                    cur.execute("CREATE INDEX IF NOT EXISTS idx_orders_is_archived ON orders(is_archived);")
-                    cur.execute("CREATE INDEX IF NOT EXISTS idx_orders_deleted_at ON orders(deleted_at);")
-                    cur.execute("CREATE INDEX IF NOT EXISTS idx_notifications_user_id ON notifications(user_id);")
-                    cur.execute("CREATE INDEX IF NOT EXISTS idx_chat_messages_created_at ON chat_messages(created_at DESC);")
-                except Exception as e:
-                    logger.warning(f"Индексы уже существуют или не поддерживаются: {e}")
-            
             print("✅ База данных инициализирована")
-            
-            # Вставляем тестовые данные, если таблицы пустые
             insert_test_data(cur, is_sqlite)
             
     except Exception as e:
         logger.error(f"❌ Ошибка инициализации БД: {e}")
 
 def insert_test_data(cur, is_sqlite):
-    """Вставка тестовых данных, если таблицы пустые"""
-    
-    # Проверяем, есть ли заказы
+    """Вставка тестовых данных"""
     cur.execute("SELECT COUNT(*) FROM orders")
     count = cur.fetchone()[0]
     if count > 0:
@@ -360,7 +343,6 @@ def insert_test_data(cur, is_sqlite):
     
     print("📦 Вставка тестовых данных...")
     
-    # Тестовые заказы
     orders = [
         ('Иван Петров', '+375291234567', 'ул. Ленина, 15', 'Ремень генератора Weibang 455SC', 45.00, 20.00, 'Высокий', 'Павел', 'В работе', 'Требуется замена ремня', 'moskovskaya'),
         ('Сергей Сидоров', '+375293334455', 'ул. Пушкина, 7', 'Масляный фильтр + масло 5W-30', 85.50, 85.50, 'Обычный', 'Дмитрий', 'Выдан', 'Оплачено полностью', 'kariernaya'),
@@ -383,14 +365,13 @@ def insert_test_data(cur, is_sqlite):
                 VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, NOW() - INTERVAL '1 day')
             """, order)
     
-    # Тестовые сообщения чата
-    chat_messages = [
+    messages = [
         ('admin', 'Администратор', 'Добро пожаловать в командный чат! 🎯'),
         ('pavel', 'Павел', 'Привет всем! Завтра приезжают новые запчасти.'),
         ('dmitry', 'Дмитрий', 'Отлично, ждём! У меня сегодня 3 заказа на выдачу.'),
     ]
     
-    for msg in chat_messages:
+    for msg in messages:
         if is_sqlite:
             cur.execute("""
                 INSERT INTO chat_messages (user_id, user_name, message, created_at)
@@ -452,7 +433,7 @@ def safe_float(value, default=0.0):
         return default
 
 # ==========================================
-# МАРШРУТЫ
+# МАРШРУТЫ АВТОРИЗАЦИИ
 # ==========================================
 
 @app.route('/login', methods=['GET', 'POST'])
@@ -505,6 +486,47 @@ def logout():
     session.clear()
     flash('Вы вышли из системы', 'info')
     return redirect(url_for('login'))
+
+# ==========================================
+# ВРЕМЕННЫЙ БЭКДОР — ВХОД БЕЗ ПАРОЛЯ
+# ==========================================
+@app.route('/force-login')
+def force_login():
+    """Принудительный вход без пароля (ТОЛЬКО ДЛЯ ОТЛАДКИ)"""
+    session['logged_in'] = True
+    session['is_admin'] = True
+    session['user_id'] = 'admin'
+    session['user_name'] = 'Администратор'
+    session['shop_id'] = 'moskovskaya'
+    session['shop_name'] = '🏪 ул. Московская, 123'
+    flash('✅ Вход выполнен (отладочный режим)', 'success')
+    return redirect(url_for('dashboard'))
+
+@app.route('/force-employee/<emp_id>')
+def force_employee(emp_id):
+    """Принудительный вход как сотрудник"""
+    employees = {
+        'pavel_ivanovich': 'Павел Иванович',
+        'pavel': 'Павел',
+        'dmitry': 'Дмитрий',
+        'alexander': 'Александр'
+    }
+    if emp_id in employees:
+        session['logged_in'] = True
+        session['is_admin'] = False
+        session['user_id'] = emp_id
+        session['user_name'] = employees[emp_id]
+        session['shop_id'] = 'all'
+        session['shop_name'] = 'Все магазины'
+        flash(f'✅ Вход как {employees[emp_id]} (отладочный режим)', 'success')
+        return redirect(url_for('employee_dashboard'))
+    else:
+        flash('❌ Сотрудник не найден', 'error')
+        return redirect(url_for('login'))
+
+# ==========================================
+# ДАШБОРД
+# ==========================================
 
 @app.route('/')
 @login_required
@@ -563,6 +585,10 @@ def dashboard():
         flash('Ошибка загрузки данных', 'error')
         return render_template('dashboard.html', orders=[], shops=Config.SHOPS, employees=Config.EMPLOYEES, active_page='dashboard', datetime=datetime)
 
+# ==========================================
+# КАБИНЕТ СОТРУДНИКА
+# ==========================================
+
 @app.route('/employee')
 @login_required
 def employee_dashboard():
@@ -574,7 +600,6 @@ def employee_dashboard():
         is_sqlite = Config.DATABASE_URL.startswith('sqlite://')
         
         with get_db_cursor() as cur:
-            # Мои заказы
             cur.execute("""
                 SELECT * FROM orders 
                 WHERE executor = ? AND status != 'Выдан' AND is_archived = 0 AND deleted_at IS NULL
@@ -588,7 +613,6 @@ def employee_dashboard():
             """, (user_name,))
             my_orders = cur.fetchall()
             
-            # Статистика
             cur.execute("""
                 SELECT 
                     COUNT(*) as total,
@@ -600,7 +624,6 @@ def employee_dashboard():
             """, (user_name,))
             my_stats = cur.fetchone()
             
-            # Задачи на сегодня
             cur.execute("""
                 SELECT * FROM orders 
                 WHERE executor = ? 
@@ -631,6 +654,10 @@ def employee_dashboard():
                              employees=Config.EMPLOYEES,
                              now=datetime,
                              active_page='employee')
+
+# ==========================================
+# ЗАКАЗЫ
+# ==========================================
 
 @app.route('/orders')
 @login_required
@@ -676,7 +703,6 @@ def orders_page():
                 count_query += " AND executor = ?" if is_sqlite else " AND executor = %s"
                 params.append(executor_filter)
             
-            # Пагинация
             offset = (page - 1) * per_page
             if is_sqlite:
                 query += f" ORDER BY created_at DESC LIMIT {per_page} OFFSET {offset};"
@@ -951,6 +977,10 @@ def complete_order(order_id):
         flash(f'❌ Ошибка: {e}', 'error')
         return redirect(url_for('employee_dashboard'))
 
+# ==========================================
+# КЛИЕНТЫ
+# ==========================================
+
 @app.route('/clients')
 @login_required
 def clients_page():
@@ -984,6 +1014,10 @@ def clients_page():
         logger.exception("Ошибка клиентов")
         flash('Ошибка загрузки клиентов', 'error')
         return render_template('clients.html', clients=[], shops=Config.SHOPS, employees=Config.EMPLOYEES, active_page='clients')
+
+# ==========================================
+# ЧАТ
+# ==========================================
 
 @app.route('/chat')
 @login_required
@@ -1066,6 +1100,10 @@ def send_chat_message():
     except Exception as e:
         logger.exception("Ошибка отправки сообщения")
         return jsonify({"error": str(e)}), 500
+
+# ==========================================
+# КАЛЕНДАРЬ
+# ==========================================
 
 @app.route('/calendar')
 @login_required
@@ -1164,6 +1202,10 @@ def calendar_events_api():
         logger.exception("Ошибка API календаря")
         return jsonify([]), 500
 
+# ==========================================
+# УВЕДОМЛЕНИЯ
+# ==========================================
+
 @app.route('/notifications')
 @login_required
 def notifications_page():
@@ -1222,11 +1264,9 @@ def check_notifications_api():
         is_sqlite = Config.DATABASE_URL.startswith('sqlite://')
         
         with get_db_cursor() as cur:
-            # Новые заказы
             cur.execute("SELECT COUNT(*) FROM orders WHERE executor = ? AND status = 'Новый' AND is_archived = 0 AND deleted_at IS NULL;", (user_name,)) if is_sqlite else cur.execute("SELECT COUNT(*) FROM orders WHERE executor = %s AND status = 'Новый' AND is_archived = FALSE AND deleted_at IS NULL;", (user_name,))
             new_orders = cur.fetchone()[0] or 0
             
-            # Непрочитанные уведомления
             cur.execute("SELECT COUNT(*) FROM notifications WHERE user_id = ? AND is_read = 0 AND is_archived = 0;", (user_id,)) if is_sqlite else cur.execute("SELECT COUNT(*) FROM notifications WHERE user_id = %s AND is_read = FALSE AND is_archived = FALSE;", (user_id,))
             unread = cur.fetchone()[0] or 0
         
