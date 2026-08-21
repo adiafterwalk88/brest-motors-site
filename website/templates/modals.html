@@ -1,20 +1,26 @@
+<!-- Модальное окно создания -->
 <div class="modal" id="addModal">
     <div class="modal-content">
         <h3>Новый заказ</h3>
         <form method="POST" action="/orders/add">
+            {% if csrf_token %}<input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>{% endif %}
+            
             <input name="customer" placeholder="Клиент *" required>
             <input name="phone" placeholder="Телефон *" required>
             <input name="address" placeholder="Адрес">
             <textarea name="product" placeholder="Товар / Услуга *" required></textarea>
-            <input name="price" placeholder="Цена" type="number" value="0">
-            <input name="prepaid" placeholder="Предоплата" type="number" value="0">
+            <input name="price" placeholder="Цена" type="number" step="0.01" min="0" value="0">
+            <input name="prepaid" placeholder="Предоплата" type="number" step="0.01" min="0" value="0">
+            
             <select name="status">
                 {% for s in statuses %}<option value="{{ s }}">{{ s }}</option>{% endfor %}
             </select>
             <select name="executor">
                 {% for e in executors %}<option value="{{ e }}">{{ e }}</option>{% endfor %}
             </select>
+            
             <input name="comment" placeholder="Комментарий">
+            
             <div style="display:flex;gap:10px;margin-top:10px">
                 <button type="submit" class="btn btn-edit" style="flex:1">Создать</button>
                 <button type="button" class="btn btn-del" onclick="closeModal('addModal')" style="flex:1">Отмена</button>
@@ -23,22 +29,29 @@
     </div>
 </div>
 
+<!-- Модальное окно редактирования -->
 <div class="modal" id="editModal">
     <div class="modal-content">
         <h3>Редактировать заказ</h3>
         <form id="editForm" method="POST">
-            <input name="customer" id="editCustomer" placeholder="Клиент">
-            <input name="phone" id="editPhone" placeholder="Телефон">
-            <textarea name="product" id="editProduct" placeholder="Товар"></textarea>
-            <input name="price" id="editPrice" type="number">
-            <input name="prepaid" id="editPrepaid" type="number" value="0">
+            {% if csrf_token %}<input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>{% endif %}
+            
+            <input name="customer" id="editCustomer" placeholder="Клиент *" required>
+            <input name="phone" id="editPhone" placeholder="Телефон *" required>
+            <input name="address" id="editAddress" placeholder="Адрес">
+            <textarea name="product" id="editProduct" placeholder="Товар / Услуга *" required></textarea>
+            <input name="price" id="editPrice" type="number" step="0.01" min="0" placeholder="Цена">
+            <input name="prepaid" id="editPrepaid" type="number" step="0.01" min="0" placeholder="Предоплата">
+            
             <select name="status" id="editStatus">
                 {% for s in statuses %}<option value="{{ s }}">{{ s }}</option>{% endfor %}
             </select>
             <select name="executor" id="editExecutor">
                 {% for e in executors %}<option value="{{ e }}">{{ e }}</option>{% endfor %}
             </select>
+            
             <input name="comment" id="editComment" placeholder="Комментарий">
+            
             <div style="display:flex;gap:10px;margin-top:10px">
                 <button type="submit" class="btn btn-edit" style="flex:1">Сохранить</button>
                 <button type="button" class="btn btn-del" onclick="closeModal('editModal')" style="flex:1">Отмена</button>
@@ -48,18 +61,43 @@
 </div>
 
 <script>
-function openAddModal() { document.getElementById('addModal').classList.add('active'); }
-function closeModal(id) { document.getElementById(id).classList.remove('active'); }
+function openAddModal() { 
+    document.getElementById('addModal').classList.add('active'); 
+}
+
+function closeModal(id) { 
+    document.getElementById(id).classList.remove('active'); 
+}
+
 function openEditModal(order) {
+    if (!order || !order.id) return;
+
     document.getElementById('editForm').action = '/orders/' + order.id + '/edit';
     document.getElementById('editCustomer').value = order.customer || '';
     document.getElementById('editPhone').value = order.phone || '';
+    document.getElementById('editAddress').value = order.address || '';
     document.getElementById('editProduct').value = order.product || '';
-    document.getElementById('editPrice').value = order.price || 0;
-    document.getElementById('editPrepaid').value = order.prepaid || 0;
-    document.getElementById('editStatus').value = order.status || 'Новый';
-    document.getElementById('editExecutor').value = order.executor || 'Не назначен';
+    document.getElementById('editPrice').value = order.price !== undefined ? order.price : 0;
+    document.getElementById('editPrepaid').value = order.prepaid !== undefined ? order.prepaid : 0;
+    
+    if (order.status) {
+        document.getElementById('editStatus').value = order.status;
+    }
+    if (order.executor) {
+        document.getElementById('editExecutor').value = order.executor;
+    }
+    
     document.getElementById('editComment').value = order.comment || '';
     document.getElementById('editModal').classList.add('active');
+}
+
+// Вспомогательный вызов при использовании data-атрибутов
+function openEditModalFromElement(btn) {
+    try {
+        const orderData = JSON.parse(btn.dataset.order);
+        openEditModal(orderData);
+    } catch (e) {
+        console.error('Ошибка при чтении данных заказа:', e);
+    }
 }
 </script>
