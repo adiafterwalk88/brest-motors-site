@@ -1,96 +1,73 @@
 {% extends "base.html" %}
 
-{% block title %}Панель управления — InTarget Brest Motors{% endblock %}
+{% block title %}Дашборд — InTarget Brest Motors{% endblock %}
 
 {% block page_title %}
-<div style="display: flex; align-items: center; gap: 12px;">
-    <h1 style="font-size: 22px; font-weight: 700; color: #ffffff;">📊 Панель управления</h1>
-</div>
-<span style="color: #a0a0ab; font-size: 13px;">InTarget Brest Motors — 🏪 ул. Московская, 123</span>
+<h1 style="font-size: 20px; margin: 0; color: #fff;">📊 Рабочая панель</h1>
 {% endblock %}
 
 {% block content %}
-<div style="display: flex; justify-content: flex-end; margin-bottom: 20px;">
-    <a href="/orders/create" class="btn btn-primary">➕ Создать заказ</a>
-</div>
-
-<!-- СТАТИСТИКА -->
-<div class="stats-grid">
-    <div class="stat-card">
-        <div style="font-size: 24px; margin-bottom: 8px;">📦</div>
-        <div class="stat-val">8</div>
-        <div class="stat-lbl">Всего заказов</div>
+<!-- КАРТОЧКИ СТАТИСТИКИ -->
+<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; margin-bottom: 24px;">
+    <div class="card" style="margin: 0;">
+        <div style="color: var(--text-muted); font-size: 13px;">Активные заказы</div>
+        <div style="font-size: 24px; font-weight: 700; margin-top: 8px;">{{ active_orders_count or 0 }}</div>
     </div>
-    <div class="stat-card">
-        <div style="font-size: 24px; margin-bottom: 8px;">🔄</div>
-        <div class="stat-val">6</div>
-        <div class="stat-lbl">Активных</div>
+    <div class="card" style="margin: 0;">
+        <div style="color: var(--text-muted); font-size: 13px;">Выручка (месяц)</div>
+        <div style="font-size: 24px; font-weight: 700; color: var(--accent-gold); margin-top: 8px;">{{ total_revenue or 0 }} Br</div>
     </div>
-    <div class="stat-card">
-        <div style="font-size: 24px; margin-bottom: 8px;">📅</div>
-        <div class="stat-val">0</div>
-        <div class="stat-lbl">Заказов сегодня</div>
+    <div class="card" style="margin: 0;">
+        <div style="color: var(--text-muted); font-size: 13px;">Клиентов в базе</div>
+        <div style="font-size: 24px; font-weight: 700; margin-top: 8px;">{{ total_clients or 0 }}</div>
     </div>
 </div>
 
-<!-- ТАБЛИЦА ЗАКАЗОВ -->
-<div class="card">
-    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
-        <h3 style="color: #ffffff; font-size: 16px; display: flex; align-items: center; gap: 8px;">
-            📋 Последние заказы
-        </h3>
-        <a href="{{ url_for('orders_page') }}" style="color: var(--accent-gold); text-decoration: none; font-size: 13px;">Все заказы →</a>
+<!-- БЛОК ЧАТА И КАЛЕНДАРЯ -->
+<div style="display: grid; grid-template-columns: 2fr 1fr; gap: 20px;">
+    
+    <!-- ВНУТРЕННИЙ ЧАТ -->
+    <div class="card" style="display: flex; flex-direction: column; height: 420px; padding: 0; overflow: hidden; margin: 0;">
+        <div style="padding: 14px 20px; background: rgba(255,255,255,0.02); border-bottom: 1px solid var(--border-color); font-weight: 600; display: flex; align-items: center; gap: 8px;">
+            💬 Внутренний чат
+        </div>
+        <div id="chatMessages" style="flex: 1; padding: 16px; overflow-y: auto; display: flex; flex-direction: column; gap: 12px;">
+            <div style="background: rgba(255,255,255,0.05); padding: 10px 14px; border-radius: 8px; max-width: 80%;">
+                <span style="font-size: 11px; color: var(--accent-gold); font-weight: bold;">Система</span>
+                <p style="font-size: 13px; margin: 4px 0 0 0; color: #ddd;">Добро пожаловать в рабочую панель InTarget.</p>
+            </div>
+            {% if chat_messages %}
+                {% for msg in chat_messages %}
+                <div style="background: rgba(255,255,255,0.05); padding: 10px 14px; border-radius: 8px; max-width: 80%;">
+                    <span style="font-size: 11px; color: var(--accent-gold); font-weight: bold;">{{ msg.author }}</span>
+                    <p style="font-size: 13px; margin: 4px 0 0 0;">{{ msg.text }}</p>
+                </div>
+                {% endfor %}
+            {% endif %}
+        </div>
+        <form id="chatForm" action="/api/chat/send" method="POST" style="padding: 12px; border-top: 1px solid var(--border-color); display: flex; gap: 8px;">
+            <input type="text" name="message" placeholder="Написать сообщение..." required style="flex: 1; padding: 10px 12px; background: #121214; border: 1px solid rgba(255,255,255,0.1); border-radius: 6px; color: #fff;">
+            <button type="submit" class="btn btn-primary">Отправить</button>
+        </form>
     </div>
 
-    <div class="table-wrapper">
-        <table>
-            <thead>
-                <tr>
-                    <th>#</th>
-                    <th>Клиент</th>
-                    <th>Товар</th>
-                    <th>Цена</th>
-                    <th>Статус</th>
-                    <th>Исполнитель</th>
-                    <th>Действия</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% if orders %}
-                    {% for order in orders %}
-                    <tr>
-                        <td><strong>#{{ order.id }}</strong></td>
-                        <td>{{ order.client_name or 'кто-то' }}</td>
-                        <td>{{ order.item_title }}</td>
-                        <td>{{ order.price }} Br</td>
-                        <td><span class="status-badge {{ order.status_class }}">{{ order.status }}</span></td>
-                        <td>{{ order.executor }}</td>
-                        <td>
-                            <div style="display: flex; gap: 6px;">
-                                <a href="/orders/edit/{{ order.id }}" class="btn-action edit">✏️</a>
-                                <a href="/orders/delete/{{ order.id }}" class="btn-action delete">🗑️</a>
-                            </div>
-                        </td>
-                    </tr>
-                    {% endfor %}
-                {% else %}
-                    <tr>
-                        <td><strong>#17</strong></td>
-                        <td>кто-то</td>
-                        <td>Вал-шестеренчатый вторичный SK850S...</td>
-                        <td>75.0 Br</td>
-                        <td><span style="background: rgba(212, 168, 75, 0.2); color: #d4a84b; padding: 4px 8px; border-radius: 4px; font-size: 12px;">В работе</span></td>
-                        <td>Дмитрий</td>
-                        <td>
-                            <div style="display: flex; gap: 6px;">
-                                <a href="#" class="btn-action edit">✏️</a>
-                                <a href="#" class="btn-action delete">🗑️</a>
-                            </div>
-                        </td>
-                    </tr>
-                {% endif %}
-            </tbody>
-        </table>
+    <!-- КАЛЕНДАРЬ / СОБЫТИЯ -->
+    <div class="card" style="margin: 0; display: flex; flex-direction: column; gap: 16px;">
+        <div style="font-weight: 600; display: flex; align-items: center; gap: 8px;">
+            📅 Календарь записей
+        </div>
+        
+        <div>
+            <input type="date" id="calendarPicker" style="width: 100%; padding: 10px; background: #121214; border: 1px solid rgba(255,255,255,0.1); border-radius: 6px; color: #fff; color-scheme: dark;">
+        </div>
+
+        <div style="border-top: 1px solid var(--border-color); pt-3;">
+            <div style="font-size: 13px; color: var(--text-muted); margin-bottom: 8px;">Запланировано на сегодня:</div>
+            <div style="font-size: 13px; color: #a0a0ab; font-style: italic;">
+                Нет запланированных событий
+            </div>
+        </div>
     </div>
+
 </div>
 {% endblock %}
