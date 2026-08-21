@@ -64,12 +64,16 @@
 
 .online-user .user-info {
     flex: 1;
+    min-width: 0;
 }
 
 .online-user .user-name {
     font-size: 14px;
     font-weight: 500;
     color: #1a1a2e;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
 .online-user .user-status {
@@ -133,6 +137,7 @@
     margin-bottom: 16px;
     display: flex;
     flex-direction: column;
+    animation: slideIn 0.3s ease-out;
 }
 
 .chat-message.own {
@@ -146,6 +151,7 @@
     background: white;
     box-shadow: 0 1px 4px rgba(0,0,0,0.08);
     word-wrap: break-word;
+    white-space: pre-wrap; /* Сохранение переносов строк */
 }
 
 .chat-message.own .message-bubble {
@@ -219,10 +225,6 @@
     to { opacity: 1; transform: translateY(0); }
 }
 
-.chat-message {
-    animation: slideIn 0.3s ease-out;
-}
-
 .empty-chat {
     text-align: center;
     color: #999;
@@ -278,9 +280,7 @@
                 {% if chat_messages %}
                     {% for msg in chat_messages %}
                     <div class="chat-message {% if msg.user_name == session.user_name %}own{% endif %}" data-id="{{ msg.id }}">
-                        <div class="message-bubble">
-                            {{ msg.message }}
-                        </div>
+                        <div class="message-bubble">{{ msg.message }}</div>
                         <div class="message-meta">
                             <span class="user-name">{{ msg.user_name }}</span>
                             <span>{{ msg.created_at.strftime('%d.%m.%Y %H:%M') }}</span>
@@ -288,7 +288,7 @@
                     </div>
                     {% endfor %}
                 {% else %}
-                    <div class="empty-chat">
+                    <div class="empty-chat" id="emptyChatNotice">
                         💬 Пока нет сообщений<br>
                         <span style="font-size:13px;color:#bbb;">Напишите что-нибудь, чтобы начать общение</span>
                     </div>
@@ -296,7 +296,7 @@
             </div>
 
             <div class="chat-input-area">
-                <input type="text" id="chatInput" placeholder="Введите сообщение..." autofocus />
+                <input type="text" id="chatInput" placeholder="Введите сообщение..." autofocus autocomplete="off" />
                 <button id="sendButton">📤 Отправить</button>
             </div>
         </div>
@@ -315,7 +315,7 @@ document.addEventListener('DOMContentLoaded', function() {
     function scrollToBottom() {
         messagesContainer.scrollTop = messagesContainer.scrollHeight;
     }
-    setTimeout(scrollToBottom, 100);
+    scrollToBottom();
 
     function sendMessage() {
         const message = chatInput.value.trim();
@@ -329,14 +329,19 @@ document.addEventListener('DOMContentLoaded', function() {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ message: message })
         })
-        .then(response => response.json())
+        .then(response => {
+            if (!response.ok) throw new Error('Network error');
+            return response.json();
+        })
         .then(data => {
             if (data.success) {
                 chatInput.value = '';
-                chatInput.disabled = false;
-                sendButton.disabled = false;
-                chatInput.focus();
+                // Удаляем заглушку о пустом чате, если она была
+                const emptyNotice = document.getElementById('emptyChatNotice');
+                if (emptyNotice) emptyNotice.remove();
+
                 addMessage({
+                    id: data.id || data.message_id, // Важно возвращать ID с сервера
                     user_name: userName,
                     message: message,
                     created_at: new Date().toISOString()
@@ -345,20 +350,31 @@ document.addEventListener('DOMContentLoaded', function() {
         })
         .catch(error => {
             console.error('Ошибка:', error);
+            alert('❌ Ошибка отправки сообщения');
+        })
+        .finally(() => {
             chatInput.disabled = false;
             sendButton.disabled = false;
-            alert('❌ Ошибка отправки сообщения');
+            chatInput.focus();
         });
     }
 
     function addMessage(msg, isOwn = false) {
+        // Проверка на существующий ID для предотвращения дублирования
+        if (msg.id && messagesContainer.querySelector(`[data-id="${msg.id}"]`)) {
+            return;
+        }
+
         const div = document.createElement('div');
         div.className = `chat-message ${isOwn ? 'own' : ''}`;
+        if (msg.id) div.dataset.id = msg.id;
+
         const date = new Date(msg.created_at);
         const dateStr = date.toLocaleString('ru-RU', {
             day: '2-digit', month: '2-digit', year: 'numeric',
             hour: '2-digit', minute: '2-digit'
         });
+
         div.innerHTML = `
             <div class="message-bubble">${escapeHtml(msg.message)}</div>
             <div class="message-meta">
@@ -377,37 +393,38 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     function fetchNewMessages() {
-        const lastMessage = messagesContainer.querySelector('.chat-message:last-child');
+        const messages = messagesContainer.querySelectorAll('.chat-message');
+        const lastMessage = messages[messages.length - 1];
         const lastId = lastMessage ? lastMessage.dataset.id : null;
+
         let url = '/api/chat/messages?limit=50';
         if (lastId) url += `&after=${lastId}`;
         
         fetch(url)
             .then(response => response.json())
             .then(messages => {
-                const currentIds = new Set();
-                messagesContainer.querySelectorAll('.chat-message').forEach(el => {
-                    if (el.dataset.id) currentIds.add(el.dataset.id);
-                });
+                if (!Array.isArray(messages)) return;
+                
                 let newMessages = 0;
                 messages.forEach(msg => {
-                    if (!currentIds.has(String(msg.id))) {
-                        const isOwn = msg.user_name === userName;
+                    const isOwn = msg.user_name === userName;
+                    const exists = messagesContainer.querySelector(`[data-id="${msg.id}"]`);
+                    if (!exists) {
+                        const emptyNotice = document.getElementById('emptyChatNotice');
+                        if (emptyNotice) emptyNotice.remove();
+                        
                         addMessage(msg, isOwn);
                         newMessages++;
                     }
                 });
+
                 if (newMessages > 0 && document.hidden) {
-                    document.title = `💬 ${newMessages} новых сообщений`;
-                } else if (newMessages > 0) {
-                    document.title = '💬 Командный чат';
+                    document.title = `💬 (${newMessages}) новых сообщений`;
                 }
             })
-            .catch(error => console.error('Ошибка загрузки:', error));
+            .catch(error => console.error('Ошибка загрузки сообщений:', error));
     }
 
-    // ===== ОНЛАЙН-СТАТУС =====
-    
     function updateOnlineStatus() {
         fetch('/api/online/update', {
             method: 'POST',
@@ -418,28 +435,30 @@ document.addEventListener('DOMContentLoaded', function() {
     function fetchOnlineUsers() {
         fetch('/api/online/users')
             .then(response => response.json())
-            .then(users => {
-                renderOnlineUsers(users);
-            })
-            .catch(error => console.error('Ошибка загрузки онлайн-пользователей:', error));
+            .then(users => renderOnlineUsers(users))
+            .catch(error => console.error('Ошибка загрузки пользователей:', error));
     }
 
     function renderOnlineUsers(users) {
+        if (!Array.isArray(users)) return;
+
         const onlineUsers = users.filter(u => u.is_online);
         onlineCount.textContent = onlineUsers.length;
         
         if (users.length === 0) {
             usersList.innerHTML = `
                 <div style="text-align:center;color:#999;font-size:13px;padding:20px;">
-                    Нет активных пользователей
+                    Нет пользователей
                 </div>
             `;
             return;
         }
         
         let html = '';
+        const offlineUsers = users.filter(u => !u.is_online);
+
         onlineUsers.forEach(user => {
-            const initials = user.user_name.split(' ').map(w => w[0]).join('').toUpperCase();
+            const initials = user.user_name.split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2);
             html += `
                 <div class="online-user">
                     <div class="avatar">${initials || '👤'}</div>
@@ -453,25 +472,25 @@ document.addEventListener('DOMContentLoaded', function() {
             `;
         });
         
-        const offlineUsers = users.filter(u => !u.is_online);
         offlineUsers.forEach(user => {
-            const initials = user.user_name.split(' ').map(w => w[0]).join('').toUpperCase();
+            const initials = user.user_name.split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2);
             html += `
                 <div class="online-user" style="opacity:0.6;">
                     <div class="avatar offline">${initials || '👤'}</div>
                     <div class="user-info">
                         <div class="user-name">${escapeHtml(user.user_name)}</div>
                         <div class="user-status">
-                            <span class="status-dot offline"></span> был(а) онлайн
+                            <span class="status-dot offline"></span> оффлайн
                         </div>
                     </div>
                 </div>
             `;
         });
+
         usersList.innerHTML = html;
     }
 
-    // ===== ОБРАБОТЧИКИ =====
+    // Event Listeners
     sendButton.addEventListener('click', sendMessage);
     chatInput.addEventListener('keypress', function(e) {
         if (e.key === 'Enter' && !e.shiftKey) {
@@ -480,17 +499,17 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     });
 
-    // ===== ПЕРИОДИЧЕСКИЕ ЗАДАЧИ =====
+    // Периодический поллинг
     setInterval(updateOnlineStatus, 30000);
     setInterval(fetchOnlineUsers, 10000);
     setInterval(fetchNewMessages, 3000);
 
-    // ===== ПРИ ВЫХОДЕ =====
+    // Уведомление о закрытии/уходе
     window.addEventListener('beforeunload', function() {
         navigator.sendBeacon('/api/online/leave');
     });
 
-    // ===== ИНИЦИАЛИЗАЦИЯ =====
+    // Инициализация
     updateOnlineStatus();
     fetchOnlineUsers();
     setTimeout(fetchNewMessages, 1000);
@@ -498,7 +517,6 @@ document.addEventListener('DOMContentLoaded', function() {
     document.addEventListener('visibilitychange', function() {
         if (!document.hidden) {
             document.title = '💬 Командный чат';
-            fetchOnlineUsers();
         }
     });
 });
