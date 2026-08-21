@@ -45,22 +45,11 @@ class Config:
     }
     
     EMPLOYEES = [
-        {'id': 'pavel_ivanovich', 'name': 'Павел Иванович', 'password_hash': os.environ.get('PASSWORD_HASH_PAVEL_IVANOVICH')},
-        {'id': 'pavel', 'name': 'Павел', 'password_hash': os.environ.get('PASSWORD_HASH_PAVEL')},
-        {'id': 'dmitry', 'name': 'Дмитрий', 'password_hash': os.environ.get('PASSWORD_HASH_DMITRY')},
-        {'id': 'alexander', 'name': 'Александр', 'password_hash': os.environ.get('PASSWORD_HASH_ALEXANDER')}
+        {'id': 'pavel_ivanovich', 'name': 'Павел Иванович'},
+        {'id': 'pavel', 'name': 'Павел'},
+        {'id': 'dmitry', 'name': 'Дмитрий'},
+        {'id': 'alexander', 'name': 'Александр'}
     ]
-
-if not Config.ADMIN_PASSWORD_HASH:
-    Config.ADMIN_PASSWORD_HASH = bcrypt.hashpw(b'admin123', bcrypt.gensalt()).decode('utf-8')
-
-for emp in Config.EMPLOYEES:
-    if not emp.get('password_hash'):
-        emp['password_hash'] = bcrypt.hashpw(b'123456', bcrypt.gensalt()).decode('utf-8')
-
-# ==========================================
-# ИНИЦИАЛИЗАЦИЯ ПРИЛОЖЕНИЯ
-# ==========================================
 
 app = Flask(__name__)
 app.config.from_object(Config)
@@ -118,7 +107,6 @@ def init_db():
         with get_db_cursor() as cur:
             is_sqlite = Config.DATABASE_URL.startswith('sqlite://')
             
-            # Таблица заказов
             cur.execute("""
                 CREATE TABLE IF NOT EXISTS orders (
                     id SERIAL PRIMARY KEY,
@@ -165,7 +153,6 @@ def init_db():
                 )
             """)
             
-            # Таблица уведомлений
             cur.execute("""
                 CREATE TABLE IF NOT EXISTS notifications (
                     id SERIAL PRIMARY KEY,
@@ -204,7 +191,6 @@ def init_db():
                 )
             """)
             
-            # Таблица чата
             cur.execute("""
                 CREATE TABLE IF NOT EXISTS chat_messages (
                     id SERIAL PRIMARY KEY,
@@ -225,7 +211,6 @@ def init_db():
                 )
             """)
             
-            # Таблица настроек уведомлений
             cur.execute("""
                 CREATE TABLE IF NOT EXISTS notification_settings (
                     user_id TEXT PRIMARY KEY,
@@ -264,7 +249,6 @@ def init_db():
                 )
             """)
             
-            # Таблица онлайн-сессий
             cur.execute("""
                 CREATE TABLE IF NOT EXISTS user_sessions (
                     user_id TEXT PRIMARY KEY,
@@ -337,15 +321,6 @@ def insert_test_data(cur, is_sqlite):
     
     print("✅ Тестовые данные добавлены")
 
-# ==========================================
-# ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ
-# ==========================================
-
-def verify_password(password: str, password_hash: str) -> bool:
-    if not password_hash:
-        return False
-    return bcrypt.checkpw(password.encode('utf-8'), password_hash.encode('utf-8'))
-
 def login_required(f):
     @wraps(f)
     def decorated_function(*args, **kwargs):
@@ -385,7 +360,7 @@ def safe_float(value, default=0.0):
         return default
 
 # ==========================================
-# МАРШРУТЫ АВТОРИЗАЦИИ
+# МАРШРУТЫ АВТОРИЗАЦИИ (ВХОД С ЛЮБЫМ ПАРОЛЕМ)
 # ==========================================
 
 @app.route('/login', methods=['GET', 'POST'])
@@ -400,7 +375,9 @@ def login():
             password = request.form.get('password')
             shop_id = request.form.get('shop_id', 'moskovskaya')
             
-            if verify_password(password, Config.ADMIN_PASSWORD_HASH):
+            # ===== ВРЕМЕННО: ВХОД С ЛЮБЫМ ПАРОЛЕМ =====
+            # if verify_password(password, Config.ADMIN_PASSWORD_HASH):
+            if True:  # <-- ЛЮБОЙ ПАРОЛЬ ПОДХОДИТ!
                 session.permanent = True
                 session['logged_in'] = True
                 session['is_admin'] = True
@@ -418,7 +395,8 @@ def login():
             password = request.form.get('password')
             
             employee = get_employee_by_id(employee_id)
-            if employee and verify_password(password, employee.get('password_hash')):
+            # ===== ВРЕМЕННО: ВХОД С ЛЮБЫМ ПАРОЛЕМ =====
+            if employee:  # <-- ЛЮБОЙ ПАРОЛЬ ПОДХОДИТ!
                 session.permanent = True
                 session['logged_in'] = True
                 session['is_admin'] = False
@@ -554,7 +532,7 @@ def dashboard():
         return render_template('dashboard.html', orders=[], shops=Config.SHOPS, employees=Config.EMPLOYEES, active_page='dashboard', datetime=datetime)
 
 # ==========================================
-# КАБИНЕТ СОТРУДНИКА (ИСПРАВЛЕН)
+# КАБИНЕТ СОТРУДНИКА
 # ==========================================
 
 @app.route('/employee')
@@ -568,7 +546,6 @@ def employee_dashboard():
         is_sqlite = Config.DATABASE_URL.startswith('sqlite://')
         
         with get_db_cursor() as cur:
-            # ===== ЗАКАЗЫ ПО МАГАЗИНАМ =====
             orders_by_shop = {}
             for shop_id, shop_name in Config.SHOPS.items():
                 if is_sqlite:
@@ -632,7 +609,6 @@ def employee_dashboard():
                     'stats': shop_stats
                 }
             
-            # ===== МОИ ЗАКАЗЫ =====
             if is_sqlite:
                 cur.execute("""
                     SELECT * FROM orders 
@@ -659,7 +635,6 @@ def employee_dashboard():
                 """, (user_name,))
             my_orders = cur.fetchall()
             
-            # ===== МОЯ СТАТИСТИКА =====
             if is_sqlite:
                 cur.execute("""
                     SELECT 
@@ -682,7 +657,6 @@ def employee_dashboard():
                 """, (user_name,))
             my_stats = cur.fetchone()
             
-            # ===== ЗАДАЧИ НА СЕГОДНЯ =====
             if is_sqlite:
                 cur.execute("""
                     SELECT * FROM orders 
@@ -1531,8 +1505,7 @@ if __name__ == '__main__':
     print("🎯 InTarget Brest Motors — CRM система")
     print("=" * 60)
     print(f"📍 База данных: {Config.DATABASE_URL}")
-    print(f"🔑 Пароль администратора: admin123")
-    print(f"🔑 Пароль сотрудников: 123456")
+    print(f"🔑 ЛЮБОЙ ПАРОЛЬ ПОДХОДИТ (временный режим)")
     print(f"🌐 Запуск на: http://localhost:{Config.PORT}")
     print("=" * 60)
     print("⚡ Отладочный вход: /force-login")
