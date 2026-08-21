@@ -2,37 +2,48 @@
 
 {% block extra_css %}
 <style>
-    body { font-family: 'Segoe UI', Arial, sans-serif; background: #f0f2f5; margin: 0; padding: 0; }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: 'Segoe UI', Arial, sans-serif; background: #f0f2f5; }
     .employee-layout { display: flex; min-height: 100vh; }
-    .sidebar { width: 240px; background: #1a1a2e; color: white; padding: 20px 0; position: fixed; height: 100vh; overflow-y: auto; }
+    
+    .sidebar { width: 240px; background: #1a1a2e; color: white; padding: 20px 0; position: fixed; height: 100vh; overflow-y: auto; z-index: 100; }
     .sidebar .logo { font-size: 20px; font-weight: 700; padding: 0 20px 20px; border-bottom: 1px solid rgba(255,255,255,0.1); display: flex; align-items: center; gap: 10px; }
-    .sidebar .menu { list-style: none; padding: 0; margin-top: 20px; }
+    .sidebar .menu { list-style: none; margin-top: 20px; }
     .sidebar .menu a { display: flex; align-items: center; gap: 12px; padding: 12px 20px; color: rgba(255,255,255,0.7); text-decoration: none; transition: all .2s; border-left: 3px solid transparent; }
     .sidebar .menu a:hover, .sidebar .menu a.active { background: rgba(255,255,255,0.05); color: white; border-left-color: #2ecc71; }
     .sidebar .menu a.logout { margin-top: 40px; color: #e74c3c; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 20px; }
-    .main-content { margin-left: 240px; flex: 1; padding: 24px; }
+
+    .main-content { margin-left: 240px; flex: 1; padding: 24px; width: calc(100% - 240px); }
     .page-header { margin-bottom: 24px; }
     .page-header h1 { font-size: 28px; font-weight: 700; color: #1a1a2e; }
     .breadcrumb { margin-bottom: 16px; color: #666; font-size: 14px; }
     .breadcrumb a { color: #3498db; text-decoration: none; }
+
     .form-card { background: white; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); padding: 30px; max-width: 800px; margin: 0 auto; }
     .form-group { margin-bottom: 20px; }
-    .form-group label { display: block; margin-bottom: 6px; font-weight: 600; color: #333; }
-    .form-group input, .form-group textarea, .form-group select { width: 100%; padding: 10px 12px; border: 1px solid #ddd; border-radius: 8px; font-size: 14px; font-family: inherit; }
+    .form-group label { display: block; margin-bottom: 6px; font-weight: 600; color: #333; font-size: 14px; }
+    .form-group input, .form-group textarea, .form-group select { width: 100%; padding: 10px 12px; border: 1px solid #ddd; border-radius: 8px; font-size: 14px; font-family: inherit; transition: border-color 0.2s; }
+    .form-group input:focus, .form-group textarea:focus, .form-group select:focus { outline: none; border-color: #3498db; }
     .form-group textarea { resize: vertical; min-height: 80px; }
+
     .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
     .input-group { display: flex; }
     .input-group input { border-radius: 8px 0 0 8px; }
-    .input-group span { padding: 10px 16px; background: #f0f0f0; border: 1px solid #ddd; border-left: none; border-radius: 0 8px 8px 0; display: flex; align-items: center; color: #666; }
-    .alert { padding: 16px; border-radius: 8px; margin-bottom: 20px; }
+    .input-group span { padding: 10px 16px; background: #f0f0f0; border: 1px solid #ddd; border-left: none; border-radius: 0 8px 8px 0; display: flex; align-items: center; color: #666; font-size: 14px; }
+
+    .alert { padding: 16px; border-radius: 8px; margin-bottom: 20px; font-size: 14px; }
     .alert-info { background: #e3f2fd; color: #1565c0; border-left: 4px solid #1565c0; }
-    .btn-primary { padding: 12px 24px; background: #2ecc71; color: white; border: none; border-radius: 8px; font-size: 16px; font-weight: 600; cursor: pointer; text-decoration: none; display: inline-block; }
-    .btn-secondary { padding: 12px 24px; background: #95a5a6; color: white; border: none; border-radius: 8px; font-size: 16px; font-weight: 600; cursor: pointer; text-decoration: none; display: inline-block; }
-    .btn-group { display: flex; gap: 12px; }
+
+    .btn-primary { padding: 12px 24px; background: #2ecc71; color: white; border: none; border-radius: 8px; font-size: 16px; font-weight: 600; cursor: pointer; text-decoration: none; display: inline-block; transition: background 0.2s; }
+    .btn-primary:hover { background: #27ae60; }
+    .btn-secondary { padding: 12px 24px; background: #95a5a6; color: white; border: none; border-radius: 8px; font-size: 16px; font-weight: 600; cursor: pointer; text-decoration: none; display: inline-block; transition: background 0.2s; }
+    .btn-secondary:hover { background: #7f8c8d; }
+    .btn-group { display: flex; gap: 12px; margin-top: 10px; }
+
     @media (max-width: 768px) { 
         .sidebar { display: none; } 
-        .main-content { margin-left: 0; } 
-        .form-row { grid-template-columns: 1fr; }
+        .main-content { margin-left: 0; width: 100%; padding: 16px; } 
+        .form-row { grid-template-columns: 1fr; gap: 0; }
         .form-card { padding: 20px; }
     }
 </style>
@@ -59,70 +70,82 @@
         <div class="form-card">
             <form method="POST" action="/employee/orders/create" id="createOrderForm">
                 <input type="hidden" name="executor_id" value="{{ session.get('user_id') }}">
-                <input type="hidden" name="executor" value="{{ user_name }}">
+                <input type="hidden" name="executor" value="{{ user_name or session.get('user_name') }}">
                 
                 <div class="form-row">
                     <div class="form-group">
-                        <label>👤 Имя клиента *</label>
+                        <label for="customer">👤 Имя клиента *</label>
                         <input type="text" name="customer" id="customer" required placeholder="Иван Иванов">
                     </div>
                     <div class="form-group">
-                        <label>📞 Телефон *</label>
+                        <label for="phone">📞 Телефон *</label>
                         <input type="tel" name="phone" id="phone" required placeholder="+375 (29) 123-45-67">
                     </div>
                 </div>
                 
-                <div class="form-group">
-                    <label>📍 Адрес доставки</label>
-                    <input type="text" name="address" placeholder="ул. Ленина, д. 10, кв. 5">
-                </div>
-                
-                <div class="form-group">
-                    <label>📦 Товар/Услуга *</label>
-                    <textarea name="product" id="product" rows="3" required placeholder="Опишите товар или услугу..."></textarea>
-                </div>
-                
                 <div class="form-row">
                     <div class="form-group">
-                        <label>💰 Стоимость</label>
-                        <div class="input-group">
-                            <input type="number" name="price" step="0.01" min="0" placeholder="0.00">
-                            <span>руб.</span>
-                        </div>
+                        <label for="shop_id">🏪 Магазин / Точка продаж *</label>
+                        <select name="shop_id" id="shop_id" required>
+                            {% if shops %}
+                                {% for s_id, s_name in shops.items() %}
+                                    <option value="{{ s_id }}">{{ s_name }}</option>
+                                {% endfor %}
+                            {% else %}
+                                <option value="1">Главный филиал</option>
+                            {% endif %}
+                        </select>
                     </div>
                     <div class="form-group">
-                        <label>💳 Предоплата</label>
-                        <div class="input-group">
-                            <input type="number" name="prepaid" step="0.01" min="0" placeholder="0.00">
-                            <span>руб.</span>
-                        </div>
-                    </div>
-                </div>
-                
-                <div class="form-row">
-                    <div class="form-group">
-                        <label>🚩 Приоритет</label>
-                        <select name="priority">
+                        <label for="priority">🚩 Приоритет</label>
+                        <select name="priority" id="priority">
                             <option value="Обычный">Обычный</option>
                             <option value="Высокий">Высокий</option>
                             <option value="Низкий">Низкий</option>
                         </select>
                     </div>
                 </div>
+
+                <div class="form-group">
+                    <label for="address">📍 Адрес доставки</label>
+                    <input type="text" name="address" id="address" placeholder="г. Брест, ул. Ленина, д. 10, кв. 5">
+                </div>
                 
                 <div class="form-group">
-                    <label>💬 Комментарий</label>
-                    <textarea name="comment" rows="2" placeholder="Дополнительная информация..."></textarea>
+                    <label for="product">📦 Товар / Услуга *</label>
+                    <textarea name="product" id="product" rows="3" required placeholder="Опишите деталь, марку авто или наименование работы..."></textarea>
+                </div>
+                
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="price">💰 Стоимость</label>
+                        <div class="input-group">
+                            <input type="number" name="price" id="price" step="0.01" min="0" placeholder="0.00">
+                            <span>руб.</span>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label for="prepaid">💳 Предоплата</label>
+                        <div class="input-group">
+                            <input type="number" name="prepaid" id="prepaid" step="0.01" min="0" placeholder="0.00">
+                            <span>руб.</span>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="form-group">
+                    <label for="comment">💬 Комментарий</label>
+                    <textarea name="comment" id="comment" rows="2" placeholder="Дополнительные пожелания или особенности заказа..."></textarea>
                 </div>
                 
                 <div class="alert alert-info">
-                    <strong>🔒 Исполнитель закреплен:</strong> {{ user_name }}
+                    <strong>🔒 Исполнитель закреплен:</strong> {{ user_name or session.get('user_name', 'Сотрудник') }}
                     <br>
-                    <small>Вы будете единственным исполнителем этого заказа. Статус: Новый</small>
+                    <small>Вы будете назначены ответственным исполнителем. Начальный статус: Новый</small>
                 </div>
                 
                 <div class="btn-group">
-                    <button type="submit" class="btn-primary">💾 Создать заказ</button>
+                    <button type="submit" class="btn-primary" id="submitBtn">💾 Создать заказ</button>
                     <a href="/employee" class="btn-secondary">← Назад в кабинет</a>
                 </div>
             </form>
@@ -131,31 +154,57 @@
 </div>
 
 <script>
-document.getElementById('phone').addEventListener('input', function(e) {
-    let value = e.target.value.replace(/\D/g, '');
-    if (value.length > 0) {
-        if (value.startsWith('375')) value = '+' + value;
-        if (value.length > 6) value = value.slice(0, 6) + ' ' + value.slice(6);
-        if (value.length > 10) value = value.slice(0, 10) + '-' + value.slice(10);
-        if (value.length > 13) value = value.slice(0, 13) + '-' + value.slice(13);
-    }
-    e.target.value = value;
-});
+document.addEventListener('DOMContentLoaded', function() {
+    const phoneInput = document.getElementById('phone');
+    const form = document.getElementById('createOrderForm');
+    const submitBtn = document.getElementById('submitBtn');
 
-document.getElementById('createOrderForm').addEventListener('submit', function(e) {
-    const customer = document.getElementById('customer').value.trim();
-    const phone = document.getElementById('phone').value.trim();
-    const product = document.getElementById('product').value.trim();
-    
-    if (!customer || !phone || !product) {
-        e.preventDefault();
-        alert('Пожалуйста, заполните все обязательные поля (*)');
-        return false;
-    }
-    
-    const btn = this.querySelector('.btn-primary');
-    btn.textContent = '⏳ Создание...';
-    btn.disabled = true;
+    // Безопасное форматирование белорусского номера (+375 XX XXX-XX-XX)
+    phoneInput.addEventListener('input', function(e) {
+        let input = e.target.value.replace(/\D/g, '');
+        
+        if (input.startsWith('80')) {
+            input = '375' + input.substring(2);
+        } else if (!input.startsWith('375') && input.length > 0) {
+            input = '375' + input;
+        }
+
+        let formatted = '';
+        if (input.length > 0) {
+            formatted = '+' + input.substring(0, 3);
+        }
+        if (input.length > 3) {
+            formatted += ' (' + input.substring(3, 5);
+        }
+        if (input.length >= 5) {
+            formatted += ') ' + input.substring(5, 8);
+        }
+        if (input.length >= 8) {
+            formatted += '-' + input.substring(8, 10);
+        }
+        if (input.length >= 10) {
+            formatted += '-' + input.substring(10, 12);
+        }
+
+        e.target.value = formatted;
+    });
+
+    // Валидация и защита от двойного нажатия
+    form.addEventListener('submit', function(e) {
+        const customer = document.getElementById('customer').value.trim();
+        const phone = phoneInput.value.trim();
+        const product = document.getElementById('product').value.trim();
+        
+        if (!customer || !phone || !product) {
+            e.preventDefault();
+            alert('Пожалуйста, заполните все обязательные поля (*)');
+            return false;
+        }
+
+        submitBtn.textContent = '⏳ Создание...';
+        submitBtn.style.opacity = '0.7';
+        submitBtn.style.pointerEvents = 'none';
+    });
 });
 </script>
 {% endblock %}
