@@ -51,7 +51,7 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger('brest_motors')
 
 # ==========================================
-# РАБОТА С БАЗОЙ ДАННЫХ (ТОЛЬКО POSTGRESQL)
+# РАБОТА С БАЗОЙ ДАННЫХ
 # ==========================================
 
 @contextmanager
@@ -73,7 +73,7 @@ def init_db():
     """Инициализация таблиц (если не существуют)"""
     try:
         with get_db_cursor() as cur:
-            # Таблица заказов
+            # Таблица заказов (добавлена колонка updated_at)
             cur.execute("""
                 CREATE TABLE IF NOT EXISTS orders (
                     id SERIAL PRIMARY KEY,
@@ -90,6 +90,7 @@ def init_db():
                     shop_id TEXT DEFAULT 'moskovskaya',
                     is_archived BOOLEAN DEFAULT FALSE,
                     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                     completed_at TIMESTAMP
                 )
             """)
@@ -105,10 +106,13 @@ def init_db():
                 )
             """)
             
-            print("✅ База данных инициализирована")
+            logger.info("✅ База данных инициализирована")
             
     except Exception as e:
         logger.error(f"❌ Ошибка инициализации БД: {e}")
+
+# Инициализируем БД при запуске модуля
+init_db()
 
 # ==========================================
 # ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ
@@ -139,7 +143,7 @@ def get_employee_by_id(emp_id):
     return None
 
 # ==========================================
-# МАРШРУТЫ АВТОРИЗАЦИИ (ВХОД БЕЗ ПАРОЛЯ)
+# МАРШРУТЫ АВТОРИЗАЦИИ
 # ==========================================
 
 @app.route('/login', methods=['GET', 'POST'])
@@ -152,7 +156,6 @@ def login():
         
         if login_type == 'admin':
             shop_id = request.form.get('shop_id', 'moskovskaya')
-            # ВХОД С ЛЮБЫМ ПАРОЛЕМ
             session.permanent = True
             session['logged_in'] = True
             session['is_admin'] = True
@@ -187,10 +190,6 @@ def logout():
     flash('Вы вышли из системы', 'info')
     return redirect(url_for('login'))
 
-# ==========================================
-# БЫСТРЫЙ ВХОД (БЕЗ ПАРОЛЯ)
-# ==========================================
-
 @app.route('/force-login')
 def force_login():
     session['logged_in'] = True
@@ -204,20 +203,15 @@ def force_login():
 
 @app.route('/force-employee/<emp_id>')
 def force_employee(emp_id):
-    employees = {
-        'pavel_ivanovich': 'Павел Иванович',
-        'pavel': 'Павел',
-        'dmitry': 'Дмитрий',
-        'alexander': 'Александр'
-    }
-    if emp_id in employees:
+    employee = get_employee_by_id(emp_id)
+    if employee:
         session['logged_in'] = True
         session['is_admin'] = False
-        session['user_id'] = emp_id
-        session['user_name'] = employees[emp_id]
+        session['user_id'] = employee['id']
+        session['user_name'] = employee['name']
         session['shop_id'] = 'all'
         session['shop_name'] = 'Все магазины'
-        flash(f'✅ Вход как {employees[emp_id]}', 'success')
+        flash(f'✅ Вход как {employee["name"]}', 'success')
         return redirect(url_for('employee_dashboard'))
     flash('❌ Сотрудник не найден', 'error')
     return redirect(url_for('login'))
@@ -236,7 +230,6 @@ def dashboard():
         shop_id = session.get('shop_id', 'moskovskaya')
         
         with get_db_cursor() as cur:
-            # Показываем ВСЕ заказы (без фильтрации)
             if shop_id == 'all':
                 cur.execute("SELECT * FROM orders ORDER BY created_at DESC LIMIT 50;")
             else:
@@ -271,7 +264,7 @@ def dashboard():
         return render_template('dashboard.html', orders=[], shops=Config.SHOPS, employees=Config.EMPLOYEES, active_page='dashboard', datetime=datetime)
 
 # ==========================================
-# СПИСОК ЗАКАЗОВ (ПОКАЗЫВАЕТ ВСЕ)
+# СПИСОК ЗАКАЗОВ
 # ==========================================
 
 @app.route('/orders')
@@ -287,19 +280,25 @@ def orders_page():
                     cur.execute("SELECT * FROM orders ORDER BY created_at DESC;")
                 else:
                     cur.execute("SELECT * FROM orders WHERE is_archived = FALSE ORDER BY created_at DESC;")
+                
+                cur.execute("SELECT DISTINCT status FROM orders;")
+                statuses = [row[0] for row in cur.fetchall()]
+                
+                cur.execute("SELECT COUNT(*) FROM orders WHERE is_archived = TRUE;")
+                archived_count = cur.fetchone()[0] or 0
             else:
                 if show_archived:
                     cur.execute("SELECT * FROM orders WHERE shop_id = %s ORDER BY created_at DESC;", (shop_id,))
                 else:
                     cur.execute("SELECT * FROM orders WHERE shop_id = %s AND is_archived = FALSE ORDER BY created_at DESC;", (shop_id,))
+                
+                cur.execute("SELECT DISTINCT status FROM orders WHERE shop_id = %s;", (shop_id,))
+                statuses = [row[0] for row in cur.fetchall()]
+                
+                cur.execute("SELECT COUNT(*) FROM orders WHERE shop_id = %s AND is_archived = TRUE;", (shop_id,))
+                archived_count = cur.fetchone()[0] or 0
+                
             orders = cur.fetchall()
-            
-            # Получаем список статусов для фильтра
-            cur.execute("SELECT DISTINCT status FROM orders WHERE shop_id = %s;", (shop_id,))
-            statuses = [row[0] for row in cur.fetchall()]
-            
-            cur.execute("SELECT COUNT(*) FROM orders WHERE shop_id = %s AND is_archived = TRUE;", (shop_id,))
-            archived_count = cur.fetchone()[0] or 0
         
         return render_template('orders.html',
                              orders=orders,
@@ -401,15 +400,18 @@ def edit_order(order_id):
         status = request.form.get('status') or 'Новый'
         comment = request.form.get('comment', '').strip()
         
+        completed_at = CURRENT_TIMESTAMP if status == 'Выдан' else None
+        
         with get_db_cursor() as cur:
             cur.execute("""
                 UPDATE orders 
                 SET customer = %s, phone = %s, address = %s, product = %s, 
                     price = %s, prepaid = %s, priority = %s, executor = %s, 
-                    status = %s, comment = %s, updated_at = CURRENT_TIMESTAMP
+                    status = %s, comment = %s, updated_at = CURRENT_TIMESTAMP,
+                    completed_at = CASE WHEN %s = 'Выдан' THEN CURRENT_TIMESTAMP ELSE completed_at END
                 WHERE id = %s
             """, (customer, phone, address, product, price, prepaid, priority, executor, 
-                  status, comment, order_id))
+                  status, comment, status, order_id))
         
         flash(f'✅ Заказ #{order_id} успешно обновлен!', 'success')
         return redirect(url_for('orders_page'))
@@ -490,7 +492,6 @@ def employee_dashboard():
         user_name = session.get('user_name')
         
         with get_db_cursor() as cur:
-            # Мои заказы
             cur.execute("""
                 SELECT * FROM orders 
                 WHERE executor = %s AND status != 'Выдан' AND is_archived = FALSE
@@ -498,7 +499,6 @@ def employee_dashboard():
             """, (user_name,))
             my_orders = cur.fetchall()
             
-            # Статистика
             cur.execute("""
                 SELECT 
                     COUNT(*) as total,
@@ -510,7 +510,6 @@ def employee_dashboard():
             """, (user_name,))
             my_stats = cur.fetchone()
             
-            # Заказы по магазинам
             orders_by_shop = {}
             for shop_id, shop_name in Config.SHOPS.items():
                 cur.execute("""
@@ -729,13 +728,11 @@ def get_latest_notifications():
 # ==========================================
 
 if __name__ == '__main__':
-    init_db()
-    
     print("=" * 60)
     print("🎯 InTarget Brest Motors — CRM система")
     print("=" * 60)
     print(f"📍 База данных: {Config.DATABASE_URL}")
-    print(f"🔑 Вход с ЛЮБЫМ паролем (временный режим)")
+    print("🔑 Вход с ЛЮБЫМ паролем (временный режим)")
     print(f"🌐 Запуск на: http://localhost:{Config.PORT}")
     print("=" * 60)
     print("⚡ Быстрый вход: /force-login")
