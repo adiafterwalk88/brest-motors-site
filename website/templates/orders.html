@@ -3,30 +3,45 @@
 {% block extra_css %}
 <style>
     .admin-layout { display: flex; min-height: 100vh; }
-    .sidebar { width: 240px; background: #1a1a2e; color: white; padding: 20px 0; position: fixed; height: 100vh; overflow-y: auto; }
+    .sidebar { width: 240px; background: #1a1a2e; color: #fff; padding: 20px 0; position: fixed; height: 100vh; overflow-y: auto; z-index: 100; }
     .sidebar .logo { font-size: 20px; font-weight: 700; padding: 0 20px 20px; border-bottom: 1px solid rgba(255,255,255,0.1); display: flex; align-items: center; gap: 10px; }
     .sidebar .menu { list-style: none; padding: 0; margin-top: 20px; }
     .sidebar .menu a { display: flex; align-items: center; gap: 12px; padding: 12px 20px; color: rgba(255,255,255,0.7); text-decoration: none; transition: all .2s; border-left: 3px solid transparent; }
-    .sidebar .menu a:hover, .sidebar .menu a.active { background: rgba(255,255,255,0.05); color: white; border-left-color: #2ecc71; }
+    .sidebar .menu a:hover, .sidebar .menu a.active { background: rgba(255,255,255,0.05); color: #fff; border-left-color: #2ecc71; }
     .sidebar .menu a.logout { margin-top: 40px; color: #e74c3c; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 20px; }
+    
     .main-content { margin-left: 240px; flex: 1; padding: 24px; background: #f0f2f5; min-height: 100vh; }
     .page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; flex-wrap: wrap; gap: 12px; }
     .page-header h1 { font-size: 28px; font-weight: 700; color: #1a1a2e; margin: 0; }
-    
-    .shop-selector { display: flex; align-items: center; gap: 12px; background: white; padding: 10px 20px; border-radius: 12px; margin-bottom: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); flex-wrap: wrap; }
-    .shop-selector select { padding: 6px 12px; border-radius: 6px; border: 1px solid #ddd; background: white; font-size: 14px; }
-    .shop-selector .shop-name { background: #2ecc71; color: white; padding: 4px 14px; border-radius: 20px; font-weight: 600; font-size: 14px; }
-    
-    .filters { display: flex; gap: 12px; flex-wrap: wrap; background: white; padding: 16px 20px; border-radius: 12px; margin-bottom: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); align-items: center; }
-    .filters input, .filters select { padding: 8px 12px; border: 2px solid #e0e0e0; border-radius: 8px; font-size: 14px; background: #fafafa; transition: border-color .2s; }
-    .filters input:focus, .filters select:focus { border-color: #2ecc71; outline: none; background: white; }
-    .filters .btn { background: #2ecc71; color: white; border: none; padding: 8px 20px; border-radius: 8px; cursor: pointer; font-weight: 600; font-size: 14px; transition: background .2s; }
-    .filters .btn:hover { background: #27ae60; }
-    .filters .filter-actions { display: flex; gap: 8px; align-items: center; margin-left: auto; }
-    .filters .filter-actions a { font-size: 13px; color: #e74c3c; text-decoration: none; }
-    .filters .filter-actions a:hover { text-decoration: underline; }
-    
-    .order-card { background: white; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); padding: 16px 20px; margin-bottom: 12px; display: flex; justify-content: space-between; align-items: center; transition: all .2s; border-left: 4px solid #2ecc71; }
+    .page-header .header-info { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+    .page-header .user-badge { background: #fff; padding: 8px 16px; border-radius: 8px; font-weight: 600; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
+    .page-header .btn-create { background: #2ecc71; color: #fff; padding: 10px 24px; border-radius: 8px; text-decoration: none; font-weight: 600; transition: background .2s; display: inline-block; }
+    .page-header .btn-create:hover { background: #27ae60; }
+
+    .shop-selector { display: flex; align-items: center; gap: 12px; background: #fff; padding: 10px 20px; border-radius: 12px; margin-bottom: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); flex-wrap: wrap; }
+    .shop-selector select { padding: 6px 12px; border-radius: 6px; border: 1px solid #ddd; background: #fff; font-size: 14px; }
+    .shop-selector .shop-name { background: #2ecc71; color: #fff; padding: 4px 14px; border-radius: 20px; font-weight: 600; font-size: 14px; }
+
+    .filters-wrapper { background: #fff; padding: 16px 20px; border-radius: 12px; margin-bottom: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); display: flex; flex-direction: column; gap: 12px; }
+    .filters-form { display: flex; gap: 8px; flex-wrap: wrap; width: 100%; align-items: center; }
+    .filters-form input, .filters-form select { padding: 8px 12px; border: 2px solid #e0e0e0; border-radius: 8px; font-size: 14px; background: #fafafa; transition: border-color .2s; }
+    .filters-form input:focus, .filters-form select:focus { border-color: #2ecc71; outline: none; background: #fff; }
+    .filters-form .btn-submit { background: #2ecc71; color: #fff; border: none; padding: 8px 20px; border-radius: 8px; cursor: pointer; font-weight: 600; font-size: 14px; transition: background .2s; }
+    .filters-form .btn-submit:hover { background: #27ae60; }
+    .filters-form .btn-reset { color: #e74c3c; text-decoration: none; font-size: 13px; white-space: nowrap; }
+    .filters-form .btn-reset:hover { text-decoration: underline; }
+
+    .quick-filters { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; padding-top: 8px; border-top: 1px solid #f0f0f0; }
+    .quick-filters .tag { padding: 4px 12px; border-radius: 20px; font-size: 12px; background: #f0f0f0; color: #666; cursor: pointer; transition: all .2s; border: none; text-decoration: none; }
+    .quick-filters .tag:hover, .quick-filters .tag.active { background: #2ecc71; color: #fff; }
+
+    .archive-toggle { display: flex; gap: 8px; align-items: center; }
+    .archive-toggle a { padding: 6px 16px; border-radius: 6px; text-decoration: none; font-weight: 600; font-size: 14px; transition: all .2s; }
+    .archive-toggle a.active { background: #2ecc71; color: #fff; }
+    .archive-toggle a.inactive { background: #ddd; color: #666; }
+    .archive-toggle a:hover { opacity: 0.8; }
+
+    .order-card { background: #fff; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); padding: 16px 20px; margin-bottom: 12px; display: flex; justify-content: space-between; align-items: center; transition: all .2s; border-left: 4px solid #2ecc71; }
     .order-card:hover { transform: translateX(4px); box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
     .order-card.priority-high { border-left-color: #e74c3c; }
     .order-card.priority-low { border-left-color: #f39c12; }
@@ -35,59 +50,54 @@
     .order-card .order-customer { font-weight: 600; color: #1a1a2e; margin-left: 8px; }
     .order-card .order-phone { font-size: 13px; color: #999; margin-left: 8px; }
     .order-card .order-meta { display: flex; gap: 12px; flex-wrap: wrap; margin-top: 6px; font-size: 13px; color: #666; align-items: center; }
-    .order-card .order-actions { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
-    .order-card .order-actions .btn-sm { padding: 4px 12px; border: none; border-radius: 6px; font-size: 12px; font-weight: 600; cursor: pointer; text-decoration: none; display: inline-block; transition: all .2s; }
-    .order-card .order-actions .btn-sm:hover { transform: scale(1.05); }
-    .btn-edit { background: #3498db; color: white; }
-    .btn-edit:hover { background: #2980b9; }
-    .btn-archive { background: #f39c12; color: white; }
-    .btn-archive:hover { background: #e67e22; }
-    .btn-delete { background: #e74c3c; color: white; }
-    .btn-delete:hover { background: #c0392b; }
-    .btn-unarchive { background: #2ecc71; color: white; }
-    .btn-unarchive:hover { background: #27ae60; }
     
+    .order-card .order-actions { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+    .order-card .order-actions .btn-sm { padding: 4px 12px; border: none; border-radius: 6px; font-size: 12px; font-weight: 600; cursor: pointer; text-decoration: none; display: inline-flex; align-items: center; justify-content: center; transition: all .2s; height: 28px; }
+    .order-card .order-actions .btn-sm:hover { transform: scale(1.05); }
+    
+    .btn-edit { background: #3498db; color: #fff; }
+    .btn-edit:hover { background: #2980b9; }
+    .btn-archive { background: #f39c12; color: #fff; }
+    .btn-archive:hover { background: #e67e22; }
+    .btn-delete { background: #e74c3c; color: #fff; }
+    .btn-delete:hover { background: #c0392b; }
+    .btn-unarchive { background: #2ecc71; color: #fff; }
+    .btn-unarchive:hover { background: #27ae60; }
+
     .badge-status { padding: 2px 10px; border-radius: 12px; font-size: 12px; font-weight: 600; display: inline-block; }
     .badge-new { background: #e3f2fd; color: #0d47a1; }
     .badge-work { background: #fff3e0; color: #e65100; }
     .badge-done { background: #e8f5e9; color: #27ae60; }
-    
-    .empty-state { text-align: center; padding: 40px; color: #999; background: white; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); }
+
+    .empty-state { text-align: center; padding: 40px; color: #999; background: #fff; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); }
     .empty-state .icon { font-size: 48px; }
     .empty-state p { margin-top: 12px; font-size: 16px; }
-    
-    .archive-toggle { display: flex; gap: 8px; align-items: center; }
-    .archive-toggle a { padding: 6px 16px; border-radius: 6px; text-decoration: none; font-weight: 600; font-size: 14px; transition: all .2s; }
-    .archive-toggle a.active { background: #2ecc71; color: white; }
-    .archive-toggle a.inactive { background: #ddd; color: #666; }
-    .archive-toggle a:hover { opacity: 0.8; }
-    
-    .quick-filters { display: flex; gap: 6px; flex-wrap: wrap; }
-    .quick-filters .tag { padding: 4px 12px; border-radius: 20px; font-size: 12px; background: #f0f0f0; color: #666; cursor: pointer; transition: all .2s; border: none; }
-    .quick-filters .tag:hover { background: #2ecc71; color: white; }
-    .quick-filters .tag.active { background: #2ecc71; color: white; }
-    
+
+    @media (max-width: 992px) {
+        .order-card { flex-direction: column; align-items: flex-start; gap: 16px; }
+        .order-card .order-actions { width: 100%; justify-content: flex-start; }
+    }
+
     @media (max-width: 768px) {
         .sidebar { display: none; }
         .main-content { margin-left: 0; padding: 16px; }
-        .order-card { flex-direction: column; align-items: stretch; gap: 12px; }
-        .order-card .order-actions { justify-content: center; }
-        .filters { flex-direction: column; align-items: stretch; }
-        .filters .filter-actions { margin-left: 0; justify-content: center; }
+        .filters-form { flex-direction: column; align-items: stretch; }
+        .filters-form input, .filters-form select { width: 100% !important; }
         .page-header { flex-direction: column; align-items: stretch; text-align: center; }
+        .page-header .header-info { justify-content: center; }
         .shop-selector { justify-content: center; }
     }
-    
-    @media (max-width: 480px) {
-        .order-meta { flex-direction: column; align-items: flex-start; gap: 4px; }
-        .order-card .order-actions { flex-wrap: wrap; justify-content: center; }
+
+    @keyframes slideIn {
+        from { transform: translateX(100%); opacity: 0; }
+        to { transform: translateX(0); opacity: 1; }
     }
 </style>
 {% endblock %}
 
 {% block content %}
 <div class="admin-layout">
-    <!-- Боковое меню -->
+    <!-- Sidebar -->
     <div class="sidebar">
         <div class="logo">🎯 InTarget</div>
         <ul class="menu">
@@ -99,21 +109,21 @@
         </ul>
     </div>
     
-    <!-- Основной контент -->
+    <!-- Main Content -->
     <div class="main-content">
-        <!-- Заголовок -->
+        <!-- Header -->
         <div class="page-header">
             <div>
                 <h1>📋 Управление заказами</h1>
                 <span style="color:#666;font-size:14px;">Всего: {{ orders|length }} заказов</span>
             </div>
-            <div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap;">
-                <span style="background:white;padding:8px 16px;border-radius:8px;font-weight:600;box-shadow:0 2px 4px rgba(0,0,0,0.05);">👤 {{ session.user_name }}</span>
-                <a href="/orders/create" style="background:#2ecc71;color:white;padding:10px 24px;border-radius:8px;text-decoration:none;font-weight:600;transition:background .2s;display:inline-block;">➕ Новый заказ</a>
+            <div class="header-info">
+                <span class="user-badge">👤 {{ session.user_name }}</span>
+                <a href="/orders/create" class="btn-create">➕ Новый заказ</a>
             </div>
         </div>
         
-        <!-- Выбор магазина -->
+        <!-- Shop Selector -->
         <div class="shop-selector">
             <span style="font-weight:600;">🏪 Текущий магазин:</span>
             <span class="shop-name">{{ session.shop_name }}</span>
@@ -125,48 +135,44 @@
             </select>
         </div>
         
-        <!-- Фильтры -->
-        <div class="filters">
-            <form method="GET" style="display:flex;gap:8px;flex-wrap:wrap;width:100%;align-items:center;">
-                <!-- Поиск по номеру заказа -->
-                <input type="number" name="order_id" placeholder="🔢 Номер заказа..." 
-                       value="{{ order_id_search }}" style="width:150px;padding:8px 12px;border:2px solid #e0e0e0;border-radius:8px;font-size:14px;background:#fafafa;">
+        <!-- Filters -->
+        <div class="filters-wrapper">
+            <form method="GET" action="/orders" class="filters-form">
+                {% if show_archived %}
+                    <input type="hidden" name="show_archived" value="true">
+                {% endif %}
                 
-                <!-- Общий поиск -->
-                <input type="text" name="search" placeholder="🔍 Клиент / Телефон / Товар..." 
-                       value="{{ search }}" style="flex:1;min-width:180px;padding:8px 12px;border:2px solid #e0e0e0;border-radius:8px;font-size:14px;background:#fafafa;">
+                <input type="number" name="order_id" placeholder="🔢 Номер заказа..." value="{{ order_id_search or '' }}" style="width:150px;">
+                <input type="text" name="search" placeholder="🔍 Клиент / Телефон / Товар..." value="{{ search or '' }}" style="flex:1;min-width:180px;">
                 
-                <!-- Фильтр по статусу -->
-                <select name="status" style="padding:8px 12px;border:2px solid #e0e0e0;border-radius:8px;font-size:14px;background:#fafafa;">
+                <select name="status">
                     <option value="">Все статусы</option>
                     {% for s in statuses %}
                         <option value="{{ s }}" {% if current_status == s %}selected{% endif %}>{{ s }}</option>
                     {% endfor %}
                 </select>
                 
-                <!-- Фильтр по исполнителю -->
-                <select name="executor" style="padding:8px 12px;border:2px solid #e0e0e0;border-radius:8px;font-size:14px;background:#fafafa;">
+                <select name="executor">
                     <option value="">Все сотрудники</option>
                     {% for e in executors %}
                         <option value="{{ e }}" {% if current_executor == e %}selected{% endif %}>{{ e }}</option>
                     {% endfor %}
                 </select>
                 
-                <button type="submit" class="btn">🔍 Применить</button>
-                <a href="/orders" style="color:#e74c3c;text-decoration:none;font-size:13px;white-space:nowrap;">✕ Очистить</a>
+                <button type="submit" class="btn-submit">🔍 Применить</button>
+                <a href="/orders{% if show_archived %}?show_archived=true{% endif %}" class="btn-reset">✕ Очистить</a>
             </form>
             
-            <!-- Быстрые фильтры -->
-            <div class="quick-filters" style="width:100%;margin-top:8px;padding-top:8px;border-top:1px solid #f0f0f0;">
+            <!-- Quick Filters -->
+            <div class="quick-filters">
                 <span style="font-size:13px;color:#666;margin-right:8px;">Быстрый фильтр:</span>
-                <button class="tag" onclick="window.location.href='/orders?status=Новый'">🆕 Новые</button>
-                <button class="tag" onclick="window.location.href='/orders?status=В работе'">🔄 В работе</button>
-                <button class="tag" onclick="window.location.href='/orders?status=Выдан'">✅ Выданные</button>
-                <button class="tag" onclick="window.location.href='/orders?show_archived=true'">📦 Архив</button>
+                <a href="/orders?status=Новый{% if show_archived %}&show_archived=true{% endif %}" class="tag {% if current_status == 'Новый' %}active{% endif %}">🆕 Новые</a>
+                <a href="/orders?status=В работе{% if show_archived %}&show_archived=true{% endif %}" class="tag {% if current_status == 'В работе' %}active{% endif %}">🔄 В работе</a>
+                <a href="/orders?status=Выдан{% if show_archived %}&show_archived=true{% endif %}" class="tag {% if current_status == 'Выдан' %}active{% endif %}">✅ Выданные</a>
             </div>
             
-            <!-- Переключатель архив/активные -->
-            <div class="archive-toggle" style="width:100%;margin-top:4px;">
+            <!-- Archive Toggle -->
+            <div class="archive-toggle" style="margin-top:4px;">
                 <a href="/orders?show_archived=false" class="{% if not show_archived %}active{% else %}inactive{% endif %}">
                     📋 Активные
                 </a>
@@ -176,12 +182,11 @@
             </div>
         </div>
         
-        <!-- Список заказов -->
+        <!-- Order List -->
         {% if orders %}
             {% for order in orders %}
             <div class="order-card {% if order.priority == 'Высокий' %}priority-high{% elif order.priority == 'Низкий' %}priority-low{% endif %}">
                 <div class="order-info">
-                    <!-- Шапка заказа -->
                     <div>
                         <span class="order-id">#{{ order.id }}</span>
                         <span class="order-customer">{{ order.customer }}</span>
@@ -191,7 +196,6 @@
                         {% endif %}
                     </div>
                     
-                    <!-- Мета-информация -->
                     <div class="order-meta">
                         <span>📦 {{ order.product }}</span>
                         <span>💰 {{ order.price }} Br</span>
@@ -213,17 +217,17 @@
                     </div>
                 </div>
                 
-                <!-- Действия -->
+                <!-- Actions -->
                 <div class="order-actions">
-                    <!-- Быстрая форма обновления статуса и исполнителя -->
                     <form method="POST" action="/orders/{{ order.id }}/update" style="display:flex;gap:4px;align-items:center;flex-wrap:wrap;">
-                        <select name="status" style="padding:4px 8px;border-radius:6px;border:1px solid #ddd;font-size:12px;background:white;">
+                        {% if csrf_token %}<input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>{% endif %}
+                        <select name="status" style="padding:4px 8px;border-radius:6px;border:1px solid #ddd;font-size:12px;background:#fff;">
                             <option value="Новый" {% if order.status == 'Новый' %}selected{% endif %}>🆕 Новый</option>
                             <option value="В работе" {% if order.status == 'В работе' %}selected{% endif %}>🔄 В работе</option>
                             <option value="Выдан" {% if order.status == 'Выдан' %}selected{% endif %}>✅ Выдан</option>
                         </select>
-                        <select name="executor" style="padding:4px 8px;border-radius:6px;border:1px solid #ddd;font-size:12px;background:white;">
-                            <option value="Не назначен" {% if order.executor == 'Не назначен' %}selected{% endif %}>Не назначен</option>
+                        <select name="executor" style="padding:4px 8px;border-radius:6px;border:1px solid #ddd;font-size:12px;background:#fff;">
+                            <option value="Не назначен" {% if order.executor == 'Не назначен' or not order.executor %}selected{% endif %}>Не назначен</option>
                             {% for emp in employees %}
                                 <option value="{{ emp.name }}" {% if order.executor == emp.name %}selected{% endif %}>{{ emp.name }}</option>
                             {% endfor %}
@@ -231,35 +235,35 @@
                         <button type="submit" class="btn-sm btn-edit">💾 Обновить</button>
                     </form>
                     
-                    <!-- Полное редактирование -->
                     <a href="/orders/{{ order.id }}/edit" class="btn-sm btn-edit">✏️ Ред.</a>
                     
-                    <!-- Архивация / Восстановление -->
                     {% if not order.is_archived %}
                         <form method="POST" action="/orders/{{ order.id }}/archive" style="display:inline;">
-                            <button type="submit" class="btn-sm btn-archive" onclick="return confirm('Переместить заказ #{{ order.id }} в архив?')">📦</button>
+                            {% if csrf_token %}<input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>{% endif %}
+                            <button type="submit" class="btn-sm btn-archive" onclick="return confirm('Переместить заказ #{{ order.id }} в архив?')" title="В архив">📦</button>
                         </form>
                     {% else %}
                         <form method="POST" action="/orders/{{ order.id }}/unarchive" style="display:inline;">
-                            <button type="submit" class="btn-sm btn-unarchive" onclick="return confirm('Восстановить заказ #{{ order.id }} из архива?')">📤</button>
+                            {% if csrf_token %}<input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>{% endif %}
+                            <button type="submit" class="btn-sm btn-unarchive" onclick="return confirm('Восстановить заказ #{{ order.id }} из архива?')" title="Восстановить">📤</button>
                         </form>
                     {% endif %}
                     
-                    <!-- Удаление -->
                     <form method="POST" action="/orders/{{ order.id }}/delete" style="display:inline;">
-                        <button type="submit" class="btn-sm btn-delete" onclick="return confirm('🗑️ Удалить заказ #{{ order.id }} навсегда? Это действие необратимо!')">🗑️</button>
+                        {% if csrf_token %}<input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>{% endif %}
+                        <button type="submit" class="btn-sm btn-delete" onclick="return confirm('🗑️ Удалить заказ #{{ order.id }} навсегда? Это действие необратимо!')" title="Удалить">🗑️</button>
                     </form>
                 </div>
             </div>
             {% endfor %}
         {% else %}
-            <!-- Пустое состояние -->
+            <!-- Empty State -->
             <div class="empty-state">
                 <div class="icon">📭</div>
                 <p>Нет заказов</p>
                 {% if search or order_id_search or current_status or current_executor %}
                     <p style="font-size:13px;color:#aaa;">Попробуйте изменить параметры фильтра</p>
-                    <a href="/orders" style="color:#2ecc71;text-decoration:none;">✕ Очистить фильтры</a>
+                    <a href="/orders{% if show_archived %}?show_archived=true{% endif %}" style="color:#2ecc71;text-decoration:none;">✕ Очистить фильтры</a>
                 {% else %}
                     <a href="/orders/create" style="color:#2ecc71;text-decoration:none;font-weight:600;">➕ Создать первый заказ</a>
                 {% endif %}
@@ -269,65 +273,56 @@
 </div>
 
 <script>
-// Автообновление страницы каждые 60 секунд (для уведомлений)
-setInterval(() => {
-    // Проверяем, не находится ли пользователь на странице редактирования
-    if (!window.location.pathname.includes('/edit')) {
-        fetch('/api/notifications/check')
-            .then(res => res.json())
-            .then(data => {
-                if (data.new_orders > 0) {
-                    // Показываем уведомление без перезагрузки
-                    const existing = document.querySelector('.new-orders-toast');
-                    if (!existing) {
-                        const toast = document.createElement('div');
-                        toast.className = 'new-orders-toast';
-                        toast.style.cssText = `
-                            position: fixed;
-                            bottom: 20px;
-                            right: 20px;
-                            background: #e74c3c;
-                            color: white;
-                            padding: 16px 24px;
-                            border-radius: 12px;
-                            box-shadow: 0 4px 20px rgba(0,0,0,0.2);
-                            z-index: 1000;
-                            animation: slideIn 0.3s ease;
-                            display: flex;
-                            align-items: center;
-                            gap: 12px;
-                            font-weight: 600;
-                            cursor: pointer;
-                        `;
-                        toast.innerHTML = `
-                            <span style="font-size:20px;">🔔</span>
-                            <span>У вас ${data.new_orders} новых заказов!</span>
-                            <span style="font-size:20px;">→</span>
-                        `;
-                        toast.onclick = () => window.location.href = '/orders?status=Новый';
-                        document.body.appendChild(toast);
-                        
-                        // Автоисчезновение через 10 секунд
-                        setTimeout(() => {
-                            toast.style.opacity = '0';
-                            toast.style.transition = 'opacity 0.5s';
-                            setTimeout(() => toast.remove(), 500);
-                        }, 10000);
+document.addEventListener('DOMContentLoaded', () => {
+    setInterval(() => {
+        if (!window.location.pathname.includes('/edit')) {
+            fetch('/api/notifications/check')
+                .then(res => {
+                    if (!res.ok) throw new Error('Network error');
+                    return res.json();
+                })
+                .then(data => {
+                    if (data && data.new_orders > 0) {
+                        const existing = document.querySelector('.new-orders-toast');
+                        if (!existing) {
+                            const toast = document.createElement('div');
+                            toast.className = 'new-orders-toast';
+                            toast.style.cssText = `
+                                position: fixed;
+                                bottom: 20px;
+                                right: 20px;
+                                background: #e74c3c;
+                                color: #fff;
+                                padding: 16px 24px;
+                                border-radius: 12px;
+                                box-shadow: 0 4px 20px rgba(0,0,0,0.2);
+                                z-index: 1000;
+                                animation: slideIn 0.3s ease;
+                                display: flex;
+                                align-items: center;
+                                gap: 12px;
+                                font-weight: 600;
+                                cursor: pointer;
+                            `;
+                            toast.innerHTML = `
+                                <span style="font-size:20px;">🔔</span>
+                                <span>У вас ${data.new_orders} новых заказов!</span>
+                                <span style="font-size:20px;">→</span>
+                            `;
+                            toast.onclick = () => window.location.href = '/orders?status=Новый';
+                            document.body.appendChild(toast);
+                            
+                            setTimeout(() => {
+                                toast.style.opacity = '0';
+                                toast.style.transition = 'opacity 0.5s';
+                                setTimeout(() => toast.remove(), 500);
+                            }, 10000);
+                        }
                     }
-                }
-            })
-            .catch(err => console.error('Ошибка проверки уведомлений:', err));
-    }
-}, 30000);
-
-// Стили для анимации
-const style = document.createElement('style');
-style.textContent = `
-    @keyframes slideIn {
-        from { transform: translateX(100%); opacity: 0; }
-        to { transform: translateX(0); opacity: 1; }
-    }
-`;
-document.head.appendChild(style);
+                })
+                .catch(err => console.error('Ошибка проверки уведомлений:', err));
+        }
+    }, 30000);
+});
 </script>
 {% endblock %}
