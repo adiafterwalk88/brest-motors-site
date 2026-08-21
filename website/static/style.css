@@ -1,561 +1,313 @@
-/* ==========================================
-   ROOT VARIABLES — Премиум тёмная тема (Brest Motors)
-   ========================================== */
-:root {
-    /* Основные цвета */
-    --color-bg: #0d0d0e;
-    --color-bg-secondary: #141416;
-    --color-bg-card: #1c1c1f;
-    --color-bg-card-hover: #242428;
-    --color-bg-input: #111113;
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>InTarget Brest Motors — Кабинет сотрудника</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%230a0a0a'/><text x='50' y='68' font-size='48' font-family='Arial' font-weight='bold' text-anchor='middle' fill='%23d4a84b'>BM</text></svg>">
+    <meta name="theme-color" content="#0d0d0e">
     
-    /* Золотой акцент */
-    --color-gold: #d4a84b;
-    --color-gold-light: #f0c96c;
-    --color-gold-dark: #b8923a;
-    --color-gold-glow: rgba(212, 168, 75, 0.15);
+    <link rel="stylesheet" href="/static/style.css">
     
-    /* Текст */
-    --color-text: #f0f0f2;
-    --color-text-primary: #ffffff;
-    --color-text-secondary: #a0a0ab;
-    --color-text-muted: #666673;
-    --color-text-gold: #d4a84b;
-    
-    /* Статусы */
-    --color-success: #52c41a;
-    --color-warning: #faad14;
-    --color-danger: #ff4d4f;
-    --color-info: #1890ff;
-    
-    /* Тени */
-    --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.4);
-    --shadow-md: 0 4px 20px rgba(0, 0, 0, 0.6);
-    --shadow-lg: 0 8px 40px rgba(0, 0, 0, 0.8);
-    --shadow-gold: 0 0 25px rgba(212, 168, 75, 0.12);
-    
-    /* Скругления */
-    --radius-sm: 6px;
-    --radius-md: 10px;
-    --radius-lg: 14px;
-    --radius-xl: 20px;
-    --radius-full: 9999px;
-    
-    /* Отступы */
-    --spacing-xs: 4px;
-    --spacing-sm: 8px;
-    --spacing-md: 16px;
-    --spacing-lg: 24px;
-    --spacing-xl: 32px;
-    --spacing-2xl: 48px;
-    
-    /* Шрифты */
-    --font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-    --font-size-xs: 11px;
-    --font-size-sm: 13px;
-    --font-size-md: 15px;
-    --font-size-lg: 18px;
-    --font-size-xl: 24px;
-    --font-size-2xl: 32px;
-    
-    /* Анимации */
-    --transition-fast: 0.15s cubic-bezier(0.4, 0, 0.2, 1);
-    --transition-normal: 0.25s cubic-bezier(0.4, 0, 0.2, 1);
-    
-    /* Размеры */
-    --sidebar-width: 260px;
-    --navbar-height: 70px;
-}
+    <style>
+        /* Дополнительные стили шапки и элементов уведомлений */
+        .top-bar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: var(--spacing-md) 0;
+            margin-bottom: var(--spacing-lg);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+        }
+        .user-info {
+            display: flex;
+            align-items: center;
+            gap: var(--spacing-lg);
+        }
+        .header-notifications {
+            position: relative;
+            cursor: pointer;
+        }
+        .notif-dropdown {
+            display: none;
+            position: absolute;
+            right: 0;
+            top: calc(100% + 10px);
+            width: 300px;
+            background: var(--color-bg-card);
+            border: 1px solid rgba(212, 168, 75, 0.3);
+            border-radius: var(--radius-md);
+            box-shadow: var(--shadow-lg);
+            padding: var(--spacing-md);
+            z-index: 1000;
+        }
+        .notif-dropdown.show {
+            display: block;
+        }
+        .notif-footer {
+            margin-top: var(--spacing-sm);
+            padding-top: var(--spacing-sm);
+            border-top: 1px solid rgba(255,255,255,0.05);
+            text-align: center;
+            font-size: var(--font-size-xs);
+        }
+        .flash-container {
+            margin-bottom: var(--spacing-md);
+        }
+        .flash-message.success {
+            background: rgba(82, 196, 26, 0.15);
+            color: #95de64;
+            border: 1px solid rgba(82, 196, 26, 0.3);
+            padding: 12px 16px;
+            border-radius: var(--radius-md);
+        }
+        .card-header-gradient {
+            background: linear-gradient(135deg, rgba(212, 168, 75, 0.2), rgba(20, 20, 22, 0.8));
+            border-bottom: 1px solid rgba(212, 168, 75, 0.3);
+            color: var(--color-gold-light);
+            padding: 12px 16px;
+            margin: -24px -24px 20px -24px;
+            font-size: var(--font-size-md);
+            font-weight: 600;
+            border-top-left-radius: var(--radius-lg);
+            border-top-right-radius: var(--radius-lg);
+        }
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            gap: var(--spacing-md);
+            margin-bottom: var(--spacing-xl);
+        }
+        .stat-card {
+            background: var(--color-bg-card);
+            border: 1px solid rgba(255, 255, 255, 0.06);
+            padding: var(--spacing-lg);
+            border-radius: var(--radius-lg);
+            text-align: center;
+        }
+        .stat-val {
+            font-size: var(--font-size-2xl);
+            font-weight: 700;
+            color: var(--color-gold);
+        }
+        .stat-lbl {
+            color: var(--color-text-secondary);
+            font-size: var(--font-size-xs);
+            margin-top: 4px;
+        }
+        .table-wrapper {
+            overflow-x: auto;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        th, td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+            font-size: var(--font-size-sm);
+        }
+        th {
+            color: var(--color-text-muted);
+            font-weight: 600;
+            background: rgba(0, 0, 0, 0.2);
+        }
+        tr.row-my {
+            background: rgba(212, 168, 75, 0.05);
+        }
+    </style>
+</head>
+<body>
+    <button class="mobile-menu-toggle" id="mobileMenuToggle" aria-label="Открыть меню">☰</button>
 
-/* ==========================================
-   БАЗА И СБРОС
-   ========================================== */
-* {
-    margin: 0;
-    padding: 0;
-    box-sizing: border-box;
-}
+    <div class="app-container">
+        <aside class="sidebar" id="mainSidebar">
+            <div class="sidebar-header">
+                <div class="sidebar-logo">🎯 InTarget</div>
+                <button class="sidebar-close" id="sidebarClose" aria-label="Закрыть меню">✕</button>
+            </div>
+            <nav class="sidebar-nav">
+                <a href="/employee" class="nav-item active">👨‍🔧 Мой кабинет</a>
+                <a href="/employee/orders/create" class="nav-item">➕ Создать заказ</a>
+                <a href="/logout" class="nav-item logout" style="color: var(--color-danger);">🚪 Выйти</a>
+            </nav>
+        </aside>
 
-body {
-    font-family: var(--font-family);
-    background: var(--color-bg);
-    color: var(--color-text);
-    line-height: 1.5;
-    min-height: 100vh;
-    -webkit-font-smoothing: antialiased;
-}
+        <div class="sidebar-overlay" id="sidebarOverlay"></div>
 
-a {
-    color: var(--color-gold);
-    text-decoration: none;
-    transition: color var(--transition-fast);
-}
+        <main class="main-content" id="mainContent">
+            <header class="top-bar">
+                <div class="header-title">
+                    <h1 style="font-size: var(--font-size-xl); color: var(--color-text-primary);">👨‍🔧 Кабинет сотрудника</h1>
+                    <span style="color: var(--color-text-secondary); font-size: var(--font-size-sm);">Дмитрий — InTarget Brest Motors</span>
+                </div>
+                
+                <div class="user-info">
+                    <div class="header-notifications" id="notifToggle" tabindex="0" role="button">
+                        <span style="font-size:20px; color:var(--color-gold);" aria-hidden="true">🔔</span>
+                        <span class="badge badge-gold" id="notifBadge" style="display:none;">0</span>
+                        
+                        <div class="notif-dropdown" id="notifDropdown">
+                            <div id="notifDropdownContent">
+                                <div class="notif-empty" style="color: var(--color-text-muted);">📭 Нет уведомлений</div>
+                            </div>
+                            <div class="notif-footer">
+                                <a href="/notifications">Все уведомления →</a>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <span class="user-name" style="color: var(--color-text-primary);">👤 <strong>Дмитрий</strong></span>
+                    <a href="/employee/orders/create" class="btn btn-primary btn-sm">➕ Создать заказ</a>
+                </div>
+            </header>
 
-a:hover {
-    color: var(--color-gold-light);
-}
+            <div class="flash-container">
+                <div class="flash-message success">✅ Добро пожаловать, Дмитрий!</div>
+            </div>
 
-/* ==========================================
-   СКРОЛЛБАР
-   ========================================== */
-::-webkit-scrollbar {
-    width: 6px;
-    height: 6px;
-}
-::-webkit-scrollbar-track {
-    background: var(--color-bg);
-}
-::-webkit-scrollbar-thumb {
-    background: rgba(212, 168, 75, 0.3);
-    border-radius: var(--radius-full);
-}
-::-webkit-scrollbar-thumb:hover {
-    background: var(--color-gold);
-}
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <div class="stat-val">4</div>
+                    <div class="stat-lbl">Моих заказов</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-val">3</div>
+                    <div class="stat-lbl">Активных</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-val">0</div>
+                    <div class="stat-lbl">Выдано сегодня</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-val">0</div>
+                    <div class="stat-lbl">Новых</div>
+                </div>
+            </div>
 
-/* ==========================================
-   СТРУКТУРА МАКЕТА (LAYOUT)
-   ========================================== */
-.app-container {
-    display: flex;
-    min-height: 100vh;
-}
+            <div class="order-card" style="margin-bottom: var(--spacing-xl);">
+                <h3 style="margin-bottom: var(--spacing-md); color: var(--color-text-primary);">📋 Мои активные заказы</h3>
+                <div class="table-wrapper">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>#</th>
+                                <th>Клиент</th>
+                                <th>Магазин</th>
+                                <th>Товар</th>
+                                <th>Статус</th>
+                                <th>Действия</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr class="row-my">
+                                <td><strong style="color: var(--color-gold);">#17</strong></td>
+                                <td>кто-то</td>
+                                <td>🏪 ул. Московская, 123</td>
+                                <td>Вал-шестеренчатый вторичный SK850S ...</td>
+                                <td><span class="badge badge-work">В работе</span></td>
+                                <td>
+                                    <div style="display:flex; gap:8px; align-items:center;">
+                                        <a href="/employee/orders/17/edit" class="btn btn-secondary btn-sm">✏️ РЕДАКТИРОВАТЬ</a>
+                                        <form method="POST" action="/orders/17/complete" onsubmit="return confirm('Завершить заказ #17?');" style="margin:0;">
+                                            <input type="hidden" name="notes" value="">
+                                            <button type="submit" class="btn btn-primary btn-sm">✅ ЗАВЕРШИТЬ</button>
+                                        </form>
+                                    </div>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
 
-.main-content {
-    flex: 1;
-    margin-left: var(--sidebar-width);
-    padding: var(--spacing-xl);
-    padding-top: calc(var(--navbar-height) + var(--spacing-lg));
-    min-width: 0; /* Предотвращает переполнение flex-контейнеров */
-    transition: margin var(--transition-normal);
-}
+            <div class="order-card" style="margin-bottom: var(--spacing-xl);">
+                <div class="card-header-gradient">
+                    🏪 ул. Московская, 123
+                    <span style="font-size:13px; opacity:0.8; margin-left:8px;">(Активных: 4, Моих: 0)</span>
+                </div>
+                <div class="table-wrapper">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>#</th>
+                                <th>Клиент</th>
+                                <th>Товар</th>
+                                <th>Исполнитель</th>
+                                <th>Статус</th>
+                                <th>Действия</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td><strong>#10</strong></td>
+                                <td>Александрия-Агро</td>
+                                <td>артикул: CNP15024 муфта сцепл...</td>
+                                <td>Павел</td>
+                                <td><span class="badge badge-work">В работе</span></td>
+                                <td></td>
+                            </tr>
+                            <tr>
+                                <td><strong>#12</strong></td>
+                                <td>Никита</td>
+                                <td>Ступица ножа LC353V LC353VI ко...</td>
+                                <td>Павел Иванович</td>
+                                <td><span class="badge badge-new">Новый</span></td>
+                                <td></td>
+                            </tr>
+                            <tr>
+                                <td><strong>#16</strong></td>
+                                <td>кто-то</td>
+                                <td>Артикул: 5320120011 Ремень We...</td>
+                                <td>Павел</td>
+                                <td><span class="badge badge-new">Новый</span></td>
+                                <td></td>
+                            </tr>
+                            <tr class="row-my">
+                                <td><strong style="color: var(--color-gold);">#17</strong></td>
+                                <td>кто-то</td>
+                                <td>Вал-шестеренчатый вторичный SK850S ...</td>
+                                <td><strong style="color: var(--color-success);">Я</strong></td>
+                                <td><span class="badge badge-work">В работе</span></td>
+                                <td>
+                                    <a href="/employee/orders/17/edit" class="btn btn-secondary btn-sm">✏️ РЕДАКТИРОВАТЬ</a>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
 
-/* Верхняя панель (Header/Navbar) */
-.top-navbar {
-    position: fixed;
-    top: 0;
-    right: 0;
-    left: var(--sidebar-width);
-    height: var(--navbar-height);
-    background: rgba(20, 20, 22, 0.85);
-    backdrop-filter: blur(12px);
-    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 0 var(--spacing-xl);
-    z-index: 200;
-    transition: left var(--transition-normal);
-}
+            <div class="order-card" style="margin-bottom: var(--spacing-xl);">
+                <div class="card-header-gradient">
+                    🏪 ул. Карьерная, 45
+                    <span style="font-size:13px; opacity:0.8; margin-left:8px;">(Активных: 0, Моих: 0)</span>
+                </div>
+                <p style="text-align:center; color: var(--color-text-muted); padding: 10px;">Нет активных заказов в этом магазине</p>
+            </div>
 
-.navbar-brand {
-    font-size: var(--font-size-lg);
-    font-weight: 700;
-    color: var(--color-text-primary);
-}
+            <div class="order-card">
+                <h3 style="margin-bottom: var(--spacing-md); color: var(--color-text-primary);">📅 Мои задачи на сегодня</h3>
+                <p style="text-align:center; color: var(--color-text-muted); padding: 10px;">Нет задач на сегодня</p>
+            </div>
+        </main>
+    </div>
 
-.navbar-user {
-    display: flex;
-    align-items: center;
-    gap: var(--spacing-md);
-}
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // --- Уведомления ---
+            const badge = document.getElementById('notifBadge');
+            const notifToggle = document.getElementById('notifToggle');
+            const notifDropdown = document.getElementById('notifDropdown');
+            const dropdownContent = document.getElementById('notifDropdownContent');
 
-/* ==========================================
-   САЙДБАР
-   ========================================== */
-.sidebar {
-    width: var(--sidebar-width);
-    background: var(--color-bg-secondary);
-    border-right: 1px solid rgba(255, 255, 255, 0.05);
-    padding: var(--spacing-lg) 0;
-    position: fixed;
-    top: 0;
-    left: 0;
-    height: 100vh;
-    overflow-y: auto;
-    z-index: 300;
-    transition: transform var(--transition-normal);
-}
-
-.sidebar-header {
-    padding: 0 var(--spacing-lg) var(--spacing-lg);
-    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
-    margin-bottom: var(--spacing-md);
-}
-
-.sidebar-logo {
-    font-size: var(--font-size-xl);
-    font-weight: 800;
-    color: var(--color-gold);
-    letter-spacing: 1px;
-    display: flex;
-    align-items: center;
-    gap: var(--spacing-sm);
-}
-
-.sidebar-nav {
-    display: flex;
-    flex-direction: column;
-    gap: var(--spacing-xs);
-    padding: 0 var(--spacing-md);
-}
-
-.nav-item {
-    display: flex;
-    align-items: center;
-    gap: var(--spacing-md);
-    padding: 12px 16px;
-    color: var(--color-text-secondary);
-    border-radius: var(--radius-md);
-    font-weight: 500;
-    font-size: var(--font-size-md);
-    transition: all var(--transition-fast);
-}
-
-.nav-item:hover, .nav-item.active {
-    background: rgba(212, 168, 75, 0.1);
-    color: var(--color-gold);
-}
-
-.sidebar-overlay {
-    display: none;
-    position: fixed;
-    inset: 0;
-    background: rgba(0, 0, 0, 0.75);
-    backdrop-filter: blur(4px);
-    z-index: 250;
-    opacity: 0;
-    transition: opacity var(--transition-normal);
-}
-
-.sidebar-overlay.active {
-    display: block;
-    opacity: 1;
-}
-
-.mobile-menu-toggle {
-    display: none;
-}
-
-/* ==========================================
-   КНОПКИ
-   ========================================== */
-.btn {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    gap: var(--spacing-sm);
-    padding: 10px 18px;
-    min-height: 40px;
-    border: 1px solid transparent;
-    border-radius: var(--radius-md);
-    font-size: var(--font-size-sm);
-    font-weight: 600;
-    cursor: pointer;
-    transition: all var(--transition-normal);
-    text-decoration: none;
-    font-family: var(--font-family);
-    white-space: nowrap;
-    user-select: none;
-}
-
-.btn svg {
-    fill: currentColor;
-    stroke: currentColor;
-}
-
-.btn:active {
-    transform: scale(0.97);
-}
-
-.btn-primary {
-    background: var(--color-gold);
-    color: #000;
-}
-.btn-primary:hover {
-    background: var(--color-gold-light);
-    box-shadow: var(--shadow-gold);
-    transform: translateY(-1px);
-}
-
-.btn-secondary {
-    background: rgba(255, 255, 255, 0.05);
-    color: var(--color-text-primary);
-    border-color: rgba(255, 255, 255, 0.1);
-}
-.btn-secondary:hover {
-    background: rgba(255, 255, 255, 0.1);
-    border-color: var(--color-gold);
-    color: var(--color-gold);
-}
-
-.btn-danger {
-    background: rgba(255, 77, 79, 0.12);
-    color: var(--color-danger);
-    border-color: rgba(255, 77, 79, 0.2);
-}
-.btn-danger:hover {
-    background: rgba(255, 77, 79, 0.25);
-    border-color: var(--color-danger);
-}
-
-.btn-sm {
-    padding: 6px 12px;
-    min-height: 32px;
-    font-size: var(--font-size-xs);
-    border-radius: var(--radius-sm);
-}
-
-.btn-icon {
-    width: 40px;
-    height: 40px;
-    padding: 0;
-    border-radius: var(--radius-md);
-    background: rgba(255, 255, 255, 0.04);
-    color: var(--color-text-secondary);
-    border: 1px solid rgba(255, 255, 255, 0.08);
-}
-.btn-icon:hover {
-    background: rgba(212, 168, 75, 0.1);
-    border-color: var(--color-gold);
-    color: var(--color-gold);
-}
-
-/* ==========================================
-   ФОРМЫ И ПОЛЯ ВВОДА (INPUTS)
-   ========================================== */
-.form-group {
-    margin-bottom: var(--spacing-lg);
-}
-
-.form-label {
-    display: block;
-    font-size: var(--font-size-sm);
-    font-weight: 600;
-    color: var(--color-text-secondary);
-    margin-bottom: var(--spacing-xs);
-}
-
-.form-control, input[type="text"], input[type="password"], input[type="email"], select, textarea {
-    width: 100%;
-    padding: 10px 14px;
-    background: var(--color-bg-input);
-    border: 1px solid rgba(255, 255, 255, 0.12);
-    border-radius: var(--radius-md);
-    color: var(--color-text-primary);
-    font-family: var(--font-family);
-    font-size: var(--font-size-md);
-    transition: border-color var(--transition-fast);
-}
-
-.form-control:focus, input:focus, select:focus, textarea:focus {
-    outline: none;
-    border-color: var(--color-gold);
-    box-shadow: 0 0 0 3px rgba(212, 168, 75, 0.15);
-}
-
-/* Панель фильтров */
-.filters-bar {
-    display: flex;
-    gap: var(--spacing-md);
-    flex-wrap: wrap;
-    align-items: center;
-    background: var(--color-bg-secondary);
-    padding: var(--spacing-md);
-    border-radius: var(--radius-lg);
-    border: 1px solid rgba(255, 255, 255, 0.05);
-    margin-bottom: var(--spacing-xl);
-}
-
-.filters-bar .form-control {
-    max-width: 240px;
-}
-
-/* ==========================================
-   СЕТКА И КАРТОЧКИ ЗАКАЗОВ
-   ========================================== */
-.orders-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
-    gap: var(--spacing-lg);
-}
-
-.order-card {
-    background: var(--color-bg-card);
-    border-radius: var(--radius-lg);
-    padding: var(--spacing-lg);
-    border: 1px solid rgba(255, 255, 255, 0.06);
-    transition: all var(--transition-normal);
-    display: flex;
-    flex-direction: column;
-    justify-content: space-between;
-}
-
-.order-card:hover {
-    border-color: rgba(212, 168, 75, 0.3);
-    box-shadow: var(--shadow-md);
-    transform: translateY(-2px);
-}
-
-.order-card.priority-high {
-    border-left: 4px solid var(--color-danger);
-}
-
-.order-card.priority-low {
-    border-left: 4px solid var(--color-warning);
-}
-
-.order-card .order-top {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    flex-wrap: wrap;
-    gap: var(--spacing-sm);
-    margin-bottom: var(--spacing-sm);
-}
-
-.order-card .order-id {
-    font-weight: 700;
-    font-size: var(--font-size-lg);
-    color: var(--color-gold);
-}
-
-.order-card .order-customer {
-    font-weight: 600;
-    color: var(--color-text-primary);
-}
-
-.order-card .order-product {
-    background: rgba(0, 0, 0, 0.3);
-    padding: var(--spacing-sm) var(--spacing-md);
-    border-radius: var(--radius-sm);
-    font-size: var(--font-size-sm);
-    color: var(--color-text-secondary);
-    margin: var(--spacing-sm) 0;
-    border: 1px solid rgba(255, 255, 255, 0.03);
-}
-
-.order-actions {
-    display: flex;
-    gap: var(--spacing-sm);
-    align-items: center;
-    flex-wrap: wrap;
-    margin-top: var(--spacing-md);
-    padding-top: var(--spacing-md);
-    border-top: 1px solid rgba(255, 255, 255, 0.06);
-}
-
-.order-actions form select {
-    appearance: none;
-    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%23d4a84b' stroke-width='2' fill='none'/%3E%3C/svg%3E");
-    background-repeat: no-repeat;
-    background-position: right 10px center;
-    padding: 6px 32px 6px 12px;
-    min-height: 34px;
-    border-radius: var(--radius-sm);
-    border: 1px solid rgba(255, 255, 255, 0.12);
-    background-color: var(--color-bg-secondary);
-    color: var(--color-text-primary);
-    font-size: var(--font-size-xs);
-    cursor: pointer;
-}
-
-.order-actions form select:focus {
-    border-color: var(--color-gold);
-    outline: none;
-}
-
-/* ==========================================
-   БЕЙДЖИ И СТАТУСЫ
-   ========================================== */
-.badge {
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    padding: 4px 10px;
-    border-radius: var(--radius-full);
-    font-size: var(--font-size-xs);
-    font-weight: 700;
-    letter-spacing: 0.5px;
-    text-transform: uppercase;
-}
-
-.badge-new {
-    background: rgba(24, 144, 255, 0.15);
-    color: #69c0ff;
-    border: 1px solid rgba(24, 144, 255, 0.3);
-}
-
-.badge-work {
-    background: rgba(250, 173, 20, 0.15);
-    color: #ffd666;
-    border: 1px solid rgba(250, 173, 20, 0.3);
-}
-
-.badge-done {
-    background: rgba(82, 196, 26, 0.15);
-    color: #95de64;
-    border: 1px solid rgba(82, 196, 26, 0.3);
-}
-
-.badge-gold {
-    background: rgba(212, 168, 75, 0.18);
-    color: var(--color-gold-light);
-    border: 1px solid rgba(212, 168, 75, 0.4);
-}
-
-/* ==========================================
-   АДАПТИВНОСТЬ
-   ========================================== */
-@media (max-width: 992px) {
-    :root {
-        --sidebar-width: 0px;
-    }
-
-    .sidebar {
-        transform: translateX(-100%);
-        width: 260px;
-    }
-    
-    .sidebar.open {
-        transform: translateX(0);
-    }
-
-    .top-navbar {
-        left: 0;
-    }
-
-    .main-content {
-        margin-left: 0;
-        padding: var(--spacing-md);
-        padding-top: calc(var(--navbar-height) + var(--spacing-md));
-    }
-
-    .mobile-menu-toggle {
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        background: var(--color-bg-card);
-        color: var(--color-gold);
-        border: 1px solid rgba(212, 168, 75, 0.3);
-        width: 40px;
-        height: 40px;
-        border-radius: var(--radius-md);
-        cursor: pointer;
-    }
-}
-
-@media (max-width: 576px) {
-    .orders-grid {
-        grid-template-columns: 1fr;
-    }
-
-    .filters-bar {
-        flex-direction: column;
-        align-items: stretch;
-    }
-
-    .filters-bar .form-control {
-        max-width: 100%;
-    }
-}
+            function fetchNotifications() {
+                fetch('/api/notifications/check')
+                    .then(response => response.ok ? response.json() : Promise.reject())
+                    .then(data => {
+                        if (data.unread > 0) {
+                            badge.textContent = data.unread > 99 ? '99+' : data.unread;
+                            badge.style.display = 'inline-block';
+                        } else {
+                            badge.style.display =
