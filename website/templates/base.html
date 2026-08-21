@@ -5,89 +5,138 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% block title %}InTarget Brest Motors{% endblock %}</title>
     
-    <!-- Фавиконы -->
-    <link rel="icon" href="data:image/svg+xml,...">
-    <meta name="theme-color" content="#1a1a2e">
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%230a0a0a'/><text x='50' y='68' font-size='48' font-family='Arial' font-weight='bold' text-anchor='middle' fill='%23d4a84b'>BM</text></svg>">
+    <meta name="theme-color" content="#0a0a0a">
     
-    <link rel="stylesheet" href="/static/style.css">
-    <style>
-        /* ... стили уведомлений ... */
-    </style>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
     {% block extra_css %}{% endblock %}
 </head>
 <body>
-    <!-- Навигация -->
-    <nav style="background:#1a1a2e;padding:12px 24px;display:flex;justify-content:space-between;align-items:center;color:white;position:sticky;top:0;z-index:999;">
-        <div style="display:flex;align-items:center;gap:20px;">
-            <a href="/" style="color:white;text-decoration:none;font-weight:700;font-size:18px;">🎯 InTarget</a>
-            <div style="display:flex;gap:16px;font-size:14px;">
-                <a href="/" style="color:rgba(255,255,255,0.7);text-decoration:none;">Дашборд</a>
-                <a href="/orders" style="color:rgba(255,255,255,0.7);text-decoration:none;">Заказы</a>
-                <a href="/calendar" style="color:rgba(255,255,255,0.7);text-decoration:none;">📅 Календарь</a>
-                <a href="/chat" style="color:rgba(255,255,255,0.7);text-decoration:none;">💬 Чат</a>
-                <a href="/clients" style="color:rgba(255,255,255,0.7);text-decoration:none;">Клиенты</a>
-                {% if session.is_admin %}
-                <a href="/employee" style="color:rgba(255,255,255,0.7);text-decoration:none;">Сотрудники</a>
-                {% endif %}
-            </div>
-        </div>
-        <div style="display:flex;align-items:center;gap:16px;">
-            <!-- Уведомления -->
-            <div class="header-notifications" id="notifToggle">
-                <span style="font-size:20px;">🔔</span>
-                <span class="badge zero" id="notifBadge">0</span>
-                <div class="notif-dropdown" id="notifDropdown">
-                    <div id="notifDropdownContent"><div class="notif-empty">Загрузка...</div></div>
-                    <div class="notif-footer"><a href="/notifications">Все уведомления →</a></div>
+    <!-- Мобильное меню -->
+    <button class="mobile-menu-toggle" id="mobileMenuToggle" aria-label="Открыть меню">☰</button>
+    
+    <div class="app-layout">
+        <!-- Sidebar -->
+        {% block sidebar %}
+            {% include "partials/sidebar.html" %}
+        {% endblock %}
+        
+        <!-- Основной контент -->
+        <main class="main-content" id="mainContent">
+            <!-- Верхняя панель -->
+            <nav class="top-bar">
+                <div>
+                    {% block page_title %}{% endblock %}
                 </div>
-            </div>
-            <span style="font-size:14px;background:rgba(255,255,255,0.1);padding:4px 12px;border-radius:6px;">
-                👤 {{ session.user_name }}
-            </span>
-            <a href="/logout" style="color:#e74c3c;text-decoration:none;font-size:14px;">🚪</a>
-        </div>
-    </nav>
-
-    <!-- Flash-сообщения -->
-    {% with messages = get_flashed_messages(with_categories=true) %}
-        {% if messages %}
-            <div style="position:fixed;top:80px;right:20px;z-index:9999;max-width:400px;">
-                {% for category, message in messages %}
-                    <div class="flash-message {{ category }}" style="...">
-                        {{ message }}
+                <div class="user-info">
+                    <div class="header-notifications" id="notifToggle">
+                        <span style="font-size:20px;color:var(--color-text-secondary);">🔔</span>
+                        <span class="badge zero" id="notifBadge">0</span>
+                        <div class="notif-dropdown" id="notifDropdown">
+                            <div id="notifDropdownContent">
+                                <div class="notif-empty">📭 Нет уведомлений</div>
+                            </div>
+                            <div class="notif-footer">
+                                <a href="{{ url_for('notifications_page') }}">Все уведомления →</a>
+                            </div>
+                        </div>
                     </div>
-                {% endfor %}
-            </div>
-        {% endif %}
-    {% endwith %}
-
-    <!-- CSRF-токен для форм -->
-    <input type="hidden" name="csrf_token" value="{{ csrf_token() if csrf_token else '' }}">
-
-    <!-- Основной контент -->
-    <div style="padding:20px;">
-        {% block content %}{% endblock %}
+                    <span class="user-name">
+                        👤 <strong>{{ session.user_name }}</strong>
+                    </span>
+                    <a href="{{ url_for('logout') }}" style="color:var(--color-danger);font-size:var(--font-size-lg);text-decoration:none;">🚪</a>
+                </div>
+            </nav>
+            
+            <!-- Flash-сообщения -->
+            {% with messages = get_flashed_messages(with_categories=true) %}
+                {% if messages %}
+                    <div style="margin-bottom:var(--spacing-md);">
+                        {% for category, message in messages %}
+                            <div class="flash-message {{ category }}">{{ message }}</div>
+                        {% endfor %}
+                    </div>
+                {% endif %}
+            {% endwith %}
+            
+            <!-- Контент страницы -->
+            {% block content %}{% endblock %}
+        </main>
     </div>
-
+    
     <!-- Скрипты -->
     <script>
-        // ... скрипты уведомлений ...
+        // Уведомления
+        function fetchNotifications() {
+            fetch('/api/notifications/check')
+                .then(r => r.json())
+                .then(data => {
+                    const badge = document.getElementById('notifBadge');
+                    if (data.unread > 0) {
+                        badge.textContent = data.unread;
+                        badge.className = 'badge';
+                    } else {
+                        badge.className = 'badge zero';
+                    }
+                })
+                .catch(() => {});
+        }
         
-        // Автоматическое добавление CSRF-токена во все формы
+        document.getElementById('notifToggle')?.addEventListener('click', function(e) {
+            e.stopPropagation();
+            document.getElementById('notifDropdown').classList.toggle('show');
+        });
+        document.addEventListener('click', function() {
+            document.getElementById('notifDropdown')?.classList.remove('show');
+        });
+        
+        setInterval(fetchNotifications, 30000);
+        fetchNotifications();
+        
+        // Мобильное меню
         document.addEventListener('DOMContentLoaded', function() {
-            const token = document.querySelector('input[name="csrf_token"]');
-            if (token) {
-                document.querySelectorAll('form').forEach(form => {
-                    const input = document.createElement('input');
-                    input.type = 'hidden';
-                    input.name = 'csrf_token';
-                    input.value = token.value;
-                    form.prepend(input);
-                });
+            const toggle = document.getElementById('mobileMenuToggle');
+            const sidebar = document.getElementById('mainSidebar');
+            const overlay = document.getElementById('sidebarOverlay');
+            const closeBtn = document.getElementById('sidebarClose');
+            
+            function openMenu() {
+                sidebar?.classList.add('open');
+                overlay?.classList.add('active');
+                document.body.style.overflow = 'hidden';
             }
+            
+            function closeMenu() {
+                sidebar?.classList.remove('open');
+                overlay?.classList.remove('active');
+                document.body.style.overflow = '';
+            }
+            
+            toggle?.addEventListener('click', openMenu);
+            closeBtn?.addEventListener('click', closeMenu);
+            overlay?.addEventListener('click', closeMenu);
+            
+            document.addEventListener('keydown', function(e) {
+                if (e.key === 'Escape') closeMenu();
+            });
+            
+            sidebar?.querySelectorAll('a').forEach(link => {
+                link.addEventListener('click', closeMenu);
+            });
+        });
+        
+        // Автоскрытие flash
+        document.addEventListener('DOMContentLoaded', function() {
+            document.querySelectorAll('.flash-message').forEach(function(msg) {
+                setTimeout(function() {
+                    msg.style.opacity = '0';
+                    msg.style.transition = 'opacity 0.5s';
+                    setTimeout(function() { msg.remove(); }, 500);
+                }, 5000);
+            });
         });
     </script>
-
+    
     {% block extra_js %}{% endblock %}
 </body>
 </html>
