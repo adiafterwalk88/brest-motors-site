@@ -4,7 +4,7 @@
 
 {% block page_title %}
 <div style="display: flex; align-items: center; gap: 12px;">
-    <h1 style="font-size: 22px; font-weight: 700; color: #fff;">📊 Панель управления</h1>
+    <h1 style="font-size: 22px; font-weight: 700; color: #ffffff;">📊 Панель управления</h1>
 </div>
 <span style="color: #a0a0ab; font-size: 13px;">InTarget Brest Motors — 🏪 ул. Московская, 123</span>
 {% endblock %}
@@ -36,7 +36,7 @@
 <!-- ТАБЛИЦА ЗАКАЗОВ -->
 <div class="card">
     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
-        <h3 style="color: #fff; font-size: 16px; display: flex; align-items: center; gap: 8px;">
+        <h3 style="color: #ffffff; font-size: 16px; display: flex; align-items: center; gap: 8px;">
             📋 Последние заказы
         </h3>
         <a href="{{ url_for('orders_page') }}" style="color: var(--accent-gold); text-decoration: none; font-size: 13px;">Все заказы →</a>
@@ -56,48 +56,39 @@
                 </tr>
             </thead>
             <tbody>
-                <tr>
-                    <td><strong>#17</strong></td>
-                    <td>кто-то</td>
-                    <td>Вал-шестеренчатый вторичный SK850S ...</td>
-                    <td>—</td>
-                    <td><span style="background: rgba(212, 168, 75, 0.2); color: #d4a84b; padding: 4px 8px; border-radius: 4px; font-size: 12px;">В работе</span></td>
-                    <td>Дмитрий</td>
-                    <td>
-                        <div style="display: flex; gap: 6px;">
-                            <a href="#" class="btn" style="background: rgba(24, 144, 255, 0.2); color: #69c0ff; padding: 4px 8px; font-size: 12px;">✏️</a>
-                            <a href="#" class="btn" style="background: rgba(255, 77, 79, 0.2); color: #ff4d4f; padding: 4px 8px; font-size: 12px;">🗑️</a>
-                        </div>
-                    </td>
-                </tr>
-                <tr>
-                    <td><strong>#16</strong></td>
-                    <td>кто-то</td>
-                    <td>Артикул: 5320120011 Ремень We...</td>
-                    <td>—</td>
-                    <td><span style="background: rgba(24, 144, 255, 0.2); color: #69c0ff; padding: 4px 8px; border-radius: 4px; font-size: 12px;">Новый</span></td>
-                    <td>Павел</td>
-                    <td>
-                        <div style="display: flex; gap: 6px;">
-                            <a href="#" class="btn" style="background: rgba(24, 144, 255, 0.2); color: #69c0ff; padding: 4px 8px; font-size: 12px;">✏️</a>
-                            <a href="#" class="btn" style="background: rgba(255, 77, 79, 0.2); color: #ff4d4f; padding: 4px 8px; font-size: 12px;">🗑️</a>
-                        </div>
-                    </td>
-                </tr>
-                <tr>
-                    <td><strong>#15</strong></td>
-                    <td>Иван</td>
-                    <td>Фильтр масляный Husqvarna...</td>
-                    <td>15.00 BYN</td>
-                    <td><span style="background: rgba(82, 196, 26, 0.2); color: #52c41a; padding: 4px 8px; border-radius: 4px; font-size: 12px;">Выдан</span></td>
-                    <td>Александр</td>
-                    <td>
-                        <div style="display: flex; gap: 6px;">
-                            <a href="#" class="btn" style="background: rgba(24, 144, 255, 0.2); color: #69c0ff; padding: 4px 8px; font-size: 12px;">✏️</a>
-                            <a href="#" class="btn" style="background: rgba(255, 77, 79, 0.2); color: #ff4d4f; padding: 4px 8px; font-size: 12px;">🗑️</a>
-                        </div>
-                    </td>
-                </tr>
+                {% if orders %}
+                    {% for order in orders %}
+                    <tr>
+                        <td><strong>#{{ order.id }}</strong></td>
+                        <td>{{ order.client_name or 'кто-то' }}</td>
+                        <td>{{ order.item_title }}</td>
+                        <td>{{ order.price }} Br</td>
+                        <td><span class="status-badge {{ order.status_class }}">{{ order.status }}</span></td>
+                        <td>{{ order.executor }}</td>
+                        <td>
+                            <div style="display: flex; gap: 6px;">
+                                <a href="/orders/edit/{{ order.id }}" class="btn-action edit">✏️</a>
+                                <a href="/orders/delete/{{ order.id }}" class="btn-action delete">🗑️</a>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                {% else %}
+                    <tr>
+                        <td><strong>#17</strong></td>
+                        <td>кто-то</td>
+                        <td>Вал-шестеренчатый вторичный SK850S...</td>
+                        <td>75.0 Br</td>
+                        <td><span style="background: rgba(212, 168, 75, 0.2); color: #d4a84b; padding: 4px 8px; border-radius: 4px; font-size: 12px;">В работе</span></td>
+                        <td>Дмитрий</td>
+                        <td>
+                            <div style="display: flex; gap: 6px;">
+                                <a href="#" class="btn-action edit">✏️</a>
+                                <a href="#" class="btn-action delete">🗑️</a>
+                            </div>
+                        </td>
+                    </tr>
+                {% endif %}
             </tbody>
         </table>
     </div>
