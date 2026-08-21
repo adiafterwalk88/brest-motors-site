@@ -22,7 +22,7 @@
     --color-text-muted: #666673;
     --color-text-gold: #d4a84b;
     
-    /* Статусы (Повышен контраст для читаемости!) */
+    /* Статусы */
     --color-success: #52c41a;
     --color-warning: #faad14;
     --color-danger: #ff4d4f;
@@ -62,12 +62,13 @@
     --transition-fast: 0.15s cubic-bezier(0.4, 0, 0.2, 1);
     --transition-normal: 0.25s cubic-bezier(0.4, 0, 0.2, 1);
     
-    /* Sidebar */
+    /* Размеры */
     --sidebar-width: 260px;
+    --navbar-height: 70px;
 }
 
 /* ==========================================
-   БАЗА
+   БАЗА И СБРОС
    ========================================== */
 * {
     margin: 0;
@@ -82,6 +83,16 @@ body {
     line-height: 1.5;
     min-height: 100vh;
     -webkit-font-smoothing: antialiased;
+}
+
+a {
+    color: var(--color-gold);
+    text-decoration: none;
+    transition: color var(--transition-fast);
+}
+
+a:hover {
+    color: var(--color-gold-light);
 }
 
 /* ==========================================
@@ -100,6 +111,130 @@ body {
 }
 ::-webkit-scrollbar-thumb:hover {
     background: var(--color-gold);
+}
+
+/* ==========================================
+   СТРУКТУРА МАКЕТА (LAYOUT)
+   ========================================== */
+.app-container {
+    display: flex;
+    min-height: 100vh;
+}
+
+.main-content {
+    flex: 1;
+    margin-left: var(--sidebar-width);
+    padding: var(--spacing-xl);
+    padding-top: calc(var(--navbar-height) + var(--spacing-lg));
+    min-width: 0; /* Предотвращает переполнение flex-контейнеров */
+    transition: margin var(--transition-normal);
+}
+
+/* Верхняя панель (Header/Navbar) */
+.top-navbar {
+    position: fixed;
+    top: 0;
+    right: 0;
+    left: var(--sidebar-width);
+    height: var(--navbar-height);
+    background: rgba(20, 20, 22, 0.85);
+    backdrop-filter: blur(12px);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 var(--spacing-xl);
+    z-index: 200;
+    transition: left var(--transition-normal);
+}
+
+.navbar-brand {
+    font-size: var(--font-size-lg);
+    font-weight: 700;
+    color: var(--color-text-primary);
+}
+
+.navbar-user {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-md);
+}
+
+/* ==========================================
+   САЙДБАР
+   ========================================== */
+.sidebar {
+    width: var(--sidebar-width);
+    background: var(--color-bg-secondary);
+    border-right: 1px solid rgba(255, 255, 255, 0.05);
+    padding: var(--spacing-lg) 0;
+    position: fixed;
+    top: 0;
+    left: 0;
+    height: 100vh;
+    overflow-y: auto;
+    z-index: 300;
+    transition: transform var(--transition-normal);
+}
+
+.sidebar-header {
+    padding: 0 var(--spacing-lg) var(--spacing-lg);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+    margin-bottom: var(--spacing-md);
+}
+
+.sidebar-logo {
+    font-size: var(--font-size-xl);
+    font-weight: 800;
+    color: var(--color-gold);
+    letter-spacing: 1px;
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-sm);
+}
+
+.sidebar-nav {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-xs);
+    padding: 0 var(--spacing-md);
+}
+
+.nav-item {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-md);
+    padding: 12px 16px;
+    color: var(--color-text-secondary);
+    border-radius: var(--radius-md);
+    font-weight: 500;
+    font-size: var(--font-size-md);
+    transition: all var(--transition-fast);
+}
+
+.nav-item:hover, .nav-item.active {
+    background: rgba(212, 168, 75, 0.1);
+    color: var(--color-gold);
+}
+
+.sidebar-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.75);
+    backdrop-filter: blur(4px);
+    z-index: 250;
+    opacity: 0;
+    transition: opacity var(--transition-normal);
+}
+
+.sidebar-overlay.active {
+    display: block;
+    opacity: 1;
+}
+
+.mobile-menu-toggle {
+    display: none;
 }
 
 /* ==========================================
@@ -187,15 +322,73 @@ body {
 }
 
 /* ==========================================
-   КАРТОЧКА ЗАКАЗА
+   ФОРМЫ И ПОЛЯ ВВОДА (INPUTS)
    ========================================== */
+.form-group {
+    margin-bottom: var(--spacing-lg);
+}
+
+.form-label {
+    display: block;
+    font-size: var(--font-size-sm);
+    font-weight: 600;
+    color: var(--color-text-secondary);
+    margin-bottom: var(--spacing-xs);
+}
+
+.form-control, input[type="text"], input[type="password"], input[type="email"], select, textarea {
+    width: 100%;
+    padding: 10px 14px;
+    background: var(--color-bg-input);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    border-radius: var(--radius-md);
+    color: var(--color-text-primary);
+    font-family: var(--font-family);
+    font-size: var(--font-size-md);
+    transition: border-color var(--transition-fast);
+}
+
+.form-control:focus, input:focus, select:focus, textarea:focus {
+    outline: none;
+    border-color: var(--color-gold);
+    box-shadow: 0 0 0 3px rgba(212, 168, 75, 0.15);
+}
+
+/* Панель фильтров */
+.filters-bar {
+    display: flex;
+    gap: var(--spacing-md);
+    flex-wrap: wrap;
+    align-items: center;
+    background: var(--color-bg-secondary);
+    padding: var(--spacing-md);
+    border-radius: var(--radius-lg);
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    margin-bottom: var(--spacing-xl);
+}
+
+.filters-bar .form-control {
+    max-width: 240px;
+}
+
+/* ==========================================
+   СЕТКА И КАРТОЧКИ ЗАКАЗОВ
+   ========================================== */
+.orders-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+    gap: var(--spacing-lg);
+}
+
 .order-card {
     background: var(--color-bg-card);
     border-radius: var(--radius-lg);
     padding: var(--spacing-lg);
-    margin-bottom: var(--spacing-md);
     border: 1px solid rgba(255, 255, 255, 0.06);
     transition: all var(--transition-normal);
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
 }
 
 .order-card:hover {
@@ -242,9 +435,6 @@ body {
     border: 1px solid rgba(255, 255, 255, 0.03);
 }
 
-/* ==========================================
-   ДЕЙСТВИЯ В КАРТОЧКЕ ЗАКАЗА (ИСПРАВЛЕНО!)
-   ========================================== */
 .order-actions {
     display: flex;
     gap: var(--spacing-sm);
@@ -276,7 +466,7 @@ body {
 }
 
 /* ==========================================
-   СТАТУСЫ (БЕЙДЖИ - УЛУЧШЕН КOНТРАСТ)
+   БЕЙДЖИ И СТАТУСЫ
    ========================================== */
 .badge {
     display: inline-flex;
@@ -315,71 +505,57 @@ body {
 }
 
 /* ==========================================
-   САЙДБАР И МОБИЛЬНОЕ МЕНЮ
-   ========================================== */
-.sidebar {
-    width: var(--sidebar-width);
-    background: var(--color-bg-secondary);
-    border-right: 1px solid rgba(255, 255, 255, 0.05);
-    padding: var(--spacing-lg) 0;
-    position: fixed;
-    top: 0;
-    left: 0;
-    height: 100vh;
-    overflow-y: auto;
-    z-index: 300;
-    transition: transform var(--transition-normal);
-}
-
-.sidebar-overlay {
-    display: none;
-    position: fixed;
-    inset: 0;
-    background: rgba(0, 0, 0, 0.75);
-    backdrop-filter: blur(4px);
-    z-index: 250;
-    opacity: 0;
-    transition: opacity var(--transition-normal);
-}
-
-.sidebar-overlay.active {
-    display: block;
-    opacity: 1;
-}
-
-/* ==========================================
    АДАПТИВНОСТЬ
    ========================================== */
-@media (max-width: 768px) {
+@media (max-width: 992px) {
+    :root {
+        --sidebar-width: 0px;
+    }
+
     .sidebar {
         transform: translateX(-100%);
+        width: 260px;
     }
     
     .sidebar.open {
         transform: translateX(0);
     }
 
+    .top-navbar {
+        left: 0;
+    }
+
     .main-content {
         margin-left: 0;
         padding: var(--spacing-md);
-        padding-top: 72px;
+        padding-top: calc(var(--navbar-height) + var(--spacing-md));
     }
 
     .mobile-menu-toggle {
         display: flex;
         align-items: center;
         justify-content: center;
-        position: fixed;
-        top: 12px;
-        left: 12px;
-        z-index: 200;
         background: var(--color-bg-card);
         color: var(--color-gold);
         border: 1px solid rgba(212, 168, 75, 0.3);
-        width: 44px;
-        height: 44px;
+        width: 40px;
+        height: 40px;
         border-radius: var(--radius-md);
         cursor: pointer;
-        box-shadow: var(--shadow-md);
+    }
+}
+
+@media (max-width: 576px) {
+    .orders-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .filters-bar {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .filters-bar .form-control {
+        max-width: 100%;
     }
 }
