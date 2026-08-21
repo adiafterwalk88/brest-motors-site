@@ -554,7 +554,7 @@ def dashboard():
         return render_template('dashboard.html', orders=[], shops=Config.SHOPS, employees=Config.EMPLOYEES, active_page='dashboard', datetime=datetime)
 
 # ==========================================
-# КАБИНЕТ СОТРУДНИКА
+# КАБИНЕТ СОТРУДНИКА (ИСПРАВЛЕН)
 # ==========================================
 
 @app.route('/employee')
@@ -568,6 +568,71 @@ def employee_dashboard():
         is_sqlite = Config.DATABASE_URL.startswith('sqlite://')
         
         with get_db_cursor() as cur:
+            # ===== ЗАКАЗЫ ПО МАГАЗИНАМ =====
+            orders_by_shop = {}
+            for shop_id, shop_name in Config.SHOPS.items():
+                if is_sqlite:
+                    cur.execute("""
+                        SELECT * FROM orders 
+                        WHERE shop_id = ? AND status != 'Выдан' AND is_archived = 0
+                        ORDER BY 
+                            CASE priority 
+                                WHEN 'Высокий' THEN 1 
+                                WHEN 'Обычный' THEN 2 
+                                ELSE 3 
+                            END,
+                            created_at ASC
+                    """, (shop_id,))
+                else:
+                    cur.execute("""
+                        SELECT * FROM orders 
+                        WHERE shop_id = %s AND status != 'Выдан' AND is_archived = FALSE
+                        ORDER BY 
+                            CASE priority 
+                                WHEN 'Высокий' THEN 1 
+                                WHEN 'Обычный' THEN 2 
+                                ELSE 3 
+                            END,
+                            created_at ASC
+                    """, (shop_id,))
+                active_orders = cur.fetchall()
+                
+                if is_sqlite:
+                    cur.execute("SELECT * FROM orders WHERE shop_id = ? AND status = 'Выдан' ORDER BY created_at DESC LIMIT 10;", (shop_id,))
+                else:
+                    cur.execute("SELECT * FROM orders WHERE shop_id = %s AND status = 'Выдан' ORDER BY completed_at DESC NULLS LAST, created_at DESC LIMIT 10;", (shop_id,))
+                completed_orders = cur.fetchall()
+                
+                if is_sqlite:
+                    cur.execute("""
+                        SELECT 
+                            COUNT(*) as total,
+                            COUNT(*) FILTER (WHERE status != 'Выдан') as active,
+                            COUNT(*) FILTER (WHERE executor = ? AND status != 'Выдан') as my_active,
+                            COUNT(*) FILTER (WHERE status = 'Выдан' AND DATE(completed_at) = DATE('now')) as completed_today
+                        FROM orders 
+                        WHERE shop_id = ?
+                    """, (user_name, shop_id))
+                else:
+                    cur.execute("""
+                        SELECT 
+                            COUNT(*) as total,
+                            COUNT(*) FILTER (WHERE status != 'Выдан') as active,
+                            COUNT(*) FILTER (WHERE executor = %s AND status != 'Выдан') as my_active,
+                            COUNT(*) FILTER (WHERE status = 'Выдан' AND completed_at::date = CURRENT_DATE) as completed_today
+                        FROM orders 
+                        WHERE shop_id = %s
+                    """, (user_name, shop_id))
+                shop_stats = cur.fetchone()
+                
+                orders_by_shop[shop_id] = {
+                    'name': shop_name,
+                    'active_orders': active_orders,
+                    'completed_orders': completed_orders,
+                    'stats': shop_stats
+                }
+            
+            # ===== МОИ ЗАКАЗЫ =====
             if is_sqlite:
                 cur.execute("""
                     SELECT * FROM orders 
@@ -594,6 +659,7 @@ def employee_dashboard():
                 """, (user_name,))
             my_orders = cur.fetchall()
             
+            # ===== МОЯ СТАТИСТИКА =====
             if is_sqlite:
                 cur.execute("""
                     SELECT 
@@ -616,6 +682,7 @@ def employee_dashboard():
                 """, (user_name,))
             my_stats = cur.fetchone()
             
+            # ===== ЗАДАЧИ НА СЕГОДНЯ =====
             if is_sqlite:
                 cur.execute("""
                     SELECT * FROM orders 
@@ -637,6 +704,7 @@ def employee_dashboard():
             today_tasks = cur.fetchall()
         
         return render_template('employee_dashboard.html',
+                             orders_by_shop=orders_by_shop,
                              my_orders=my_orders,
                              my_stats=my_stats,
                              today_tasks=today_tasks,
@@ -648,6 +716,7 @@ def employee_dashboard():
         logger.exception("Ошибка кабинета сотрудника")
         flash('Ошибка загрузки данных', 'error')
         return render_template('employee_dashboard.html', 
+                             orders_by_shop={},
                              my_orders=[], 
                              today_tasks=[],
                              my_stats={'total': 0, 'active': 0, 'completed_today': 0, 'new_orders': 0},
@@ -1201,7 +1270,7 @@ def calendar_events_api():
         return jsonify([]), 500
 
 # ==========================================
-# УВЕДОМЛЕНИЯ (ИСПРАВЛЕНО — БЕЗ deleted_at)
+# УВЕДОМЛЕНИЯ
 # ==========================================
 
 @app.route('/notifications')
@@ -1253,7 +1322,10 @@ def notifications_page():
                              employees=Config.EMPLOYEES,
                              active_page='notifications')
 
-# ===== ИСПРАВЛЕНО: Убрано deleted_at =====
+# ==========================================
+# API УВЕДОМЛЕНИЙ
+# ==========================================
+
 @app.route('/api/notifications/check')
 @login_required
 def check_notifications_api():
