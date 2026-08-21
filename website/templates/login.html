@@ -192,7 +192,9 @@
                 <button id="tabEmployee" onclick="switchTab('employee')">👨‍🔧 Сотрудник</button>
             </div>
 
+            <!-- Форма Админа -->
             <form id="formAdmin" class="login-form active" method="POST" action="/login">
+                {% if csrf_token %}<input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>{% endif %}
                 <input type="hidden" name="login_type" value="admin">
                 
                 <div class="form-group">
@@ -206,18 +208,20 @@
 
                 <div class="form-group">
                     <label class="form-label">🔑 Пароль</label>
-                    <input type="password" name="password" class="form-control" placeholder="Введите пароль..." required autofocus>
+                    <input type="password" id="adminPassword" name="password" class="form-control" placeholder="Введите пароль..." required autofocus>
                 </div>
 
                 <button type="submit" class="btn-login admin">🚀 Войти</button>
             </form>
 
+            <!-- Форма Сотрудника -->
             <form id="formEmployee" class="login-form" method="POST" action="/login">
+                {% if csrf_token %}<input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>{% endif %}
                 <input type="hidden" name="login_type" value="employee">
                 
                 <div class="form-group">
                     <label class="form-label">👨‍🔧 ID сотрудника</label>
-                    <input type="text" name="employee_id" class="form-control" placeholder="Например: pavel" required>
+                    <input type="text" id="employeeId" name="employee_id" class="form-control" placeholder="Например: pavel" required>
                 </div>
 
                 <div class="form-group">
@@ -228,6 +232,8 @@
                 <button type="submit" class="btn-login employee">🚀 Войти</button>
             </form>
 
+            <!-- Блок обхода паролей отображается строго в режиме отладки -->
+            {% if config.get('DEBUG') %}
             <div class="debug-section">
                 <p>⚡ Быстрый вход (без пароля)</p>
                 <div class="debug-buttons">
@@ -237,6 +243,7 @@
                     <a href="/force-employee/alexander" class="btn btn-secondary btn-sm">👨‍🔧 Александр</a>
                 </div>
             </div>
+            {% endif %}
 
             <div class="login-footer">
                 <span class="version">v2.0 • Premium Edition</span>
@@ -256,11 +263,13 @@
                 empBtn.classList.remove('active');
                 adminForm.classList.add('active');
                 empForm.classList.remove('active');
+                document.getElementById('adminPassword').focus();
             } else {
                 empBtn.classList.add('active');
                 adminBtn.classList.remove('active');
                 empForm.classList.add('active');
                 adminForm.classList.remove('active');
+                document.getElementById('employeeId').focus();
             }
         }
     </script>
