@@ -51,7 +51,7 @@ BASE_TEMPLATE = '''
 <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>{% block title %}Brest Motors CRM{% endblock %}</title>
+    <title>Brest Motors CRM</title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #f0f2f5; color: #333; }
@@ -149,7 +149,6 @@ BASE_TEMPLATE = '''
         }
     </style>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" />
-    {% block extra_css %}{% endblock %}
 </head>
 <body>
     <header class="header">
@@ -188,7 +187,7 @@ BASE_TEMPLATE = '''
                 </div>
             {% endif %}
         {% endwith %}
-        {% block content %}{% endblock %}
+        {{ content|safe }}
     </main>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/js/all.min.js"></script>
     {% block extra_js %}{% endblock %}
@@ -197,9 +196,6 @@ BASE_TEMPLATE = '''
 '''
 
 LOGIN_TEMPLATE = '''
-{% extends "base.html" %}
-{% block title %}Вход - Brest Motors CRM{% endblock %}
-{% block content %}
 <div class="auth-container">
     <div class="auth-card">
         <h2><i class="fas fa-lock"></i> Вход в систему</h2>
@@ -217,13 +213,9 @@ LOGIN_TEMPLATE = '''
         </form>
     </div>
 </div>
-{% endblock %}
 '''
 
 REGISTER_TEMPLATE = '''
-{% extends "base.html" %}
-{% block title %}Регистрация - Brest Motors CRM{% endblock %}
-{% block content %}
 <div class="auth-container">
     <div class="auth-card">
         <h2><i class="fas fa-user-plus"></i> Регистрация</h2>
@@ -249,13 +241,9 @@ REGISTER_TEMPLATE = '''
         </form>
     </div>
 </div>
-{% endblock %}
 '''
 
 ORDERS_TEMPLATE = '''
-{% extends "base.html" %}
-{% block title %}Заказы - Brest Motors CRM{% endblock %}
-{% block content %}
 <section class="section">
     <div class="toolbar">
         <button id="createOrderBtn" class="btn btn-primary">
@@ -331,9 +319,7 @@ ORDERS_TEMPLATE = '''
         </div>
     </div>
 </div>
-{% endblock %}
 
-{% block extra_js %}
 <script>
 let currentPage = 1;
 const pageSize = 9;
@@ -524,13 +510,9 @@ document.getElementById('statusFilter').addEventListener('change', () => {
 
 loadOrders();
 </script>
-{% endblock %}
 '''
 
 EMPLOYEE_TEMPLATE = '''
-{% extends "base.html" %}
-{% block title %}Сотрудники - Brest Motors CRM{% endblock %}
-{% block content %}
 <section class="section">
     <div class="toolbar">
         <button id="addEmployeeBtn" class="btn btn-success">
@@ -587,9 +569,7 @@ EMPLOYEE_TEMPLATE = '''
         </div>
     </div>
 </div>
-{% endblock %}
 
-{% block extra_js %}
 <script>
 let deleteEmployeeId = null;
 
@@ -726,13 +706,9 @@ document.getElementById('searchEmployee').addEventListener('input', () => {
 
 loadEmployees();
 </script>
-{% endblock %}
 '''
 
 ADMIN_TEMPLATE = '''
-{% extends "base.html" %}
-{% block title %}Админ-панель - Brest Motors CRM{% endblock %}
-{% block content %}
 <section class="section">
     <h2><i class="fas fa-cog"></i> Административная панель</h2>
     <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:20px;margin-top:20px;">
@@ -741,33 +717,24 @@ ADMIN_TEMPLATE = '''
         <div class="card"><h3><i class="fas fa-user-tie"></i> Сотрудники</h3><p style="font-size:32px;font-weight:700;color:#f39c12;">{{ employees|length }}</p></div>
     </div>
 </section>
-{% endblock %}
 '''
 
 ERROR_404 = '''
-{% extends "base.html" %}
-{% block title %}404 - Страница не найдена{% endblock %}
-{% block content %}
 <div style="text-align:center;padding:100px 20px;">
     <i class="fas fa-search" style="font-size:80px;color:#e74c3c;"></i>
     <h1 style="font-size:48px;margin:20px 0;">404</h1>
     <h2>Страница не найдена</h2>
     <a href="{{ url_for('orders') }}" class="btn btn-primary"><i class="fas fa-home"></i> На главную</a>
 </div>
-{% endblock %}
 '''
 
 ERROR_500 = '''
-{% extends "base.html" %}
-{% block title %}500 - Ошибка сервера{% endblock %}
-{% block content %}
 <div style="text-align:center;padding:100px 20px;">
     <i class="fas fa-exclamation-triangle" style="font-size:80px;color:#f39c12;"></i>
     <h1 style="font-size:48px;margin:20px 0;">500</h1>
     <h2>Внутренняя ошибка сервера</h2>
     <a href="{{ url_for('orders') }}" class="btn btn-primary"><i class="fas fa-home"></i> На главную</a>
 </div>
-{% endblock %}
 '''
 
 # ============================================
@@ -839,11 +806,8 @@ def admin_required(f):
         return f(*args, **kwargs)
     return decorated_function
 
-# ============================================
-# ===== РЕГИСТРАЦИЯ ШАБЛОНОВ =====
-# ============================================
-
-app.jinja_env.globals['base_template'] = BASE_TEMPLATE
+def render_page(content, **kwargs):
+    return render_template_string(BASE_TEMPLATE, content=content, **kwargs)
 
 # ============================================
 # ===== РОУТЫ =====
@@ -869,7 +833,7 @@ def login():
             return redirect(url_for('orders'))
         else:
             flash('Неверный email или пароль', 'danger')
-    return render_template_string(BASE_TEMPLATE + LOGIN_TEMPLATE)
+    return render_page(LOGIN_TEMPLATE)
 
 @app.route('/register', methods=['GET', 'POST'])
 def register():
@@ -881,15 +845,15 @@ def register():
         
         if password != password_confirm:
             flash('Пароли не совпадают', 'danger')
-            return render_template_string(BASE_TEMPLATE + REGISTER_TEMPLATE)
+            return render_page(REGISTER_TEMPLATE)
         
         if User.query.filter_by(username=username).first():
             flash('Имя пользователя уже занято', 'danger')
-            return render_template_string(BASE_TEMPLATE + REGISTER_TEMPLATE)
+            return render_page(REGISTER_TEMPLATE)
         
         if User.query.filter_by(email=email).first():
             flash('Email уже используется', 'danger')
-            return render_template_string(BASE_TEMPLATE + REGISTER_TEMPLATE)
+            return render_page(REGISTER_TEMPLATE)
         
         user = User(username=username, email=email)
         user.set_password(password)
@@ -898,7 +862,7 @@ def register():
         flash('Регистрация успешна! Войдите в систему.', 'success')
         return redirect(url_for('login'))
     
-    return render_template_string(BASE_TEMPLATE + REGISTER_TEMPLATE)
+    return render_page(REGISTER_TEMPLATE)
 
 @app.route('/logout')
 def logout():
@@ -909,12 +873,12 @@ def logout():
 @app.route('/orders')
 @login_required
 def orders():
-    return render_template_string(BASE_TEMPLATE + ORDERS_TEMPLATE)
+    return render_page(ORDERS_TEMPLATE)
 
 @app.route('/employee')
 @login_required
 def employee():
-    return render_template_string(BASE_TEMPLATE + EMPLOYEE_TEMPLATE)
+    return render_page(EMPLOYEE_TEMPLATE)
 
 @app.route('/admin')
 @admin_required
@@ -922,7 +886,7 @@ def admin_panel():
     users = User.query.all()
     orders = Order.query.all()
     employees = Employee.query.all()
-    return render_template_string(BASE_TEMPLATE + ADMIN_TEMPLATE, users=users, orders=orders, employees=employees)
+    return render_page(ADMIN_TEMPLATE, users=users, orders=orders, employees=employees)
 
 # ============================================
 # ===== API ДЛЯ ЗАКАЗОВ =====
@@ -1053,11 +1017,11 @@ def api_delete_employee(employee_id):
 
 @app.errorhandler(404)
 def not_found(e):
-    return render_template_string(BASE_TEMPLATE + ERROR_404), 404
+    return render_page(ERROR_404), 404
 
 @app.errorhandler(500)
 def server_error(e):
-    return render_template_string(BASE_TEMPLATE + ERROR_500), 500
+    return render_page(ERROR_500), 500
 
 # ============================================
 # ===== СОЗДАНИЕ ТАБЛИЦ =====
