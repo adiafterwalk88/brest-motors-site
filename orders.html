@@ -1,0 +1,385 @@
+{% extends "base.html" %}
+
+{% block title %}Заказы - Brest Motors CRM{% endblock %}
+
+{% block extra_css %}
+<style>
+    .section { padding: 20px 0; }
+    .loading { text-align: center; padding: 40px; color: #999; }
+</style>
+{% endblock %}
+
+{% block content %}
+<section class="section">
+    <div class="toolbar">
+        <button id="createOrderBtn" class="btn btn-primary">
+            <i class="fas fa-plus"></i> Создать заказ
+        </button>
+        <div class="search-box">
+            <i class="fas fa-search"></i>
+            <input type="text" id="searchInput" placeholder="Поиск по номеру или клиенту..." />
+        </div>
+        <div class="filter-group">
+            <select id="statusFilter">
+                <option value="all">Все статусы</option>
+                <option value="новый">Новый</option>
+                <option value="в работе">В работе</option>
+                <option value="готово">Готово</option>
+                <option value="отменен">Отменен</option>
+            </select>
+        </div>
+    </div>
+
+    <div id="ordersList" class="orders-list">
+        <div class="loading"><i class="fas fa-spinner fa-spin"></i> Загрузка...</div>
+    </div>
+
+    <div id="pagination" class="pagination"></div>
+</section>
+
+<!-- Модальное окно для заказа -->
+<div id="orderModal" class="modal">
+    <div class="modal-content">
+        <span class="modal-close">&times;</span>
+        <h2 id="modalTitle"><i class="fas fa-edit"></i> Создание заказа</h2>
+        <form id="orderForm">
+            <input type="hidden" id="orderId" />
+            <div class="form-group">
+                <label for="orderNumber">Номер заказа</label>
+                <input type="text" id="orderNumber" placeholder="ORD-2024-001" required />
+            </div>
+            <div class="form-group">
+                <label for="clientName">Клиент</label>
+                <input type="text" id="clientName" placeholder="Иван Иванов" required />
+            </div>
+            <div class="form-group">
+                <label for="orderAmount">Сумма (₽)</label>
+                <input type="number" id="orderAmount" placeholder="1000" min="0" step="0.01" required />
+            </div>
+            <div class="form-group">
+                <label for="orderStatus">Статус</label>
+                <select id="orderStatus">
+                    <option value="новый">Новый</option>
+                    <option value="в работе">В работе</option>
+                    <option value="готово">Готово</option>
+                    <option value="отменен">Отменен</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label for="orderDescription">Описание</label>
+                <textarea id="orderDescription" rows="3" placeholder="Детали заказа..."></textarea>
+            </div>
+            <div class="form-actions">
+                <button type="submit" class="btn btn-success">
+                    <i class="fas fa-save"></i> Сохранить
+                </button>
+                <button type="button" class="btn btn-secondary" id="cancelModalBtn">
+                    <i class="fas fa-times"></i> Отмена
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Модальное окно для удаления -->
+<div id="deleteModal" class="modal">
+    <div class="modal-content modal-small">
+        <span class="modal-close">&times;</span>
+        <h2><i class="fas fa-exclamation-triangle" style="color:#e74c3c;"></i> Подтверждение</h2>
+        <p>Вы уверены, что хотите удалить заказ <strong id="deleteOrderNumber"></strong>?</p>
+        <div class="form-actions">
+            <button id="confirmDeleteBtn" class="btn btn-danger">
+                <i class="fas fa-trash"></i> Удалить
+            </button>
+            <button id="cancelDeleteBtn" class="btn btn-secondary">
+                <i class="fas fa-times"></i> Отмена
+            </button>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    let currentPage = 1;
+    const pageSize = 9;
+    let totalOrders = 0;
+    let deleteTargetId = null;
+
+    // ===== Загрузка заказов =====
+    async function loadOrders() {
+        const search = document.getElementById('searchInput').value.trim();
+        const status = document.getElementById('statusFilter').value;
+        
+        const params = new URLSearchParams({
+            page: currentPage,
+            limit: pageSize,
+            search: search,
+            status: status
+        });
+
+        try {
+            const response = await fetch(`/api/orders?${params}`);
+            const data = await response.json();
+            
+            // Для пагинации используем все заказы
+            const allResponse = await fetch('/api/orders');
+            const allOrders = await allResponse.json();
+            
+            // Фильтрация на клиенте для демонстрации
+            let filtered = allOrders;
+            if (search) {
+                filtered = filtered.filter(o => 
+                    o.order_number.toLowerCase().includes(search.toLowerCase()) ||
+                    o.client_name.toLowerCase().includes(search.toLowerCase())
+                );
+            }
+            if (status !== 'all') {
+                filtered = filtered.filter(o => o.status === status);
+            }
+            
+            totalOrders = filtered.length;
+            const start = (currentPage - 1) * pageSize;
+            const end = start + pageSize;
+            const pageItems = filtered.slice(start, end);
+            
+            renderOrders(pageItems);
+            renderPagination();
+        } catch (error) {
+            console.error('Ошибка загрузки:', error);
+        }
+    }
+
+    // ===== Рендер заказов =====
+    function renderOrders(orders) {
+        const list = document.getElementById('ordersList');
+        
+        if (orders.length === 0) {
+            list.innerHTML = `
+                <div class="empty-state">
+                    <i class="fas fa-inbox"></i>
+                    <h3>Нет заказов</h3>
+                    <p>Создайте первый заказ, нажав кнопку "Создать заказ"</p>
+                </div>
+            `;
+            return;
+        }
+
+        list.innerHTML = orders.map(order => `
+            <div class="order-card">
+                <div class="order-number">${order.order_number}</div>
+                <div class="order-client"><i class="fas fa-user"></i> ${order.client_name}</div>
+                <div class="order-amount">${Number(order.amount).toLocaleString()} <small>₽</small></div>
+                <span class="order-status status-${order.status.replace(/ /g, '-')}">${order.status}</span>
+                ${order.description ? `<p style="margin-top:8px;font-size:13px;color:#666;">${order.description}</p>` : ''}
+                <div class="order-meta">
+                    <span class="order-date"><i class="far fa-calendar-alt"></i> ${new Date(order.created_at).toLocaleDateString()}</span>
+                    <div class="order-actions">
+                        <button class="edit-btn" data-id="${order.id}" title="Редактировать">
+                            <i class="fas fa-edit"></i>
+                        </button>
+                        <button class="delete-btn" data-id="${order.id}" data-number="${order.order_number}" title="Удалить">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        `).join('');
+
+        document.querySelectorAll('.edit-btn').forEach(btn => {
+            btn.addEventListener('click', () => openEditModal(btn.dataset.id));
+        });
+
+        document.querySelectorAll('.delete-btn').forEach(btn => {
+            btn.addEventListener('click', () => openDeleteModal(btn.dataset.id, btn.dataset.number));
+        });
+    }
+
+    // ===== Пагинация =====
+    function renderPagination() {
+        const totalPages = Math.ceil(totalOrders / pageSize);
+        const pagination = document.getElementById('pagination');
+        pagination.innerHTML = '';
+
+        if (totalPages <= 1) return;
+
+        const prevBtn = document.createElement('button');
+        prevBtn.innerHTML = '<i class="fas fa-chevron-left"></i>';
+        prevBtn.disabled = currentPage === 1;
+        prevBtn.addEventListener('click', () => {
+            if (currentPage > 1) {
+                currentPage--;
+                loadOrders();
+            }
+        });
+        pagination.appendChild(prevBtn);
+
+        for (let i = 1; i <= totalPages; i++) {
+            const btn = document.createElement('button');
+            btn.textContent = i;
+            if (i === currentPage) btn.classList.add('active');
+            btn.addEventListener('click', () => {
+                currentPage = i;
+                loadOrders();
+            });
+            pagination.appendChild(btn);
+        }
+
+        const nextBtn = document.createElement('button');
+        nextBtn.innerHTML = '<i class="fas fa-chevron-right"></i>';
+        nextBtn.disabled = currentPage === totalPages;
+        nextBtn.addEventListener('click', () => {
+            if (currentPage < totalPages) {
+                currentPage++;
+                loadOrders();
+            }
+        });
+        pagination.appendChild(nextBtn);
+    }
+
+    // ===== Создание заказа =====
+    document.getElementById('createOrderBtn').addEventListener('click', () => {
+        document.getElementById('orderId').value = '';
+        document.getElementById('orderNumber').value = '';
+        document.getElementById('clientName').value = '';
+        document.getElementById('orderAmount').value = '';
+        document.getElementById('orderStatus').value = 'новый';
+        document.getElementById('orderDescription').value = '';
+        document.getElementById('modalTitle').innerHTML = '<i class="fas fa-plus-circle"></i> Создание заказа';
+        document.getElementById('orderModal').style.display = 'flex';
+    });
+
+    // ===== Редактирование заказа =====
+    async function openEditModal(id) {
+        try {
+            const response = await fetch(`/api/orders`);
+            const orders = await response.json();
+            const order = orders.find(o => o.id === id);
+            
+            if (!order) {
+                alert('Заказ не найден');
+                return;
+            }
+
+            document.getElementById('orderId').value = order.id;
+            document.getElementById('orderNumber').value = order.order_number;
+            document.getElementById('clientName').value = order.client_name;
+            document.getElementById('orderAmount').value = order.amount;
+            document.getElementById('orderStatus').value = order.status;
+            document.getElementById('orderDescription').value = order.description || '';
+            document.getElementById('modalTitle').innerHTML = '<i class="fas fa-edit"></i> Редактирование заказа';
+            document.getElementById('orderModal').style.display = 'flex';
+        } catch (error) {
+            console.error('Ошибка:', error);
+        }
+    }
+
+    // ===== Сохранение заказа =====
+    document.getElementById('orderForm').addEventListener('submit', async (e) => {
+        e.preventDefault();
+
+        const id = document.getElementById('orderId').value;
+        const data = {
+            order_number: document.getElementById('orderNumber').value.trim(),
+            client_name: document.getElementById('clientName').value.trim(),
+            amount: parseFloat(document.getElementById('orderAmount').value),
+            status: document.getElementById('orderStatus').value,
+            description: document.getElementById('orderDescription').value.trim()
+        };
+
+        const url = id ? `/api/orders/${id}` : '/api/orders';
+        const method = id ? 'PUT' : 'POST';
+
+        try {
+            const response = await fetch(url, {
+                method: method,
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(data)
+            });
+
+            if (response.ok) {
+                document.getElementById('orderModal').style.display = 'none';
+                document.getElementById('orderForm').reset();
+                loadOrders();
+            } else {
+                const error = await response.json();
+                alert('Ошибка: ' + (error.error || 'Неизвестная ошибка'));
+            }
+        } catch (error) {
+            alert('Ошибка: ' + error.message);
+        }
+    });
+
+    // ===== Удаление заказа =====
+    function openDeleteModal(id, number) {
+        deleteTargetId = id;
+        document.getElementById('deleteOrderNumber').textContent = number;
+        document.getElementById('deleteModal').style.display = 'flex';
+    }
+
+    document.getElementById('confirmDeleteBtn').addEventListener('click', async () => {
+        if (!deleteTargetId) return;
+
+        try {
+            const response = await fetch(`/api/orders/${deleteTargetId}`, {
+                method: 'DELETE'
+            });
+
+            if (response.ok) {
+                document.getElementById('deleteModal').style.display = 'none';
+                deleteTargetId = null;
+                loadOrders();
+            } else {
+                const error = await response.json();
+                alert('Ошибка: ' + (error.error || 'Неизвестная ошибка'));
+            }
+        } catch (error) {
+            alert('Ошибка: ' + error.message);
+        }
+    });
+
+    document.getElementById('cancelDeleteBtn').addEventListener('click', () => {
+        document.getElementById('deleteModal').style.display = 'none';
+        deleteTargetId = null;
+    });
+
+    // ===== Закрытие модалок =====
+    document.querySelectorAll('.modal-close').forEach(close => {
+        close.addEventListener('click', () => {
+            document.getElementById('orderModal').style.display = 'none';
+            document.getElementById('deleteModal').style.display = 'none';
+        });
+    });
+
+    document.getElementById('cancelModalBtn').addEventListener('click', () => {
+        document.getElementById('orderModal').style.display = 'none';
+    });
+
+    window.addEventListener('click', (e) => {
+        if (e.target === document.getElementById('orderModal')) {
+            document.getElementById('orderModal').style.display = 'none';
+        }
+        if (e.target === document.getElementById('deleteModal')) {
+            document.getElementById('deleteModal').style.display = 'none';
+        }
+    });
+
+    // ===== Поиск и фильтр =====
+    let searchTimeout;
+    document.getElementById('searchInput').addEventListener('input', () => {
+        clearTimeout(searchTimeout);
+        searchTimeout = setTimeout(() => {
+            currentPage = 1;
+            loadOrders();
+        }, 400);
+    });
+
+    document.getElementById('statusFilter').addEventListener('change', () => {
+        currentPage = 1;
+        loadOrders();
+    });
+
+    // ===== Загрузка при открытии =====
+    loadOrders();
+</script>
+{% endblock %}
