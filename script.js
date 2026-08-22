@@ -1,7 +1,7 @@
 // ===== Конфигурация Supabase =====
-// Замените на свои данные из настроек Supabase (Settings > API)
-const SUPABASE_URL = 'https://ваш-проект.supabase.co';
-const SUPABASE_ANON_KEY = 'ваш-anon-публичный-ключ';
+// Ваши ключи из предоставленных данных
+const SUPABASE_URL = 'https://ophusgconubcufrobzyc.supabase.co';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9waHVzZ2NvbnViY3Vmcm9ienljIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODM1ODc5MjQsImV4cCI6MjA5OTE2MzkyNH0.a1DBm4PkDt1NHHyIDfF_xFqZd7qEhSGwUfdZbnvXKXs';
 
 // Инициализация Supabase
 const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
