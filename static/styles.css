@@ -642,5 +642,59 @@ body {
     
     .auth-card {
         padding: 25px;
+        /* ===== EMPLOYEES LIST ===== */
+.employees-list {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    gap: 20px;
+    margin-bottom: 30px;
+}
+
+.employee-card {
+    background: #fff;
+    border-radius: 12px;
+    padding: 20px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+    transition: all 0.3s;
+    border-left: 4px solid #2ecc71;
+}
+
+.employee-card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 8px 25px rgba(0,0,0,0.1);
+}
+
+.employee-card h3 {
+    color: #2c3e50;
+    margin-bottom: 8px;
+}
+
+.employee-card p {
+    color: #666;
+    font-size: 14px;
+    margin: 4px 0;
+}
+
+.employee-card .employee-actions {
+    display: flex;
+    gap: 8px;
+    margin-top: 12px;
+    padding-top: 12px;
+    border-top: 1px solid #f0f0f0;
+}
+
+/* ===== LOADING ===== */
+.loading {
+    text-align: center;
+    padding: 40px;
+    color: #999;
+    grid-column: 1 / -1;
+}
+
+.loading i {
+    font-size: 30px;
+    margin-bottom: 10px;
+    display: block;
+}
     }
 }
