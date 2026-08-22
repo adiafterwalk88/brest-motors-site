@@ -9,6 +9,9 @@ import bcrypt
 app = Flask(__name__)
 app.secret_key = os.environ.get('SECRET_KEY', secrets.token_hex(32))
 
+# Настройки сессии (30 дней)
+app.config['PERMANENT_SESSION_LIFETIME'] = 30 * 24 * 60 * 60
+
 SUPABASE_URL = "https://ophusgconubcufrobzyc.supabase.co"
 SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9waHVzZ2NvbnViY3Vmcm9ienljIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODM1ODc5MjQsImV4cCI6MjA5OTE2MzkyNH0.a1DBm4PkDt1NHHyIDfF_xFqZd7qEhSGwUfdZbnvXKXs"
 
@@ -242,7 +245,8 @@ ORDERS_TEMPLATE = '''
     <div class="empty-state">Загрузка...</div>
 </div>
 
-<div id="orderModal" class="modal">
+<!-- Модалка создания/редактирования -->
+<div id="orderModal" class="modal" style="display:none;">
     <div class="modal-content">
         <span class="modal-close" onclick="closeModal()">&times;</span>
         <h2 id="modalTitle">Новый заказ</h2>
@@ -324,21 +328,24 @@ ORDERS_TEMPLATE = '''
     </div>
 </div>
 
-<div id="deleteModal" class="modal">
+<!-- Модалка удаления -->
+<div id="deleteModal" class="modal" style="display:none;">
     <div class="modal-content" style="max-width:400px;">
         <h2>Подтверждение</h2>
         <p>Удалить заказ клиента <strong id="deleteCustomerName"></strong>?</p>
         <div class="form-actions">
             <button class="btn btn-danger" onclick="confirmDelete()">Удалить</button>
-            <button class="btn btn-secondary" onclick="document.getElementById('deleteModal').style.display='none'">Отмена</button>
+            <button class="btn btn-secondary" onclick="closeDeleteModal()">Отмена</button>
         </div>
     </div>
 </div>
 
 <script>
-let deleteTargetId = null;
-let currentStore = {{ session.store_id }};
+// ===== ПЕРЕМЕННЫЕ =====
+var deleteTargetId = null;
+var currentStore = 1; // По умолчанию Магазин Карьерная
 
+// ===== ФУНКЦИИ =====
 function getExecutors() {
     if (currentStore === 1) return ['Павел Иванович', 'Александр'];
     if (currentStore === 2) return ['Паша', 'Дмитрий'];
@@ -346,20 +353,22 @@ function getExecutors() {
 }
 
 function updateExecutorOptions() {
-    const select = document.getElementById('executor');
-    const currentVal = select.value;
+    var select = document.getElementById('executor');
+    var currentVal = select.value;
     select.innerHTML = '<option value="Не назначен">Не назначен</option>';
-    getExecutors().forEach(e => {
-        if (e !== 'Не назначен') {
-            select.innerHTML += `<option value="${e}">${e}</option>`;
+    var executors = getExecutors();
+    for (var i = 0; i < executors.length; i++) {
+        if (executors[i] !== 'Не назначен') {
+            select.innerHTML += '<option value="' + executors[i] + '">' + executors[i] + '</option>';
         }
-    });
-    if (currentVal !== 'Не назначен' && getExecutors().includes(currentVal)) {
+    }
+    if (currentVal !== 'Не назначен' && executors.indexOf(currentVal) !== -1) {
         select.value = currentVal;
     }
 }
 
 function openCreateModal() {
+    console.log('openCreateModal вызвана');
     document.getElementById('orderId').value = '';
     document.getElementById('modalTitle').textContent = 'Новый заказ';
     document.getElementById('orderForm').reset();
@@ -379,107 +388,119 @@ function openCreateModal() {
 
 function closeModal() {
     document.getElementById('orderModal').style.display = 'none';
+}
+
+function closeDeleteModal() {
     document.getElementById('deleteModal').style.display = 'none';
 }
 
-async function loadOrders() {
-    const search = document.getElementById('searchInput').value.trim();
-    const status = document.getElementById('statusFilter').value;
-    try {
-        const response = await fetch('/api/orders');
-        let orders = await response.json();
-        if (search) {
-            orders = orders.filter(o => 
-                (o.customer && o.customer.toLowerCase().includes(search.toLowerCase())) ||
-                (o.phone && o.phone.includes(search))
-            );
-        }
-        if (status !== 'all') {
-            orders = orders.filter(o => o.status === status);
-        }
-        document.getElementById('totalCount').textContent = orders.length;
-        renderOrders(orders);
-    } catch (error) {
-        console.error('Ошибка загрузки:', error);
-    }
+function loadOrders() {
+    console.log('loadOrders вызвана');
+    var search = document.getElementById('searchInput').value.trim();
+    var status = document.getElementById('statusFilter').value;
+    
+    fetch('/api/orders')
+        .then(function(response) { return response.json(); })
+        .then(function(orders) {
+            if (search) {
+                orders = orders.filter(function(o) {
+                    return (o.customer && o.customer.toLowerCase().includes(search.toLowerCase())) ||
+                           (o.phone && o.phone.includes(search));
+                });
+            }
+            if (status !== 'all') {
+                orders = orders.filter(function(o) { return o.status === status; });
+            }
+            document.getElementById('totalCount').textContent = orders.length;
+            renderOrders(orders);
+        })
+        .catch(function(error) {
+            console.error('Ошибка загрузки:', error);
+        });
 }
 
 function renderOrders(orders) {
-    const container = document.getElementById('ordersContainer');
+    var container = document.getElementById('ordersContainer');
     if (orders.length === 0) {
         container.innerHTML = '<div class="empty-state"><h3>Нет заказов</h3><p>Создайте первый заказ</p></div>';
         return;
     }
-    let html = `<div style="overflow-x:auto;"><table class="orders-table">
-        <thead><tr>
-            <th>ID</th>
-            <th>Клиент</th>
-            <th>Телефон</th>
-            <th>Товар</th>
-            <th>Цена</th>
-            <th>Предоплата</th>
-            <th>Исполнитель</th>
-            <th>Статус</th>
-            <th>Приоритет</th>
-            <th>Источник</th>
-            <th>Действия</th>
-        </tr></thead><tbody>`;
-    orders.forEach(o => {
-        const statusClass = o.status === 'Новый' ? 'status-Новый' : 
-                           o.status === 'В работе' ? 'status-В-работе' : 
-                           o.status === 'Готов' ? 'status-Готов' : 'status-Отменен';
-        const priorityBadge = o.priority === 'Высокий' ? 'badge-priority' : '';
-        html += `<tr>
-            <td>#${o.id}</td>
-            <td><strong>${o.customer || '-'}</strong></td>
-            <td>${o.phone || '-'}</td>
-            <td>${o.product || '-'}</td>
-            <td>${o.price ? Number(o.price).toFixed(2) + ' ₽' : '-'}</td>
-            <td>${o.prepaid ? Number(o.prepaid).toFixed(2) + ' ₽' : '-'}</td>
-            <td><span class="badge badge-executor">${o.executor || 'Не назначен'}</span></td>
-            <td><span class="status ${statusClass}">${o.status}</span></td>
-            <td><span class="badge ${priorityBadge}">${o.priority || 'Обычный'}</span></td>
-            <td><span class="badge badge-source">${o.source || '-'}</span></td>
-            <td>
-                <button class="btn btn-primary btn-sm" onclick="openEditModal(${o.id})">✎</button>
-                <button class="btn btn-danger btn-sm" onclick="openDeleteModal(${o.id},'${o.customer || 'без имени'}')">✕</button>
-            </td>
-        </tr>`;
-    });
+    
+    var html = '<div style="overflow-x:auto;"><table class="orders-table"><thead><tr>';
+    html += '<th>ID</th><th>Клиент</th><th>Телефон</th><th>Товар</th>';
+    html += '<th>Цена</th><th>Предоплата</th><th>Исполнитель</th><th>Статус</th>';
+    html += '<th>Приоритет</th><th>Источник</th><th>Действия</th>';
+    html += '</tr></thead><tbody>';
+    
+    for (var i = 0; i < orders.length; i++) {
+        var o = orders[i];
+        var statusClass = o.status === 'Новый' ? 'status-Новый' : 
+                         o.status === 'В работе' ? 'status-В-работе' : 
+                         o.status === 'Готов' ? 'status-Готов' : 'status-Отменен';
+        var priorityBadge = o.priority === 'Высокий' ? 'badge-priority' : '';
+        
+        html += '<tr>';
+        html += '<td>#' + o.id + '</td>';
+        html += '<td><strong>' + (o.customer || '-') + '</strong></td>';
+        html += '<td>' + (o.phone || '-') + '</td>';
+        html += '<td>' + (o.product || '-') + '</td>';
+        html += '<td>' + (o.price ? Number(o.price).toFixed(2) + ' ₽' : '-') + '</td>';
+        html += '<td>' + (o.prepaid ? Number(o.prepaid).toFixed(2) + ' ₽' : '-') + '</td>';
+        html += '<td><span class="badge badge-executor">' + (o.executor || 'Не назначен') + '</span></td>';
+        html += '<td><span class="status ' + statusClass + '">' + o.status + '</span></td>';
+        html += '<td><span class="badge ' + priorityBadge + '">' + (o.priority || 'Обычный') + '</span></td>';
+        html += '<td><span class="badge badge-source">' + (o.source || '-') + '</span></td>';
+        html += '<td>';
+        html += '<button class="btn btn-primary btn-sm" onclick="openEditModal(' + o.id + ')">✎</button> ';
+        html += '<button class="btn btn-danger btn-sm" onclick="openDeleteModal(' + o.id + ',\'' + (o.customer || 'без имени') + '\')">✕</button>';
+        html += '</td>';
+        html += '</tr>';
+    }
+    
     html += '</tbody></table></div>';
     container.innerHTML = html;
 }
 
-async function openEditModal(id) {
-    try {
-        const response = await fetch('/api/orders');
-        const orders = await response.json();
-        const order = orders.find(o => o.id == id);
-        if (!order) { alert('Заказ не найден'); return; }
-        document.getElementById('orderId').value = order.id;
-        document.getElementById('modalTitle').textContent = 'Редактирование заказа';
-        document.getElementById('customer').value = order.customer || '';
-        document.getElementById('phone').value = order.phone || '';
-        document.getElementById('address').value = order.address || '';
-        document.getElementById('product').value = order.product || '';
-        document.getElementById('price').value = order.price || '';
-        document.getElementById('prepaid').value = order.prepaid || '';
-        document.getElementById('status').value = order.status || 'Новый';
-        document.getElementById('priority').value = order.priority || 'Обычный';
-        document.getElementById('source').value = order.source || 'Сайт';
-        document.getElementById('comment').value = order.comment || '';
-        updateExecutorOptions();
-        document.getElementById('executor').value = order.executor || 'Не назначен';
-        document.getElementById('orderModal').style.display = 'flex';
-    } catch (error) {
-        console.error('Ошибка:', error);
-    }
+function openEditModal(id) {
+    fetch('/api/orders')
+        .then(function(response) { return response.json(); })
+        .then(function(orders) {
+            var order = null;
+            for (var i = 0; i < orders.length; i++) {
+                if (orders[i].id == id) {
+                    order = orders[i];
+                    break;
+                }
+            }
+            if (!order) { alert('Заказ не найден'); return; }
+            
+            document.getElementById('orderId').value = order.id;
+            document.getElementById('modalTitle').textContent = 'Редактирование заказа';
+            document.getElementById('customer').value = order.customer || '';
+            document.getElementById('phone').value = order.phone || '';
+            document.getElementById('address').value = order.address || '';
+            document.getElementById('product').value = order.product || '';
+            document.getElementById('price').value = order.price || '';
+            document.getElementById('prepaid').value = order.prepaid || '';
+            document.getElementById('status').value = order.status || 'Новый';
+            document.getElementById('priority').value = order.priority || 'Обычный';
+            document.getElementById('source').value = order.source || 'Сайт';
+            document.getElementById('comment').value = order.comment || '';
+            updateExecutorOptions();
+            document.getElementById('executor').value = order.executor || 'Не назначен';
+            document.getElementById('orderModal').style.display = 'flex';
+        })
+        .catch(function(error) {
+            console.error('Ошибка:', error);
+            alert('Ошибка загрузки заказа');
+        });
 }
 
-async function saveOrder(e) {
+function saveOrder(e) {
     e.preventDefault();
-    const id = document.getElementById('orderId').value;
-    const data = {
+    var id = document.getElementById('orderId').value;
+    
+    var data = {
         customer: document.getElementById('customer').value.trim(),
         phone: document.getElementById('phone').value.trim(),
         address: document.getElementById('address').value.trim(),
@@ -492,20 +513,28 @@ async function saveOrder(e) {
         source: document.getElementById('source').value,
         comment: document.getElementById('comment').value.trim()
     };
-    const url = id ? `/api/orders/${id}` : '/api/orders';
-    const method = id ? 'PUT' : 'POST';
-    try {
-        const response = await fetch(url, { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) });
+    
+    var url = id ? '/api/orders/' + id : '/api/orders';
+    var method = id ? 'PUT' : 'POST';
+    
+    fetch(url, {
+        method: method,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data)
+    })
+    .then(function(response) {
         if (response.ok) {
             closeModal();
             loadOrders();
         } else {
-            const error = await response.json();
-            alert('Ошибка: ' + (error.error || 'Неизвестная ошибка'));
+            return response.json().then(function(err) {
+                alert('Ошибка: ' + (err.error || 'Неизвестная ошибка'));
+            });
         }
-    } catch (error) {
+    })
+    .catch(function(error) {
         alert('Ошибка: ' + error.message);
-    }
+    });
 }
 
 function openDeleteModal(id, name) {
@@ -514,32 +543,39 @@ function openDeleteModal(id, name) {
     document.getElementById('deleteModal').style.display = 'flex';
 }
 
-async function confirmDelete() {
+function confirmDelete() {
     if (!deleteTargetId) return;
-    try {
-        const response = await fetch(`/api/orders/${deleteTargetId}`, { method: 'DELETE' });
-        if (response.ok) {
-            document.getElementById('deleteModal').style.display = 'none';
-            deleteTargetId = null;
-            loadOrders();
-        } else {
-            const error = await response.json();
-            alert('Ошибка: ' + (error.error || 'Неизвестная ошибка'));
-        }
-    } catch (error) {
-        alert('Ошибка: ' + error.message);
-    }
+    fetch('/api/orders/' + deleteTargetId, { method: 'DELETE' })
+        .then(function(response) {
+            if (response.ok) {
+                closeDeleteModal();
+                deleteTargetId = null;
+                loadOrders();
+            } else {
+                return response.json().then(function(err) {
+                    alert('Ошибка: ' + (err.error || 'Неизвестная ошибка'));
+                });
+            }
+        })
+        .catch(function(error) {
+            alert('Ошибка: ' + error.message);
+        });
 }
 
+// Закрытие модалок при клике вне их
 window.onclick = function(event) {
     if (event.target.classList.contains('modal')) {
         event.target.style.display = 'none';
     }
 }
 
+// Загрузка заказов при открытии страницы
 document.addEventListener('DOMContentLoaded', function() {
+    console.log('DOM загружен, загружаем заказы');
     loadOrders();
 });
+
+console.log('Скрипт загружен, openCreateModal определена:', typeof openCreateModal === 'function');
 </script>
 '''
 
@@ -557,6 +593,7 @@ def login():
         try:
             user = supabase.table('app_users').select('*').eq('email', email).execute()
             if user.data and check_password(password, user.data[0]['password_hash']):
+                session.permanent = True
                 session['user_id'] = user.data[0]['id']
                 session['username'] = user.data[0]['username']
                 session['store_id'] = user.data[0]['store_id']
@@ -583,13 +620,11 @@ def register():
             return render_page(REGISTER_TEMPLATE)
         
         try:
-            # Проверяем email в таблице app_users
             existing_email = supabase.table('app_users').select('*').eq('email', email).execute()
             if existing_email.data:
                 flash('Email уже используется', 'danger')
                 return render_page(REGISTER_TEMPLATE)
             
-            # Проверяем username в таблице app_users
             existing_user = supabase.table('app_users').select('*').eq('username', username).execute()
             if existing_user.data:
                 flash('Имя пользователя уже занято', 'danger')
@@ -597,7 +632,6 @@ def register():
             
             password_hash = hash_password(password)
             
-            # Вставляем в таблицу app_users
             supabase.table('app_users').insert({
                 'username': username,
                 'email': email,
