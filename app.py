@@ -215,7 +215,7 @@ LOGIN_TEMPLATE = '''
                 <input type="password" id="password" name="password" placeholder="••••••••" required />
             </div>
             <button type="submit" class="btn btn-primary btn-full">Войти</button>
-            <p class="auth-hint">Нет аккаунта? <a href="{{ url_for('register') }}">Зарегистрироваться</a></p>
+            <p class="auth-hint">Нет аккаунта? <a href="/register">Зарегистрироваться</a></p>
         </form>
     </div>
 </div>
@@ -250,7 +250,7 @@ REGISTER_TEMPLATE = '''
                 </select>
             </div>
             <button type="submit" class="btn btn-success btn-full">Зарегистрироваться</button>
-            <p class="auth-hint">Уже есть аккаунт? <a href="{{ url_for('login') }}">Войти</a></p>
+            <p class="auth-hint">Уже есть аккаунт? <a href="/login">Войти</a></p>
         </form>
     </div>
 </div>
@@ -704,8 +704,6 @@ def orders():
 @login_required
 def api_orders():
     try:
-        # Получаем все заказы (без фильтра по магазину, т.к. в вашей таблице нет store_id)
-        # Но можно фильтровать по исполнителю (если нужно)
         orders = supabase.table('orders').select('*').order('created_at', desc=True).execute()
         
         return jsonify([{
@@ -732,7 +730,6 @@ def api_create_order():
     try:
         data = request.json
         
-        # Создаем заказ
         result = supabase.table('orders').insert({
             'customer': data.get('customer', ''),
             'phone': data.get('phone', ''),
@@ -747,7 +744,7 @@ def api_create_order():
             'comment': data.get('comment', '')
         }).execute()
         
-        # Обновляем или создаем клиента
+        # Обновляем клиента
         phone = data.get('phone', '')
         if phone:
             existing_client = supabase.table('clients').select('*').eq('phone', phone).execute()
@@ -775,12 +772,10 @@ def api_update_order(order_id):
     try:
         data = request.json
         
-        # Проверяем существование заказа
         order = supabase.table('orders').select('*').eq('id', order_id).execute()
         if not order.data:
             return jsonify({'error': 'Заказ не найден'}), 404
         
-        # Обновляем заказ
         supabase.table('orders').update({
             'customer': data.get('customer', ''),
             'phone': data.get('phone', ''),
@@ -803,12 +798,10 @@ def api_update_order(order_id):
 @login_required
 def api_delete_order(order_id):
     try:
-        # Проверяем существование заказа
         order = supabase.table('orders').select('*').eq('id', order_id).execute()
         if not order.data:
             return jsonify({'error': 'Заказ не найден'}), 404
         
-        # Удаляем заказ
         supabase.table('orders').delete().eq('id', order_id).execute()
         
         return jsonify({'message': 'Заказ удален'})
