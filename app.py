@@ -341,36 +341,11 @@ ORDERS_TEMPLATE = '''
 </div>
 
 <script>
-// ===== ПЕРЕМЕННЫЕ =====
-var deleteTargetId = null;
-var currentStore = 1; // По умолчанию Магазин Карьерная
-
-// ===== ФУНКЦИИ =====
-function getExecutors() {
-    if (currentStore === 1) return ['Павел Иванович', 'Александр'];
-    if (currentStore === 2) return ['Паша', 'Дмитрий'];
-    return ['Не назначен'];
-}
-
-function updateExecutorOptions() {
-    var select = document.getElementById('executor');
-    var currentVal = select.value;
-    select.innerHTML = '<option value="Не назначен">Не назначен</option>';
-    var executors = getExecutors();
-    for (var i = 0; i < executors.length; i++) {
-        if (executors[i] !== 'Не назначен') {
-            select.innerHTML += '<option value="' + executors[i] + '">' + executors[i] + '</option>';
-        }
-    }
-    if (currentVal !== 'Не назначен' && executors.indexOf(currentVal) !== -1) {
-        select.value = currentVal;
-    }
-}
-
+// ===== ПРОСТОЕ РЕШЕНИЕ - ВСЕ ФУНКЦИИ В ОДНОМ МЕСТЕ =====
 function openCreateModal() {
-    console.log('openCreateModal вызвана');
-    document.getElementById('orderId').value = '';
+    document.getElementById('orderModal').style.display = 'flex';
     document.getElementById('modalTitle').textContent = 'Новый заказ';
+    document.getElementById('orderId').value = '';
     document.getElementById('orderForm').reset();
     document.getElementById('customer').value = '';
     document.getElementById('phone').value = '';
@@ -382,8 +357,9 @@ function openCreateModal() {
     document.getElementById('priority').value = 'Обычный';
     document.getElementById('source').value = 'Сайт';
     document.getElementById('comment').value = '';
-    updateExecutorOptions();
-    document.getElementById('orderModal').style.display = 'flex';
+    // Исполнители для Магазина Карьерная (по умолчанию)
+    var select = document.getElementById('executor');
+    select.innerHTML = '<option value="Не назначен">Не назначен</option><option value="Павел Иванович">Павел Иванович</option><option value="Александр">Александр</option>';
 }
 
 function closeModal() {
@@ -395,70 +371,45 @@ function closeDeleteModal() {
 }
 
 function loadOrders() {
-    console.log('loadOrders вызвана');
-    var search = document.getElementById('searchInput').value.trim();
-    var status = document.getElementById('statusFilter').value;
-    
     fetch('/api/orders')
         .then(function(response) { return response.json(); })
         .then(function(orders) {
-            if (search) {
-                orders = orders.filter(function(o) {
-                    return (o.customer && o.customer.toLowerCase().includes(search.toLowerCase())) ||
-                           (o.phone && o.phone.includes(search));
-                });
+            var container = document.getElementById('ordersContainer');
+            if (orders.length === 0) {
+                container.innerHTML = '<div class="empty-state"><h3>Нет заказов</h3><p>Создайте первый заказ</p></div>';
+                return;
             }
-            if (status !== 'all') {
-                orders = orders.filter(function(o) { return o.status === status; });
+            var html = '<div style="overflow-x:auto;"><table class="orders-table"><thead><tr>';
+            html += '<th>ID</th><th>Клиент</th><th>Телефон</th><th>Товар</th>';
+            html += '<th>Цена</th><th>Предоплата</th><th>Исполнитель</th><th>Статус</th><th>Действия</th>';
+            html += '</tr></thead><tbody>';
+            for (var i = 0; i < orders.length; i++) {
+                var o = orders[i];
+                var statusClass = o.status === 'Новый' ? 'status-Новый' : 
+                                 o.status === 'В работе' ? 'status-В-работе' : 
+                                 o.status === 'Готов' ? 'status-Готов' : 'status-Отменен';
+                html += '<tr>';
+                html += '<td>#' + o.id + '</td>';
+                html += '<td><strong>' + (o.customer || '-') + '</strong></td>';
+                html += '<td>' + (o.phone || '-') + '</td>';
+                html += '<td>' + (o.product || '-') + '</td>';
+                html += '<td>' + (o.price ? Number(o.price).toFixed(2) + ' ₽' : '-') + '</td>';
+                html += '<td>' + (o.prepaid ? Number(o.prepaid).toFixed(2) + ' ₽' : '-') + '</td>';
+                html += '<td><span class="badge badge-executor">' + (o.executor || 'Не назначен') + '</span></td>';
+                html += '<td><span class="status ' + statusClass + '">' + o.status + '</span></td>';
+                html += '<td>';
+                html += '<button class="btn btn-primary btn-sm" onclick="openEditModal(' + o.id + ')">✎</button> ';
+                html += '<button class="btn btn-danger btn-sm" onclick="openDeleteModal(' + o.id + ',\'' + (o.customer || 'без имени') + '\')">✕</button>';
+                html += '</td>';
+                html += '</tr>';
             }
+            html += '</tbody></table></div>';
+            container.innerHTML = html;
             document.getElementById('totalCount').textContent = orders.length;
-            renderOrders(orders);
         })
         .catch(function(error) {
-            console.error('Ошибка загрузки:', error);
+            console.error('Ошибка:', error);
         });
-}
-
-function renderOrders(orders) {
-    var container = document.getElementById('ordersContainer');
-    if (orders.length === 0) {
-        container.innerHTML = '<div class="empty-state"><h3>Нет заказов</h3><p>Создайте первый заказ</p></div>';
-        return;
-    }
-    
-    var html = '<div style="overflow-x:auto;"><table class="orders-table"><thead><tr>';
-    html += '<th>ID</th><th>Клиент</th><th>Телефон</th><th>Товар</th>';
-    html += '<th>Цена</th><th>Предоплата</th><th>Исполнитель</th><th>Статус</th>';
-    html += '<th>Приоритет</th><th>Источник</th><th>Действия</th>';
-    html += '</tr></thead><tbody>';
-    
-    for (var i = 0; i < orders.length; i++) {
-        var o = orders[i];
-        var statusClass = o.status === 'Новый' ? 'status-Новый' : 
-                         o.status === 'В работе' ? 'status-В-работе' : 
-                         o.status === 'Готов' ? 'status-Готов' : 'status-Отменен';
-        var priorityBadge = o.priority === 'Высокий' ? 'badge-priority' : '';
-        
-        html += '<tr>';
-        html += '<td>#' + o.id + '</td>';
-        html += '<td><strong>' + (o.customer || '-') + '</strong></td>';
-        html += '<td>' + (o.phone || '-') + '</td>';
-        html += '<td>' + (o.product || '-') + '</td>';
-        html += '<td>' + (o.price ? Number(o.price).toFixed(2) + ' ₽' : '-') + '</td>';
-        html += '<td>' + (o.prepaid ? Number(o.prepaid).toFixed(2) + ' ₽' : '-') + '</td>';
-        html += '<td><span class="badge badge-executor">' + (o.executor || 'Не назначен') + '</span></td>';
-        html += '<td><span class="status ' + statusClass + '">' + o.status + '</span></td>';
-        html += '<td><span class="badge ' + priorityBadge + '">' + (o.priority || 'Обычный') + '</span></td>';
-        html += '<td><span class="badge badge-source">' + (o.source || '-') + '</span></td>';
-        html += '<td>';
-        html += '<button class="btn btn-primary btn-sm" onclick="openEditModal(' + o.id + ')">✎</button> ';
-        html += '<button class="btn btn-danger btn-sm" onclick="openDeleteModal(' + o.id + ',\'' + (o.customer || 'без имени') + '\')">✕</button>';
-        html += '</td>';
-        html += '</tr>';
-    }
-    
-    html += '</tbody></table></div>';
-    container.innerHTML = html;
 }
 
 function openEditModal(id) {
@@ -473,7 +424,6 @@ function openEditModal(id) {
                 }
             }
             if (!order) { alert('Заказ не найден'); return; }
-            
             document.getElementById('orderId').value = order.id;
             document.getElementById('modalTitle').textContent = 'Редактирование заказа';
             document.getElementById('customer').value = order.customer || '';
@@ -486,20 +436,19 @@ function openEditModal(id) {
             document.getElementById('priority').value = order.priority || 'Обычный';
             document.getElementById('source').value = order.source || 'Сайт';
             document.getElementById('comment').value = order.comment || '';
-            updateExecutorOptions();
+            var select = document.getElementById('executor');
+            select.innerHTML = '<option value="Не назначен">Не назначен</option><option value="Павел Иванович">Павел Иванович</option><option value="Александр">Александр</option>';
             document.getElementById('executor').value = order.executor || 'Не назначен';
             document.getElementById('orderModal').style.display = 'flex';
         })
         .catch(function(error) {
             console.error('Ошибка:', error);
-            alert('Ошибка загрузки заказа');
         });
 }
 
 function saveOrder(e) {
     e.preventDefault();
     var id = document.getElementById('orderId').value;
-    
     var data = {
         customer: document.getElementById('customer').value.trim(),
         phone: document.getElementById('phone').value.trim(),
@@ -513,10 +462,8 @@ function saveOrder(e) {
         source: document.getElementById('source').value,
         comment: document.getElementById('comment').value.trim()
     };
-    
     var url = id ? '/api/orders/' + id : '/api/orders';
     var method = id ? 'PUT' : 'POST';
-    
     fetch(url, {
         method: method,
         headers: { 'Content-Type': 'application/json' },
@@ -527,9 +474,7 @@ function saveOrder(e) {
             closeModal();
             loadOrders();
         } else {
-            return response.json().then(function(err) {
-                alert('Ошибка: ' + (err.error || 'Неизвестная ошибка'));
-            });
+            alert('Ошибка сохранения');
         }
     })
     .catch(function(error) {
@@ -543,6 +488,8 @@ function openDeleteModal(id, name) {
     document.getElementById('deleteModal').style.display = 'flex';
 }
 
+var deleteTargetId = null;
+
 function confirmDelete() {
     if (!deleteTargetId) return;
     fetch('/api/orders/' + deleteTargetId, { method: 'DELETE' })
@@ -552,9 +499,7 @@ function confirmDelete() {
                 deleteTargetId = null;
                 loadOrders();
             } else {
-                return response.json().then(function(err) {
-                    alert('Ошибка: ' + (err.error || 'Неизвестная ошибка'));
-                });
+                alert('Ошибка удаления');
             }
         })
         .catch(function(error) {
@@ -562,20 +507,17 @@ function confirmDelete() {
         });
 }
 
-// Закрытие модалок при клике вне их
 window.onclick = function(event) {
     if (event.target.classList.contains('modal')) {
         event.target.style.display = 'none';
     }
 }
 
-// Загрузка заказов при открытии страницы
 document.addEventListener('DOMContentLoaded', function() {
-    console.log('DOM загружен, загружаем заказы');
     loadOrders();
 });
 
-console.log('Скрипт загружен, openCreateModal определена:', typeof openCreateModal === 'function');
+console.log('✅ Все функции загружены!');
 </script>
 '''
 
