@@ -15,28 +15,35 @@
         input:focus { border-color: #d4a84b; outline: none; }
         .btn { width: 100%; padding: 10px; background: #d4a84b; color: #000; border: none; border-radius: 6px; font-weight: bold; cursor: pointer; margin-top: 12px; }
         .btn:hover { background: #c3973a; }
-        .users-fast { display: flex; gap: 8px; justify-content: center; margin-top: 20px; flex-wrap: wrap; }
-        .user-badge { background: rgba(255,255,255,0.05); padding: 6px 12px; border-radius: 6px; text-decoration: none; color: #d4a84b; font-size: 12px; border: 1px solid rgba(212,168,75,0.2); }
+        .flash-message { padding: 10px 14px; border-radius: 6px; background: rgba(255,77,79,0.1); border: 1px solid rgba(255,77,79,0.3); color: #ff4d4f; margin-bottom: 16px; font-size: 13px; text-align: left; }
+        .flash-message.success { background: rgba(46,184,92,0.1); border-color: rgba(46,184,92,0.3); color: #2eb85c; }
     </style>
 </head>
 <body>
     <div class="login-card">
         <div class="logo">🎯 In<span>Target</span></div>
-        <form method="POST" action="/login">
+
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                {% for category, message in messages %}
+                    <div class="flash-message {{ category }}" role="alert">{{ message }}</div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
+
+        <form method="POST" action="{{ url_for('login') }}">
+            <!-- CSRF-токен отсутствовал полностью — критическая уязвимость (login без CSRF
+                 позволяет CSRF login attack: атакующий может залогинить жертву под своим
+                 аккаунтом, чтобы затем отслеживать её действия под известным ему логином). -->
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <div class="form-group">
-                <input type="text" name="username" placeholder="Логин" required>
+                <input type="text" name="username" placeholder="Логин" required autofocus autocomplete="username">
             </div>
             <div class="form-group">
-                <input type="password" name="password" placeholder="Пароль" required>
+                <input type="password" name="password" placeholder="Пароль" required autocomplete="current-password">
             </div>
             <button type="submit" class="btn">🚀 Войти</button>
         </form>
-        <div class="users-fast">
-            <a href="#" class="user-badge">Админ</a>
-            <a href="#" class="user-badge">Павел</a>
-            <a href="#" class="user-badge">Дмитрий</a>
-            <a href="#" class="user-badge">Александр</a>
-        </div>
     </div>
 </body>
 </html>
