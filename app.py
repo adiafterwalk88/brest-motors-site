@@ -1,16 +1,10 @@
 import os
 import secrets
 from flask import Flask, render_template_string, request, redirect, url_for, flash, session, jsonify
-from flask_sqlalchemy import SQLAlchemy
-from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
-from sqlalchemy import Integer, String, Float, DateTime, Text, Boolean
+from supabase import create_client, Client
 from datetime import datetime
-from werkzeug.security import generate_password_hash, check_password_hash
 from functools import wraps
-
-# ===== Базовый класс для SQLAlchemy =====
-class Base(DeclarativeBase):
-    pass
+import bcrypt
 
 # ===== Инициализация приложения =====
 app = Flask(__name__)
@@ -24,25 +18,28 @@ if os.environ.get('FLASK_DEBUG') == 'False' or os.environ.get('RENDER'):
 else:
     app.secret_key = os.environ.get('SECRET_KEY', secrets.token_hex(32))
 
-# ===== Конфигурация базы данных =====
-database_url = os.environ.get('DATABASE_URL')
-if database_url and database_url.startswith('postgres://'):
-    database_url = database_url.replace('postgres://', 'postgresql://', 1)
+# ============================================
+# ===== ПОДКЛЮЧЕНИЕ К SUPABASE (ТОЛЬКО БД) =====
+# ============================================
+SUPABASE_URL = "https://ophusgconubcufrobzyc.supabase.co"
+SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9waHVzZ2NvbnViY3Vmcm9ienljIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODM1ODc5MjQsImV4cCI6MjA5OTE2MzkyNH0.a1DBm4PkDt1NHHyIDfF_xFqZd7qEhSGwUfdZbnvXKXs"
 
-app.config['SQLALCHEMY_DATABASE_URI'] = database_url or 'sqlite:///site.db'
-app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
-app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {
-    'pool_size': 5,
-    'pool_recycle': 300,
-    'pool_pre_ping': True,
-}
-
-# ===== Инициализация БД =====
-db = SQLAlchemy(model_class=Base)
-db.init_app(app)
+supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
+print("✅ Подключение к Supabase установлено!")
 
 # ============================================
-# ===== ВСЕ ШАБЛОНЫ В ОДНОМ МЕСТЕ =====
+# ===== ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ =====
+# ============================================
+
+def hash_password(password):
+    salt = bcrypt.gensalt()
+    return bcrypt.hashpw(password.encode('utf-8'), salt).decode('utf-8')
+
+def check_password(password, hashed):
+    return bcrypt.checkpw(password.encode('utf-8'), hashed.encode('utf-8'))
+
+# ============================================
+# ===== ВСЕ ШАБЛОНЫ =====
 # ============================================
 
 BASE_TEMPLATE = '''
@@ -738,47 +735,11 @@ ERROR_500 = '''
 '''
 
 # ============================================
-# ===== МОДЕЛИ =====
+# ===== ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ =====
 # ============================================
 
-class User(db.Model):
-    __tablename__ = 'users'
-    id: Mapped[int] = mapped_column(Integer, primary_key=True)
-    username: Mapped[str] = mapped_column(String(80), unique=True, nullable=False)
-    email: Mapped[str] = mapped_column(String(120), unique=True, nullable=False)
-    password_hash: Mapped[str] = mapped_column(String(200), nullable=False)
-    is_admin: Mapped[bool] = mapped_column(Boolean, default=False)
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
-    
-    def set_password(self, password):
-        self.password_hash = generate_password_hash(password)
-    
-    def check_password(self, password):
-        return check_password_hash(self.password_hash, password)
-
-class Order(db.Model):
-    __tablename__ = 'orders'
-    id: Mapped[int] = mapped_column(Integer, primary_key=True)
-    order_number: Mapped[str] = mapped_column(String(50), unique=True, nullable=False)
-    client_name: Mapped[str] = mapped_column(String(200), nullable=False)
-    amount: Mapped[float] = mapped_column(Float, nullable=False)
-    status: Mapped[str] = mapped_column(String(50), default='новый')
-    description: Mapped[str] = mapped_column(Text, nullable=True)
-    user_id: Mapped[int] = mapped_column(Integer, db.ForeignKey('users.id'), nullable=False)
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
-    updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
-    user = db.relationship('User', backref='orders', lazy=True)
-
-class Employee(db.Model):
-    __tablename__ = 'employees'
-    id: Mapped[int] = mapped_column(Integer, primary_key=True)
-    full_name: Mapped[str] = mapped_column(String(200), nullable=False)
-    position: Mapped[str] = mapped_column(String(100), nullable=False)
-    phone: Mapped[str] = mapped_column(String(20), nullable=True)
-    email: Mapped[str] = mapped_column(String(120), nullable=True)
-    user_id: Mapped[int] = mapped_column(Integer, db.ForeignKey('users.id'), nullable=False)
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
-    user = db.relationship('User', backref='employees', lazy=True)
+def render_page(content, **kwargs):
+    return render_template_string(BASE_TEMPLATE, content=content, **kwargs)
 
 # ============================================
 # ===== ДЕКОРАТОРЫ =====
@@ -799,18 +760,15 @@ def admin_required(f):
         if 'user_id' not in session:
             flash('Пожалуйста, войдите в систему', 'warning')
             return redirect(url_for('login'))
-        user = User.query.get(session['user_id'])
-        if not user or not user.is_admin:
+        user = supabase.table('users').select('*').eq('id', session['user_id']).execute()
+        if not user.data or not user.data[0].get('is_admin', False):
             flash('Доступ запрещен', 'danger')
             return redirect(url_for('orders'))
         return f(*args, **kwargs)
     return decorated_function
 
-def render_page(content, **kwargs):
-    return render_template_string(BASE_TEMPLATE, content=content, **kwargs)
-
 # ============================================
-# ===== РОУТЫ =====
+# ===== РОУТЫ (АВТОРИЗАЦИЯ СВОЯ) =====
 # ============================================
 
 @app.route('/')
@@ -824,15 +782,18 @@ def login():
     if request.method == 'POST':
         email = request.form.get('email')
         password = request.form.get('password')
-        user = User.query.filter_by(email=email).first()
-        if user and user.check_password(password):
-            session['user_id'] = user.id
-            session['username'] = user.username
-            session['is_admin'] = user.is_admin
-            flash(f'Добро пожаловать, {user.username}!', 'success')
+        
+        user = supabase.table('users').select('*').eq('email', email).execute()
+        
+        if user.data and check_password(password, user.data[0]['password_hash']):
+            session['user_id'] = user.data[0]['id']
+            session['username'] = user.data[0]['username']
+            session['is_admin'] = user.data[0].get('is_admin', False)
+            flash(f'Добро пожаловать, {user.data[0]["username"]}!', 'success')
             return redirect(url_for('orders'))
         else:
             flash('Неверный email или пароль', 'danger')
+    
     return render_page(LOGIN_TEMPLATE)
 
 @app.route('/register', methods=['GET', 'POST'])
@@ -847,18 +808,25 @@ def register():
             flash('Пароли не совпадают', 'danger')
             return render_page(REGISTER_TEMPLATE)
         
-        if User.query.filter_by(username=username).first():
+        existing_user = supabase.table('users').select('*').eq('username', username).execute()
+        if existing_user.data:
             flash('Имя пользователя уже занято', 'danger')
             return render_page(REGISTER_TEMPLATE)
         
-        if User.query.filter_by(email=email).first():
+        existing_email = supabase.table('users').select('*').eq('email', email).execute()
+        if existing_email.data:
             flash('Email уже используется', 'danger')
             return render_page(REGISTER_TEMPLATE)
         
-        user = User(username=username, email=email)
-        user.set_password(password)
-        db.session.add(user)
-        db.session.commit()
+        password_hash = hash_password(password)
+        
+        supabase.table('users').insert({
+            'username': username,
+            'email': email,
+            'password_hash': password_hash,
+            'is_admin': False
+        }).execute()
+        
         flash('Регистрация успешна! Войдите в систему.', 'success')
         return redirect(url_for('login'))
     
@@ -869,6 +837,10 @@ def logout():
     session.clear()
     flash('Вы вышли из системы', 'info')
     return redirect(url_for('login'))
+
+# ============================================
+# ===== СТРАНИЦЫ =====
+# ============================================
 
 @app.route('/orders')
 @login_required
@@ -883,72 +855,83 @@ def employee():
 @app.route('/admin')
 @admin_required
 def admin_panel():
-    users = User.query.all()
-    orders = Order.query.all()
-    employees = Employee.query.all()
-    return render_page(ADMIN_TEMPLATE, users=users, orders=orders, employees=employees)
+    users = supabase.table('users').select('*').execute()
+    orders = supabase.table('orders').select('*').execute()
+    employees = supabase.table('employees').select('*').execute()
+    
+    return render_page(ADMIN_TEMPLATE, 
+                       users=users.data, 
+                       orders=orders.data, 
+                       employees=employees.data)
 
 # ============================================
-# ===== API ДЛЯ ЗАКАЗОВ =====
+# ===== API ДЛЯ ЗАКАЗОВ (РАБОТА С SUPABASE) =====
 # ============================================
 
 @app.route('/api/orders')
 @login_required
 def api_orders():
     user_id = session['user_id']
-    orders = Order.query.filter_by(user_id=user_id).order_by(Order.created_at.desc()).all()
+    orders = supabase.table('orders').select('*').eq('user_id', user_id).order('created_at', desc=True).execute()
+    
     return jsonify([{
-        'id': o.id,
-        'order_number': o.order_number,
-        'client_name': o.client_name,
-        'amount': o.amount,
-        'status': o.status,
-        'description': o.description,
-        'created_at': o.created_at.isoformat()
-    } for o in orders])
+        'id': o['id'],
+        'order_number': o['order_number'],
+        'client_name': o['client_name'],
+        'amount': o['amount'],
+        'status': o['status'],
+        'description': o.get('description', ''),
+        'created_at': o['created_at']
+    } for o in orders.data])
 
 @app.route('/api/orders', methods=['POST'])
 @login_required
 def api_create_order():
     data = request.json
     user_id = session['user_id']
-    order = Order(
-        order_number=data['order_number'],
-        client_name=data['client_name'],
-        amount=data['amount'],
-        status=data.get('status', 'новый'),
-        description=data.get('description', ''),
-        user_id=user_id
-    )
-    db.session.add(order)
-    db.session.commit()
-    return jsonify({'id': order.id, 'message': 'Заказ создан'}), 201
+    
+    result = supabase.table('orders').insert({
+        'order_number': data['order_number'],
+        'client_name': data['client_name'],
+        'amount': data['amount'],
+        'status': data.get('status', 'новый'),
+        'description': data.get('description', ''),
+        'user_id': user_id
+    }).execute()
+    
+    return jsonify({'id': result.data[0]['id'], 'message': 'Заказ создан'}), 201
 
 @app.route('/api/orders/<int:order_id>', methods=['PUT'])
 @login_required
 def api_update_order(order_id):
     data = request.json
     user_id = session['user_id']
-    order = Order.query.filter_by(id=order_id, user_id=user_id).first()
-    if not order:
+    
+    order = supabase.table('orders').select('*').eq('id', order_id).eq('user_id', user_id).execute()
+    if not order.data:
         return jsonify({'error': 'Заказ не найден'}), 404
-    order.order_number = data.get('order_number', order.order_number)
-    order.client_name = data.get('client_name', order.client_name)
-    order.amount = data.get('amount', order.amount)
-    order.status = data.get('status', order.status)
-    order.description = data.get('description', order.description)
-    db.session.commit()
+    
+    supabase.table('orders').update({
+        'order_number': data.get('order_number'),
+        'client_name': data.get('client_name'),
+        'amount': data.get('amount'),
+        'status': data.get('status'),
+        'description': data.get('description')
+    }).eq('id', order_id).execute()
+    
     return jsonify({'message': 'Заказ обновлен'})
 
 @app.route('/api/orders/<int:order_id>', methods=['DELETE'])
 @login_required
 def api_delete_order(order_id):
     user_id = session['user_id']
-    order = Order.query.filter_by(id=order_id, user_id=user_id).first()
-    if not order:
+    
+    order = supabase.table('orders').select('*').eq('id', order_id).eq('user_id', user_id).execute()
+    if not order.data:
         return jsonify({'error': 'Заказ не найден'}), 404
-    db.session.delete(order)
-    db.session.commit()
+    
+    supabase.table('orders').delete().eq('id', order_id).execute()
+    
     return jsonify({'message': 'Заказ удален'})
 
 # ============================================
@@ -959,56 +942,63 @@ def api_delete_order(order_id):
 @login_required
 def api_employees():
     user_id = session['user_id']
-    employees = Employee.query.filter_by(user_id=user_id).all()
+    employees = supabase.table('employees').select('*').eq('user_id', user_id).execute()
+    
     return jsonify([{
-        'id': e.id,
-        'full_name': e.full_name,
-        'position': e.position,
-        'phone': e.phone,
-        'email': e.email,
-        'created_at': e.created_at.isoformat()
-    } for e in employees])
+        'id': e['id'],
+        'full_name': e['full_name'],
+        'position': e['position'],
+        'phone': e.get('phone', ''),
+        'email': e.get('email', ''),
+        'created_at': e['created_at']
+    } for e in employees.data])
 
 @app.route('/api/employees', methods=['POST'])
 @login_required
 def api_create_employee():
     data = request.json
     user_id = session['user_id']
-    employee = Employee(
-        full_name=data['full_name'],
-        position=data['position'],
-        phone=data.get('phone', ''),
-        email=data.get('email', ''),
-        user_id=user_id
-    )
-    db.session.add(employee)
-    db.session.commit()
-    return jsonify({'id': employee.id, 'message': 'Сотрудник создан'}), 201
+    
+    result = supabase.table('employees').insert({
+        'full_name': data['full_name'],
+        'position': data['position'],
+        'phone': data.get('phone', ''),
+        'email': data.get('email', ''),
+        'user_id': user_id
+    }).execute()
+    
+    return jsonify({'id': result.data[0]['id'], 'message': 'Сотрудник создан'}), 201
 
 @app.route('/api/employees/<int:employee_id>', methods=['PUT'])
 @login_required
 def api_update_employee(employee_id):
     data = request.json
     user_id = session['user_id']
-    employee = Employee.query.filter_by(id=employee_id, user_id=user_id).first()
-    if not employee:
+    
+    employee = supabase.table('employees').select('*').eq('id', employee_id).eq('user_id', user_id).execute()
+    if not employee.data:
         return jsonify({'error': 'Сотрудник не найден'}), 404
-    employee.full_name = data['full_name']
-    employee.position = data['position']
-    employee.phone = data.get('phone', '')
-    employee.email = data.get('email', '')
-    db.session.commit()
+    
+    supabase.table('employees').update({
+        'full_name': data['full_name'],
+        'position': data['position'],
+        'phone': data.get('phone', ''),
+        'email': data.get('email', '')
+    }).eq('id', employee_id).execute()
+    
     return jsonify({'message': 'Сотрудник обновлен'})
 
 @app.route('/api/employees/<int:employee_id>', methods=['DELETE'])
 @login_required
 def api_delete_employee(employee_id):
     user_id = session['user_id']
-    employee = Employee.query.filter_by(id=employee_id, user_id=user_id).first()
-    if not employee:
+    
+    employee = supabase.table('employees').select('*').eq('id', employee_id).eq('user_id', user_id).execute()
+    if not employee.data:
         return jsonify({'error': 'Сотрудник не найден'}), 404
-    db.session.delete(employee)
-    db.session.commit()
+    
+    supabase.table('employees').delete().eq('id', employee_id).execute()
+    
     return jsonify({'message': 'Сотрудник удален'})
 
 # ============================================
@@ -1022,14 +1012,6 @@ def not_found(e):
 @app.errorhandler(500)
 def server_error(e):
     return render_page(ERROR_500), 500
-
-# ============================================
-# ===== СОЗДАНИЕ ТАБЛИЦ =====
-# ============================================
-
-with app.app_context():
-    db.create_all()
-    print("✅ База данных инициализирована")
 
 # ============================================
 # ===== ЗАПУСК =====
