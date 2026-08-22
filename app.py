@@ -19,11 +19,12 @@ else:
     app.secret_key = os.environ.get('SECRET_KEY', secrets.token_hex(32))
 
 # ============================================
-# ===== ПОДКЛЮЧЕНИЕ К SUPABASE (ТОЛЬКО БД) =====
+# ===== ПОДКЛЮЧЕНИЕ К SUPABASE =====
 # ============================================
 SUPABASE_URL = "https://ophusgconubcufrobzyc.supabase.co"
 SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9waHVzZ2NvbnViY3Vmcm9ienljIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODM1ODc5MjQsImV4cCI6MjA5OTE2MzkyNH0.a1DBm4PkDt1NHHyIDfF_xFqZd7qEhSGwUfdZbnvXKXs"
 
+# Инициализация клиента Supabase
 supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 print("✅ Подключение к Supabase установлено!")
 
@@ -37,6 +38,39 @@ def hash_password(password):
 
 def check_password(password, hashed):
     return bcrypt.checkpw(password.encode('utf-8'), hashed.encode('utf-8'))
+
+def render_page(content, **kwargs):
+    return render_template_string(BASE_TEMPLATE, content=content, **kwargs)
+
+# ============================================
+# ===== ДЕКОРАТОРЫ =====
+# ============================================
+
+def login_required(f):
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        if 'user_id' not in session:
+            flash('Пожалуйста, войдите в систему', 'warning')
+            return redirect(url_for('login'))
+        return f(*args, **kwargs)
+    return decorated_function
+
+def admin_required(f):
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        if 'user_id' not in session:
+            flash('Пожалуйста, войдите в систему', 'warning')
+            return redirect(url_for('login'))
+        try:
+            user = supabase.table('users').select('*').eq('id', session['user_id']).execute()
+            if not user.data or not user.data[0].get('is_admin', False):
+                flash('Доступ запрещен', 'danger')
+                return redirect(url_for('orders'))
+        except:
+            flash('Ошибка доступа', 'danger')
+            return redirect(url_for('orders'))
+        return f(*args, **kwargs)
+    return decorated_function
 
 # ============================================
 # ===== ВСЕ ШАБЛОНЫ =====
@@ -735,40 +769,7 @@ ERROR_500 = '''
 '''
 
 # ============================================
-# ===== ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ =====
-# ============================================
-
-def render_page(content, **kwargs):
-    return render_template_string(BASE_TEMPLATE, content=content, **kwargs)
-
-# ============================================
-# ===== ДЕКОРАТОРЫ =====
-# ============================================
-
-def login_required(f):
-    @wraps(f)
-    def decorated_function(*args, **kwargs):
-        if 'user_id' not in session:
-            flash('Пожалуйста, войдите в систему', 'warning')
-            return redirect(url_for('login'))
-        return f(*args, **kwargs)
-    return decorated_function
-
-def admin_required(f):
-    @wraps(f)
-    def decorated_function(*args, **kwargs):
-        if 'user_id' not in session:
-            flash('Пожалуйста, войдите в систему', 'warning')
-            return redirect(url_for('login'))
-        user = supabase.table('users').select('*').eq('id', session['user_id']).execute()
-        if not user.data or not user.data[0].get('is_admin', False):
-            flash('Доступ запрещен', 'danger')
-            return redirect(url_for('orders'))
-        return f(*args, **kwargs)
-    return decorated_function
-
-# ============================================
-# ===== РОУТЫ (АВТОРИЗАЦИЯ СВОЯ) =====
+# ===== РОУТЫ =====
 # ============================================
 
 @app.route('/')
@@ -783,16 +784,19 @@ def login():
         email = request.form.get('email')
         password = request.form.get('password')
         
-        user = supabase.table('users').select('*').eq('email', email).execute()
-        
-        if user.data and check_password(password, user.data[0]['password_hash']):
-            session['user_id'] = user.data[0]['id']
-            session['username'] = user.data[0]['username']
-            session['is_admin'] = user.data[0].get('is_admin', False)
-            flash(f'Добро пожаловать, {user.data[0]["username"]}!', 'success')
-            return redirect(url_for('orders'))
-        else:
-            flash('Неверный email или пароль', 'danger')
+        try:
+            user = supabase.table('users').select('*').eq('email', email).execute()
+            
+            if user.data and check_password(password, user.data[0]['password_hash']):
+                session['user_id'] = user.data[0]['id']
+                session['username'] = user.data[0]['username']
+                session['is_admin'] = user.data[0].get('is_admin', False)
+                flash(f'Добро пожаловать, {user.data[0]["username"]}!', 'success')
+                return redirect(url_for('orders'))
+            else:
+                flash('Неверный email или пароль', 'danger')
+        except Exception as e:
+            flash(f'Ошибка входа: {str(e)}', 'danger')
     
     return render_page(LOGIN_TEMPLATE)
 
@@ -808,27 +812,30 @@ def register():
             flash('Пароли не совпадают', 'danger')
             return render_page(REGISTER_TEMPLATE)
         
-        existing_user = supabase.table('users').select('*').eq('username', username).execute()
-        if existing_user.data:
-            flash('Имя пользователя уже занято', 'danger')
-            return render_page(REGISTER_TEMPLATE)
-        
-        existing_email = supabase.table('users').select('*').eq('email', email).execute()
-        if existing_email.data:
-            flash('Email уже используется', 'danger')
-            return render_page(REGISTER_TEMPLATE)
-        
-        password_hash = hash_password(password)
-        
-        supabase.table('users').insert({
-            'username': username,
-            'email': email,
-            'password_hash': password_hash,
-            'is_admin': False
-        }).execute()
-        
-        flash('Регистрация успешна! Войдите в систему.', 'success')
-        return redirect(url_for('login'))
+        try:
+            existing_user = supabase.table('users').select('*').eq('username', username).execute()
+            if existing_user.data:
+                flash('Имя пользователя уже занято', 'danger')
+                return render_page(REGISTER_TEMPLATE)
+            
+            existing_email = supabase.table('users').select('*').eq('email', email).execute()
+            if existing_email.data:
+                flash('Email уже используется', 'danger')
+                return render_page(REGISTER_TEMPLATE)
+            
+            password_hash = hash_password(password)
+            
+            supabase.table('users').insert({
+                'username': username,
+                'email': email,
+                'password_hash': password_hash,
+                'is_admin': False
+            }).execute()
+            
+            flash('Регистрация успешна! Войдите в систему.', 'success')
+            return redirect(url_for('login'))
+        except Exception as e:
+            flash(f'Ошибка регистрации: {str(e)}', 'danger')
     
     return render_page(REGISTER_TEMPLATE)
 
@@ -837,10 +844,6 @@ def logout():
     session.clear()
     flash('Вы вышли из системы', 'info')
     return redirect(url_for('login'))
-
-# ============================================
-# ===== СТРАНИЦЫ =====
-# ============================================
 
 @app.route('/orders')
 @login_required
@@ -855,84 +858,100 @@ def employee():
 @app.route('/admin')
 @admin_required
 def admin_panel():
-    users = supabase.table('users').select('*').execute()
-    orders = supabase.table('orders').select('*').execute()
-    employees = supabase.table('employees').select('*').execute()
-    
-    return render_page(ADMIN_TEMPLATE, 
-                       users=users.data, 
-                       orders=orders.data, 
-                       employees=employees.data)
+    try:
+        users = supabase.table('users').select('*').execute()
+        orders = supabase.table('orders').select('*').execute()
+        employees = supabase.table('employees').select('*').execute()
+        
+        return render_page(ADMIN_TEMPLATE, 
+                           users=users.data, 
+                           orders=orders.data, 
+                           employees=employees.data)
+    except Exception as e:
+        flash(f'Ошибка загрузки админ-панели: {str(e)}', 'danger')
+        return redirect(url_for('orders'))
 
 # ============================================
-# ===== API ДЛЯ ЗАКАЗОВ (РАБОТА С SUPABASE) =====
+# ===== API ДЛЯ ЗАКАЗОВ =====
 # ============================================
 
 @app.route('/api/orders')
 @login_required
 def api_orders():
-    user_id = session['user_id']
-    orders = supabase.table('orders').select('*').eq('user_id', user_id).order('created_at', desc=True).execute()
-    
-    return jsonify([{
-        'id': o['id'],
-        'order_number': o['order_number'],
-        'client_name': o['client_name'],
-        'amount': o['amount'],
-        'status': o['status'],
-        'description': o.get('description', ''),
-        'created_at': o['created_at']
-    } for o in orders.data])
+    try:
+        user_id = session['user_id']
+        orders = supabase.table('orders').select('*').eq('user_id', user_id).order('created_at', desc=True).execute()
+        
+        return jsonify([{
+            'id': o['id'],
+            'order_number': o['order_number'],
+            'client_name': o['client_name'],
+            'amount': o['amount'],
+            'status': o['status'],
+            'description': o.get('description', ''),
+            'created_at': o['created_at']
+        } for o in orders.data])
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
 
 @app.route('/api/orders', methods=['POST'])
 @login_required
 def api_create_order():
-    data = request.json
-    user_id = session['user_id']
-    
-    result = supabase.table('orders').insert({
-        'order_number': data['order_number'],
-        'client_name': data['client_name'],
-        'amount': data['amount'],
-        'status': data.get('status', 'новый'),
-        'description': data.get('description', ''),
-        'user_id': user_id
-    }).execute()
-    
-    return jsonify({'id': result.data[0]['id'], 'message': 'Заказ создан'}), 201
+    try:
+        data = request.json
+        user_id = session['user_id']
+        
+        result = supabase.table('orders').insert({
+            'order_number': data['order_number'],
+            'client_name': data['client_name'],
+            'amount': data['amount'],
+            'status': data.get('status', 'новый'),
+            'description': data.get('description', ''),
+            'user_id': user_id
+        }).execute()
+        
+        return jsonify({'id': result.data[0]['id'], 'message': 'Заказ создан'}), 201
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
 
 @app.route('/api/orders/<int:order_id>', methods=['PUT'])
 @login_required
 def api_update_order(order_id):
-    data = request.json
-    user_id = session['user_id']
-    
-    order = supabase.table('orders').select('*').eq('id', order_id).eq('user_id', user_id).execute()
-    if not order.data:
-        return jsonify({'error': 'Заказ не найден'}), 404
-    
-    supabase.table('orders').update({
-        'order_number': data.get('order_number'),
-        'client_name': data.get('client_name'),
-        'amount': data.get('amount'),
-        'status': data.get('status'),
-        'description': data.get('description')
-    }).eq('id', order_id).execute()
-    
-    return jsonify({'message': 'Заказ обновлен'})
+    try:
+        data = request.json
+        user_id = session['user_id']
+        
+        order = supabase.table('orders').select('*').eq('id', order_id).eq('user_id', user_id).execute()
+        if not order.data:
+            return jsonify({'error': 'Заказ не найден'}), 404
+        
+        supabase.table('orders').update({
+            'order_number': data.get('order_number'),
+            'client_name': data.get('client_name'),
+            'amount': data.get('amount'),
+            'status': data.get('status'),
+            'description': data.get('description')
+        }).eq('id', order_id).execute()
+        
+        return jsonify({'message': 'Заказ обновлен'})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
 
 @app.route('/api/orders/<int:order_id>', methods=['DELETE'])
 @login_required
 def api_delete_order(order_id):
-    user_id = session['user_id']
-    
-    order = supabase.table('orders').select('*').eq('id', order_id).eq('user_id', user_id).execute()
-    if not order.data:
-        return jsonify({'error': 'Заказ не найден'}), 404
-    
-    supabase.table('orders').delete().eq('id', order_id).execute()
-    
-    return jsonify({'message': 'Заказ удален'})
+    try:
+        user_id = session['user_id']
+        
+        order = supabase.table('orders').select('*').eq('id', order_id).eq('user_id', user_id).execute()
+        if not order.data:
+            return jsonify({'error': 'Заказ не найден'}), 404
+        
+        supabase.table('orders').delete().eq('id', order_id).execute()
+        
+        return jsonify({'message': 'Заказ удален'})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
 
 # ============================================
 # ===== API ДЛЯ СОТРУДНИКОВ =====
@@ -941,65 +960,77 @@ def api_delete_order(order_id):
 @app.route('/api/employees')
 @login_required
 def api_employees():
-    user_id = session['user_id']
-    employees = supabase.table('employees').select('*').eq('user_id', user_id).execute()
-    
-    return jsonify([{
-        'id': e['id'],
-        'full_name': e['full_name'],
-        'position': e['position'],
-        'phone': e.get('phone', ''),
-        'email': e.get('email', ''),
-        'created_at': e['created_at']
-    } for e in employees.data])
+    try:
+        user_id = session['user_id']
+        employees = supabase.table('employees').select('*').eq('user_id', user_id).execute()
+        
+        return jsonify([{
+            'id': e['id'],
+            'full_name': e['full_name'],
+            'position': e['position'],
+            'phone': e.get('phone', ''),
+            'email': e.get('email', ''),
+            'created_at': e['created_at']
+        } for e in employees.data])
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
 
 @app.route('/api/employees', methods=['POST'])
 @login_required
 def api_create_employee():
-    data = request.json
-    user_id = session['user_id']
-    
-    result = supabase.table('employees').insert({
-        'full_name': data['full_name'],
-        'position': data['position'],
-        'phone': data.get('phone', ''),
-        'email': data.get('email', ''),
-        'user_id': user_id
-    }).execute()
-    
-    return jsonify({'id': result.data[0]['id'], 'message': 'Сотрудник создан'}), 201
+    try:
+        data = request.json
+        user_id = session['user_id']
+        
+        result = supabase.table('employees').insert({
+            'full_name': data['full_name'],
+            'position': data['position'],
+            'phone': data.get('phone', ''),
+            'email': data.get('email', ''),
+            'user_id': user_id
+        }).execute()
+        
+        return jsonify({'id': result.data[0]['id'], 'message': 'Сотрудник создан'}), 201
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
 
 @app.route('/api/employees/<int:employee_id>', methods=['PUT'])
 @login_required
 def api_update_employee(employee_id):
-    data = request.json
-    user_id = session['user_id']
-    
-    employee = supabase.table('employees').select('*').eq('id', employee_id).eq('user_id', user_id).execute()
-    if not employee.data:
-        return jsonify({'error': 'Сотрудник не найден'}), 404
-    
-    supabase.table('employees').update({
-        'full_name': data['full_name'],
-        'position': data['position'],
-        'phone': data.get('phone', ''),
-        'email': data.get('email', '')
-    }).eq('id', employee_id).execute()
-    
-    return jsonify({'message': 'Сотрудник обновлен'})
+    try:
+        data = request.json
+        user_id = session['user_id']
+        
+        employee = supabase.table('employees').select('*').eq('id', employee_id).eq('user_id', user_id).execute()
+        if not employee.data:
+            return jsonify({'error': 'Сотрудник не найден'}), 404
+        
+        supabase.table('employees').update({
+            'full_name': data['full_name'],
+            'position': data['position'],
+            'phone': data.get('phone', ''),
+            'email': data.get('email', '')
+        }).eq('id', employee_id).execute()
+        
+        return jsonify({'message': 'Сотрудник обновлен'})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
 
 @app.route('/api/employees/<int:employee_id>', methods=['DELETE'])
 @login_required
 def api_delete_employee(employee_id):
-    user_id = session['user_id']
-    
-    employee = supabase.table('employees').select('*').eq('id', employee_id).eq('user_id', user_id).execute()
-    if not employee.data:
-        return jsonify({'error': 'Сотрудник не найден'}), 404
-    
-    supabase.table('employees').delete().eq('id', employee_id).execute()
-    
-    return jsonify({'message': 'Сотрудник удален'})
+    try:
+        user_id = session['user_id']
+        
+        employee = supabase.table('employees').select('*').eq('id', employee_id).eq('user_id', user_id).execute()
+        if not employee.data:
+            return jsonify({'error': 'Сотрудник не найден'}), 404
+        
+        supabase.table('employees').delete().eq('id', employee_id).execute()
+        
+        return jsonify({'message': 'Сотрудник удален'})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
 
 # ============================================
 # ===== ОБРАБОТКА ОШИБОК =====
