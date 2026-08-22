@@ -218,7 +218,7 @@ REGISTER_TEMPLATE = '''
 
 ORDERS_TEMPLATE = '''
 <div style="margin: 15px 0;">
-    <button class="btn btn-primary" id="newOrderBtn">+ Новый заказ</button>
+    <button class="btn btn-primary" onclick="document.getElementById('orderModal').style.display='flex'; document.getElementById('modalTitle').textContent='Новый заказ'; document.getElementById('orderId').value=''; document.getElementById('orderForm').reset();">+ Новый заказ</button>
 </div>
 
 <div class="toolbar">
