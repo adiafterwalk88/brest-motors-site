@@ -8,8 +8,6 @@ import bcrypt
 
 app = Flask(__name__)
 app.secret_key = os.environ.get('SECRET_KEY', secrets.token_hex(32))
-
-# Настройки сессии (30 дней)
 app.config['PERMANENT_SESSION_LIFETIME'] = 30 * 24 * 60 * 60
 
 SUPABASE_URL = "https://ophusgconubcufrobzyc.supabase.co"
@@ -220,7 +218,7 @@ REGISTER_TEMPLATE = '''
 
 ORDERS_TEMPLATE = '''
 <div style="margin: 15px 0;">
-    <button class="btn btn-primary" onclick="openCreateModal()">+ Новый заказ</button>
+    <button class="btn btn-primary" id="newOrderBtn">+ Новый заказ</button>
 </div>
 
 <div class="toolbar">
@@ -246,9 +244,9 @@ ORDERS_TEMPLATE = '''
 </div>
 
 <!-- Модалка создания/редактирования -->
-<div id="orderModal" class="modal" style="display:none;">
+<div id="orderModal" class="modal">
     <div class="modal-content">
-        <span class="modal-close" onclick="closeModal()">&times;</span>
+        <span class="modal-close" onclick="document.getElementById('orderModal').style.display='none'">&times;</span>
         <h2 id="modalTitle">Новый заказ</h2>
         <form id="orderForm" onsubmit="saveOrder(event)">
             <input type="hidden" id="orderId" />
@@ -322,27 +320,27 @@ ORDERS_TEMPLATE = '''
             </div>
             <div class="form-actions">
                 <button type="submit" class="btn btn-success">Сохранить</button>
-                <button type="button" class="btn btn-secondary" onclick="closeModal()">Отмена</button>
+                <button type="button" class="btn btn-secondary" onclick="document.getElementById('orderModal').style.display='none'">Отмена</button>
             </div>
         </form>
     </div>
 </div>
 
 <!-- Модалка удаления -->
-<div id="deleteModal" class="modal" style="display:none;">
+<div id="deleteModal" class="modal">
     <div class="modal-content" style="max-width:400px;">
         <h2>Подтверждение</h2>
         <p>Удалить заказ клиента <strong id="deleteCustomerName"></strong>?</p>
         <div class="form-actions">
             <button class="btn btn-danger" onclick="confirmDelete()">Удалить</button>
-            <button class="btn btn-secondary" onclick="closeDeleteModal()">Отмена</button>
+            <button class="btn btn-secondary" onclick="document.getElementById('deleteModal').style.display='none'">Отмена</button>
         </div>
     </div>
 </div>
 
 <script>
-// ===== ПРОСТОЕ РЕШЕНИЕ - ВСЕ ФУНКЦИИ В ОДНОМ МЕСТЕ =====
-function openCreateModal() {
+// ===== КНОПКА "НОВЫЙ ЗАКАЗ" =====
+document.getElementById('newOrderBtn').addEventListener('click', function() {
     document.getElementById('orderModal').style.display = 'flex';
     document.getElementById('modalTitle').textContent = 'Новый заказ';
     document.getElementById('orderId').value = '';
@@ -357,17 +355,13 @@ function openCreateModal() {
     document.getElementById('priority').value = 'Обычный';
     document.getElementById('source').value = 'Сайт';
     document.getElementById('comment').value = '';
-    // Исполнители для Магазина Карьерная (по умолчанию)
+    // Исполнители для Магазина Московская (по умолчанию)
     var select = document.getElementById('executor');
-    select.innerHTML = '<option value="Не назначен">Не назначен</option><option value="Павел Иванович">Павел Иванович</option><option value="Александр">Александр</option>';
-}
+    select.innerHTML = '<option value="Не назначен">Не назначен</option><option value="Павел Иванович">Павел Иванович</option><option value="Александр">Александр</option><option value="Паша">Паша</option><option value="Дмитрий">Дмитрий</option>';
+});
 
 function closeModal() {
     document.getElementById('orderModal').style.display = 'none';
-}
-
-function closeDeleteModal() {
-    document.getElementById('deleteModal').style.display = 'none';
 }
 
 function loadOrders() {
@@ -437,7 +431,7 @@ function openEditModal(id) {
             document.getElementById('source').value = order.source || 'Сайт';
             document.getElementById('comment').value = order.comment || '';
             var select = document.getElementById('executor');
-            select.innerHTML = '<option value="Не назначен">Не назначен</option><option value="Павел Иванович">Павел Иванович</option><option value="Александр">Александр</option>';
+            select.innerHTML = '<option value="Не назначен">Не назначен</option><option value="Павел Иванович">Павел Иванович</option><option value="Александр">Александр</option><option value="Паша">Паша</option><option value="Дмитрий">Дмитрий</option>';
             document.getElementById('executor').value = order.executor || 'Не назначен';
             document.getElementById('orderModal').style.display = 'flex';
         })
@@ -471,7 +465,7 @@ function saveOrder(e) {
     })
     .then(function(response) {
         if (response.ok) {
-            closeModal();
+            document.getElementById('orderModal').style.display = 'none';
             loadOrders();
         } else {
             alert('Ошибка сохранения');
@@ -495,7 +489,7 @@ function confirmDelete() {
     fetch('/api/orders/' + deleteTargetId, { method: 'DELETE' })
         .then(function(response) {
             if (response.ok) {
-                closeDeleteModal();
+                document.getElementById('deleteModal').style.display = 'none';
                 deleteTargetId = null;
                 loadOrders();
             } else {
