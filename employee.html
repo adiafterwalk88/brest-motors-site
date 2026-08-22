@@ -1,290 +1,275 @@
-<!DOCTYPE html>
-<html lang="ru">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Сотрудники - Brest Motors</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
-</head>
-<body>
-    <header class="header">
-        <div class="container">
-            <h1>👥 Управление сотрудниками</h1>
-            <nav>
-                <a href="{{ url_for('orders') }}">📦 Заказы</a>
-                <a href="{{ url_for('employee') }}">👥 Сотрудники</a>
-                {% if session.is_admin %}
-                <a href="{{ url_for('admin_panel') }}">⚙️ Админка</a>
-                {% endif %}
-                <a href="{{ url_for('logout') }}">🚪 Выйти</a>
-            </nav>
-        </div>
-    </header>
+{% extends "base.html" %}
 
-    <main class="container">
-        <div class="card">
-            <h2>Список сотрудников</h2>
-            
-            <div class="toolbar">
-                <button class="btn btn-primary" onclick="openAddModal()">
-                    ➕ Добавить сотрудника
-                </button>
-                <div class="search-box">
-                    <input type="text" id="searchInput" placeholder="Поиск сотрудников..." />
-                </div>
-            </div>
+{% block title %}Сотрудники - Brest Motors CRM{% endblock %}
 
-            <div id="employeesList">
-                <!-- Сотрудники будут загружены через JavaScript -->
-                <div class="loading">Загрузка...</div>
-            </div>
-        </div>
-    </main>
-
-    <!-- Модальное окно -->
-    <div id="employeeModal" class="modal">
-        <div class="modal-content">
-            <span class="close" onclick="closeModal()">&times;</span>
-            <h2 id="modalTitle">Добавить сотрудника</h2>
-            <form id="employeeForm">
-                <input type="hidden" id="employeeId">
-                <div class="form-group">
-                    <label for="fullName">ФИО</label>
-                    <input type="text" id="fullName" required placeholder="Иванов Иван Иванович">
-                </div>
-                <div class="form-group">
-                    <label for="position">Должность</label>
-                    <input type="text" id="position" required placeholder="Менеджер">
-                </div>
-                <div class="form-group">
-                    <label for="phone">Телефон</label>
-                    <input type="tel" id="phone" placeholder="+375 (29) 123-45-67">
-                </div>
-                <div class="form-group">
-                    <label for="email">Email</label>
-                    <input type="email" id="email" placeholder="ivan@example.com">
-                </div>
-                <button type="submit" class="btn btn-success">Сохранить</button>
-                <button type="button" class="btn btn-secondary" onclick="closeModal()">Отмена</button>
-            </form>
+{% block content %}
+<section class="section">
+    <div class="toolbar">
+        <button id="addEmployeeBtn" class="btn btn-success">
+            <i class="fas fa-user-plus"></i> Добавить сотрудника
+        </button>
+        <div class="search-box">
+            <i class="fas fa-search"></i>
+            <input type="text" id="searchEmployee" placeholder="Поиск сотрудников..." />
         </div>
     </div>
 
-    <script>
-        // Загрузка сотрудников
-        async function loadEmployees() {
-            try {
-                const response = await fetch('/api/employees');
-                const employees = await response.json();
-                
-                const list = document.getElementById('employeesList');
-                if (employees.length === 0) {
-                    list.innerHTML = '<div class="empty-state">Нет сотрудников</div>';
-                    return;
-                }
-                
-                list.innerHTML = employees.map(emp => `
-                    <div class="employee-card">
-                        <h3>${emp.full_name}</h3>
-                        <p><strong>Должность:</strong> ${emp.position}</p>
-                        <p><strong>Телефон:</strong> ${emp.phone || '—'}</p>
-                        <p><strong>Email:</strong> ${emp.email || '—'}</p>
-                        <div class="actions">
-                            <button onclick="editEmployee(${emp.id})" class="btn btn-sm btn-primary">✏️</button>
-                            <button onclick="deleteEmployee(${emp.id})" class="btn btn-sm btn-danger">🗑️</button>
-                        </div>
-                    </div>
-                `).join('');
-            } catch (error) {
-                console.error('Ошибка загрузки:', error);
+    <div id="employeesList" class="employees-list">
+        <div class="loading"><i class="fas fa-spinner fa-spin"></i> Загрузка...</div>
+    </div>
+</section>
+
+<!-- Модальное окно для сотрудника -->
+<div id="employeeModal" class="modal">
+    <div class="modal-content">
+        <span class="modal-close">&times;</span>
+        <h2 id="employeeModalTitle"><i class="fas fa-user-plus"></i> Добавить сотрудника</h2>
+        <form id="employeeForm">
+            <input type="hidden" id="employeeId" />
+            <div class="form-group">
+                <label for="fullName">ФИО</label>
+                <input type="text" id="fullName" placeholder="Иванов Иван Иванович" required />
+            </div>
+            <div class="form-group">
+                <label for="position">Должность</label>
+                <input type="text" id="position" placeholder="Менеджер" required />
+            </div>
+            <div class="form-group">
+                <label for="phone">Телефон</label>
+                <input type="tel" id="phone" placeholder="+375 (29) 123-45-67" />
+            </div>
+            <div class="form-group">
+                <label for="email">Email</label>
+                <input type="email" id="email" placeholder="ivan@example.com" />
+            </div>
+            <div class="form-actions">
+                <button type="submit" class="btn btn-success">
+                    <i class="fas fa-save"></i> Сохранить
+                </button>
+                <button type="button" class="btn btn-secondary" id="cancelEmployeeModal">
+                    <i class="fas fa-times"></i> Отмена
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Модальное окно для удаления сотрудника -->
+<div id="deleteEmployeeModal" class="modal">
+    <div class="modal-content modal-small">
+        <span class="modal-close">&times;</span>
+        <h2><i class="fas fa-exclamation-triangle" style="color:#e74c3c;"></i> Подтверждение</h2>
+        <p>Вы уверены, что хотите удалить сотрудника <strong id="deleteEmployeeName"></strong>?</p>
+        <div class="form-actions">
+            <button id="confirmDeleteEmployeeBtn" class="btn btn-danger">
+                <i class="fas fa-trash"></i> Удалить
+            </button>
+            <button id="cancelDeleteEmployeeBtn" class="btn btn-secondary">
+                <i class="fas fa-times"></i> Отмена
+            </button>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    let deleteEmployeeId = null;
+    let deleteEmployeeName = '';
+
+    // ===== Загрузка сотрудников =====
+    async function loadEmployees() {
+        try {
+            const response = await fetch('/api/employees');
+            const employees = await response.json();
+            
+            const list = document.getElementById('employeesList');
+            const search = document.getElementById('searchEmployee').value.toLowerCase();
+            
+            let filtered = employees;
+            if (search) {
+                filtered = employees.filter(e => 
+                    e.full_name.toLowerCase().includes(search) ||
+                    e.position.toLowerCase().includes(search)
+                );
             }
-        }
-
-        // Открыть модальное окно
-        function openAddModal() {
-            document.getElementById('modalTitle').textContent = 'Добавить сотрудника';
-            document.getElementById('employeeForm').reset();
-            document.getElementById('employeeId').value = '';
-            document.getElementById('employeeModal').style.display = 'flex';
-        }
-
-        function closeModal() {
-            document.getElementById('employeeModal').style.display = 'none';
-        }
-
-        // Сохранение сотрудника
-        document.getElementById('employeeForm').addEventListener('submit', async (e) => {
-            e.preventDefault();
             
-            const id = document.getElementById('employeeId').value;
-            const data = {
-                full_name: document.getElementById('fullName').value,
-                position: document.getElementById('position').value,
-                phone: document.getElementById('phone').value,
-                email: document.getElementById('email').value
-            };
+            if (filtered.length === 0) {
+                list.innerHTML = `
+                    <div class="empty-state">
+                        <i class="fas fa-users"></i>
+                        <h3>Нет сотрудников</h3>
+                        <p>Добавьте первого сотрудника, нажав кнопку "Добавить сотрудника"</p>
+                    </div>
+                `;
+                return;
+            }
             
-            const url = id ? `/api/employees/${id}` : '/api/employees';
-            const method = id ? 'PUT' : 'POST';
-            
-            await fetch(url, {
-                method: method,
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify(data)
+            list.innerHTML = filtered.map(emp => `
+                <div class="employee-card">
+                    <h3><i class="fas fa-user-circle"></i> ${emp.full_name}</h3>
+                    <p><i class="fas fa-briefcase"></i> <strong>Должность:</strong> ${emp.position}</p>
+                    ${emp.phone ? `<p><i class="fas fa-phone"></i> <strong>Телефон:</strong> ${emp.phone}</p>` : ''}
+                    ${emp.email ? `<p><i class="fas fa-envelope"></i> <strong>Email:</strong> ${emp.email}</p>` : ''}
+                    <p style="font-size:12px;color:#999;margin-top:8px;">
+                        <i class="far fa-calendar-alt"></i> Добавлен: ${new Date(emp.created_at).toLocaleDateString()}
+                    </p>
+                    <div class="employee-actions">
+                        <button class="btn btn-primary btn-sm edit-employee" data-id="${emp.id}">
+                            <i class="fas fa-edit"></i> Редактировать
+                        </button>
+                        <button class="btn btn-danger btn-sm delete-employee" data-id="${emp.id}" data-name="${emp.full_name}">
+                            <i class="fas fa-trash"></i> Удалить
+                        </button>
+                    </div>
+                </div>
+            `).join('');
+
+            document.querySelectorAll('.edit-employee').forEach(btn => {
+                btn.addEventListener('click', () => openEditEmployee(btn.dataset.id));
             });
-            
-            closeModal();
-            loadEmployees();
-        });
 
-        // Редактирование
-        async function editEmployee(id) {
-            const response = await fetch(`/api/employees/${id}`);
-            const emp = await response.json();
+            document.querySelectorAll('.delete-employee').forEach(btn => {
+                btn.addEventListener('click', () => openDeleteEmployee(btn.dataset.id, btn.dataset.name));
+            });
+        } catch (error) {
+            console.error('Ошибка загрузки:', error);
+        }
+    }
+
+    // ===== Открыть модальное окно для добавления =====
+    document.getElementById('addEmployeeBtn').addEventListener('click', () => {
+        document.getElementById('employeeId').value = '';
+        document.getElementById('fullName').value = '';
+        document.getElementById('position').value = '';
+        document.getElementById('phone').value = '';
+        document.getElementById('email').value = '';
+        document.getElementById('employeeModalTitle').innerHTML = '<i class="fas fa-user-plus"></i> Добавить сотрудника';
+        document.getElementById('employeeModal').style.display = 'flex';
+    });
+
+    // ===== Открыть модальное окно для редактирования =====
+    async function openEditEmployee(id) {
+        try {
+            const response = await fetch(`/api/employees`);
+            const employees = await response.json();
+            const emp = employees.find(e => e.id === id);
             
-            document.getElementById('modalTitle').textContent = 'Редактировать сотрудника';
+            if (!emp) {
+                alert('Сотрудник не найден');
+                return;
+            }
+
             document.getElementById('employeeId').value = emp.id;
             document.getElementById('fullName').value = emp.full_name;
             document.getElementById('position').value = emp.position;
             document.getElementById('phone').value = emp.phone || '';
             document.getElementById('email').value = emp.email || '';
+            document.getElementById('employeeModalTitle').innerHTML = '<i class="fas fa-edit"></i> Редактировать сотрудника';
             document.getElementById('employeeModal').style.display = 'flex';
+        } catch (error) {
+            console.error('Ошибка:', error);
         }
+    }
 
-        // Удаление
-        async function deleteEmployee(id) {
-            if (!confirm('Удалить сотрудника?')) return;
-            await fetch(`/api/employees/${id}`, {method: 'DELETE'});
-            loadEmployees();
-        }
+    // ===== Сохранение сотрудника =====
+    document.getElementById('employeeForm').addEventListener('submit', async (e) => {
+        e.preventDefault();
 
-        // Загрузка при открытии страницы
-        loadEmployees();
-    </script>
+        const id = document.getElementById('employeeId').value;
+        const data = {
+            full_name: document.getElementById('fullName').value.trim(),
+            position: document.getElementById('position').value.trim(),
+            phone: document.getElementById('phone').value.trim(),
+            email: document.getElementById('email').value.trim()
+        };
 
-    <style>
-        .employee-card {
-            background: #f8f9fa;
-            padding: 15px;
-            margin: 10px 0;
-            border-radius: 8px;
-            border-left: 4px solid #3498db;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
+        const url = id ? `/api/employees/${id}` : '/api/employees';
+        const method = id ? 'PUT' : 'POST';
+
+        try {
+            const response = await fetch(url, {
+                method: method,
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(data)
+            });
+
+            if (response.ok) {
+                document.getElementById('employeeModal').style.display = 'none';
+                document.getElementById('employeeForm').reset();
+                loadEmployees();
+            } else {
+                const error = await response.json();
+                alert('Ошибка: ' + (error.error || 'Неизвестная ошибка'));
+            }
+        } catch (error) {
+            alert('Ошибка: ' + error.message);
         }
-        .employee-card .actions {
-            display: flex;
-            gap: 8px;
+    });
+
+    // ===== Удаление сотрудника =====
+    function openDeleteEmployee(id, name) {
+        deleteEmployeeId = id;
+        deleteEmployeeName = name;
+        document.getElementById('deleteEmployeeName').textContent = name;
+        document.getElementById('deleteEmployeeModal').style.display = 'flex';
+    }
+
+    document.getElementById('confirmDeleteEmployeeBtn').addEventListener('click', async () => {
+        if (!deleteEmployeeId) return;
+
+        try {
+            const response = await fetch(`/api/employees/${deleteEmployeeId}`, {
+                method: 'DELETE'
+            });
+
+            if (response.ok) {
+                document.getElementById('deleteEmployeeModal').style.display = 'none';
+                deleteEmployeeId = null;
+                loadEmployees();
+            } else {
+                const error = await response.json();
+                alert('Ошибка: ' + (error.error || 'Неизвестная ошибка'));
+            }
+        } catch (error) {
+            alert('Ошибка: ' + error.message);
         }
-        .btn-sm {
-            padding: 5px 10px;
-            font-size: 14px;
+    });
+
+    document.getElementById('cancelDeleteEmployeeBtn').addEventListener('click', () => {
+        document.getElementById('deleteEmployeeModal').style.display = 'none';
+        deleteEmployeeId = null;
+    });
+
+    // ===== Закрытие модалок =====
+    document.querySelectorAll('.modal-close').forEach(close => {
+        close.addEventListener('click', () => {
+            document.getElementById('employeeModal').style.display = 'none';
+            document.getElementById('deleteEmployeeModal').style.display = 'none';
+        });
+    });
+
+    document.getElementById('cancelEmployeeModal').addEventListener('click', () => {
+        document.getElementById('employeeModal').style.display = 'none';
+    });
+
+    window.addEventListener('click', (e) => {
+        if (e.target === document.getElementById('employeeModal')) {
+            document.getElementById('employeeModal').style.display = 'none';
         }
-        .toolbar {
-            display: flex;
-            gap: 15px;
-            margin-bottom: 20px;
-            flex-wrap: wrap;
+        if (e.target === document.getElementById('deleteEmployeeModal')) {
+            document.getElementById('deleteEmployeeModal').style.display = 'none';
         }
-        .search-box input {
-            padding: 8px 12px;
-            border: 1px solid #ddd;
-            border-radius: 4px;
-            min-width: 250px;
-        }
-        .loading {
-            text-align: center;
-            padding: 40px;
-            color: #999;
-        }
-        .empty-state {
-            text-align: center;
-            padding: 40px;
-            color: #999;
-            font-size: 18px;
-        }
-        .modal {
-            display: none;
-            position: fixed;
-            z-index: 1000;
-            left: 0;
-            top: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(0,0,0,0.5);
-            justify-content: center;
-            align-items: center;
-        }
-        .modal-content {
-            background: white;
-            padding: 30px;
-            border-radius: 8px;
-            max-width: 500px;
-            width: 90%;
-            position: relative;
-        }
-        .close {
-            position: absolute;
-            right: 20px;
-            top: 15px;
-            font-size: 28px;
-            cursor: pointer;
-        }
-        .form-group {
-            margin-bottom: 15px;
-        }
-        .form-group label {
-            display: block;
-            margin-bottom: 5px;
-            font-weight: 600;
-        }
-        .form-group input {
-            width: 100%;
-            padding: 8px 12px;
-            border: 1px solid #ddd;
-            border-radius: 4px;
-        }
-        .btn {
-            padding: 10px 20px;
-            border: none;
-            border-radius: 4px;
-            cursor: pointer;
-            margin-right: 8px;
-        }
-        .btn-primary { background: #3498db; color: white; }
-        .btn-success { background: #2ecc71; color: white; }
-        .btn-danger { background: #e74c3c; color: white; }
-        .btn-secondary { background: #95a5a6; color: white; }
-        header {
-            background: #2c3e50;
-            color: white;
-            padding: 20px 0;
-        }
-        header nav {
-            display: flex;
-            gap: 20px;
-            margin-top: 10px;
-        }
-        header nav a {
-            color: white;
-            text-decoration: none;
-        }
-        header nav a:hover {
-            text-decoration: underline;
-        }
-        .container {
-            max-width: 1200px;
-            margin: 0 auto;
-            padding: 0 20px;
-        }
-        .card {
-            background: white;
-            padding: 20px;
-            border-radius: 8px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-            margin-top: 20px;
-        }
-    </style>
-</body>
-</html>
+    });
+
+    // ===== Поиск =====
+    let searchTimeout2;
+    document.getElementById('searchEmployee').addEventListener('input', () => {
+        clearTimeout(searchTimeout2);
+        searchTimeout2 = setTimeout(loadEmployees, 300);
+    });
+
+    // ===== Загрузка при открытии =====
+    loadEmployees();
+</script>
+{% endblock %}
