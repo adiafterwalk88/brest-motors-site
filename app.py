@@ -555,7 +555,7 @@ def login():
         email = request.form.get('email')
         password = request.form.get('password')
         try:
-            user = supabase.table('users').select('*').eq('email', email).execute()
+            user = supabase.table('app_users').select('*').eq('email', email).execute()
             if user.data and check_password(password, user.data[0]['password_hash']):
                 session['user_id'] = user.data[0]['id']
                 session['username'] = user.data[0]['username']
@@ -583,23 +583,22 @@ def register():
             return render_page(REGISTER_TEMPLATE)
         
         try:
-            # Проверяем email
-            existing_email = supabase.table('users').select('*').eq('email', email).execute()
+            # Проверяем email в таблице app_users
+            existing_email = supabase.table('app_users').select('*').eq('email', email).execute()
             if existing_email.data:
                 flash('Email уже используется', 'danger')
                 return render_page(REGISTER_TEMPLATE)
             
-            # Проверяем username
-            existing_user = supabase.table('users').select('*').eq('username', username).execute()
+            # Проверяем username в таблице app_users
+            existing_user = supabase.table('app_users').select('*').eq('username', username).execute()
             if existing_user.data:
                 flash('Имя пользователя уже занято', 'danger')
                 return render_page(REGISTER_TEMPLATE)
             
-            # Хешируем пароль
             password_hash = hash_password(password)
             
-            # Вставляем пользователя
-            supabase.table('users').insert({
+            # Вставляем в таблицу app_users
+            supabase.table('app_users').insert({
                 'username': username,
                 'email': email,
                 'password_hash': password_hash,
@@ -667,7 +666,6 @@ def api_create_order():
             'comment': data.get('comment', '')
         }).execute()
         
-        # Обновляем клиента
         phone = data.get('phone', '')
         if phone:
             existing_client = supabase.table('clients').select('*').eq('phone', phone).execute()
