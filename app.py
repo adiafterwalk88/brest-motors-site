@@ -15,24 +15,18 @@ class Base(DeclarativeBase):
 # ===== Инициализация приложения =====
 app = Flask(__name__)
 
-# ===== Генерация SECRET_KEY, если не задан =====
-# ВАЖНО: Для production используйте переменную окружения!
+# ===== Генерация SECRET_KEY =====
 if os.environ.get('FLASK_DEBUG') == 'False' or os.environ.get('RENDER'):
-    # Production режим - обязательно используем переменную окружения
     app.secret_key = os.environ.get('SECRET_KEY')
     if not app.secret_key:
-        # Если ключ не задан, генерируем временный (НО НЕ ДЕЛАЙТЕ ТАК В PRODUCTION!)
         app.secret_key = secrets.token_hex(32)
-        print("⚠️ ВНИМАНИЕ: Используется временный SECRET_KEY. Установите постоянный в переменных окружения!")
+        print("⚠️ ВНИМАНИЕ: Используется временный SECRET_KEY!")
 else:
-    # Development режим
     app.secret_key = os.environ.get('SECRET_KEY', secrets.token_hex(32))
 
 # ===== Конфигурация базы данных =====
-# Используем PostgreSQL на Render
 database_url = os.environ.get('DATABASE_URL')
 if database_url and database_url.startswith('postgres://'):
-    # Render использует postgres://, но SQLAlchemy требует postgresql://
     database_url = database_url.replace('postgres://', 'postgresql://', 1)
 
 app.config['SQLALCHEMY_DATABASE_URI'] = database_url or 'sqlite:///site.db'
@@ -77,7 +71,20 @@ class Order(db.Model):
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     
-    user = db.relationship('User', backref='orders')
+    user = db.relationship('User', backref='orders', lazy=True)
+
+class Employee(db.Model):
+    __tablename__ = 'employees'
+    
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    full_name: Mapped[str] = mapped_column(String(200), nullable=False)
+    position: Mapped[str] = mapped_column(String(100), nullable=False)
+    phone: Mapped[str] = mapped_column(String(20), nullable=True)
+    email: Mapped[str] = mapped_column(String(120), nullable=True)
+    user_id: Mapped[int] = mapped_column(Integer, db.ForeignKey('users.id'), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    
+    user = db.relationship('User', backref='employees', lazy=True)
 
 # ===== Декораторы =====
 def login_required(f):
@@ -120,6 +127,7 @@ def login():
         if user and user.check_password(password):
             session['user_id'] = user.id
             session['username'] = user.username
+            session['is_admin'] = user.is_admin
             flash(f'Добро пожаловать, {user.username}!', 'success')
             return redirect(url_for('orders'))
         else:
@@ -168,6 +176,20 @@ def logout():
 def orders():
     return render_template('orders.html')
 
+@app.route('/employee')
+@login_required
+def employee():
+    return render_template('employee.html')
+
+@app.route('/admin')
+@admin_required
+def admin_panel():
+    users = User.query.all()
+    orders = Order.query.all()
+    employees = Employee.query.all()
+    return render_template('admin.html', users=users, orders=orders, employees=employees)
+
+# ===== API для заказов =====
 @app.route('/api/orders')
 @login_required
 def api_orders():
@@ -238,17 +260,72 @@ def api_delete_order(order_id):
     
     return jsonify({'message': 'Заказ удален'})
 
-@app.route('/admin')
-@admin_required
-def admin_panel():
-    users = User.query.all()
-    orders = Order.query.all()
-    return render_template('admin.html', users=users, orders=orders)
+# ===== API для сотрудников =====
+@app.route('/api/employees')
+@login_required
+def api_employees():
+    user_id = session['user_id']
+    employees = Employee.query.filter_by(user_id=user_id).all()
+    return jsonify([{
+        'id': e.id,
+        'full_name': e.full_name,
+        'position': e.position,
+        'phone': e.phone,
+        'email': e.email,
+        'created_at': e.created_at.isoformat()
+    } for e in employees])
 
-# ===== Создание таблиц =====
-with app.app_context():
-    db.create_all()
-    print("✅ База данных инициализирована")
+@app.route('/api/employees', methods=['POST'])
+@login_required
+def api_create_employee():
+    data = request.json
+    user_id = session['user_id']
+    
+    employee = Employee(
+        full_name=data['full_name'],
+        position=data['position'],
+        phone=data.get('phone', ''),
+        email=data.get('email', ''),
+        user_id=user_id
+    )
+    
+    db.session.add(employee)
+    db.session.commit()
+    
+    return jsonify({'id': employee.id, 'message': 'Сотрудник создан'}), 201
+
+@app.route('/api/employees/<int:employee_id>', methods=['PUT'])
+@login_required
+def api_update_employee(employee_id):
+    data = request.json
+    user_id = session['user_id']
+    
+    employee = Employee.query.filter_by(id=employee_id, user_id=user_id).first()
+    if not employee:
+        return jsonify({'error': 'Сотрудник не найден'}), 404
+    
+    employee.full_name = data['full_name']
+    employee.position = data['position']
+    employee.phone = data.get('phone', '')
+    employee.email = data.get('email', '')
+    
+    db.session.commit()
+    
+    return jsonify({'message': 'Сотрудник обновлен'})
+
+@app.route('/api/employees/<int:employee_id>', methods=['DELETE'])
+@login_required
+def api_delete_employee(employee_id):
+    user_id = session['user_id']
+    
+    employee = Employee.query.filter_by(id=employee_id, user_id=user_id).first()
+    if not employee:
+        return jsonify({'error': 'Сотрудник не найден'}), 404
+    
+    db.session.delete(employee)
+    db.session.commit()
+    
+    return jsonify({'message': 'Сотрудник удален'})
 
 # ===== Обработка ошибок =====
 @app.errorhandler(404)
@@ -258,6 +335,11 @@ def not_found(e):
 @app.errorhandler(500)
 def server_error(e):
     return render_template('500.html'), 500
+
+# ===== Создание таблиц =====
+with app.app_context():
+    db.create_all()
+    print("✅ База данных инициализирована")
 
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
