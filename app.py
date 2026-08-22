@@ -577,29 +577,41 @@ def register():
         password = request.form.get('password')
         password_confirm = request.form.get('password_confirm')
         store_id = int(request.form.get('store'))
+        
         if password != password_confirm:
             flash('Пароли не совпадают', 'danger')
             return render_page(REGISTER_TEMPLATE)
+        
         try:
-            existing_user = supabase.table('users').select('*').eq('username', username).execute()
-            if existing_user.data:
-                flash('Имя пользователя уже занято', 'danger')
-                return render_page(REGISTER_TEMPLATE)
+            # Проверяем email
             existing_email = supabase.table('users').select('*').eq('email', email).execute()
             if existing_email.data:
                 flash('Email уже используется', 'danger')
                 return render_page(REGISTER_TEMPLATE)
+            
+            # Проверяем username
+            existing_user = supabase.table('users').select('*').eq('username', username).execute()
+            if existing_user.data:
+                flash('Имя пользователя уже занято', 'danger')
+                return render_page(REGISTER_TEMPLATE)
+            
+            # Хешируем пароль
             password_hash = hash_password(password)
+            
+            # Вставляем пользователя
             supabase.table('users').insert({
                 'username': username,
                 'email': email,
                 'password_hash': password_hash,
                 'store_id': store_id
             }).execute()
+            
             flash('Регистрация успешна! Войдите в систему.', 'success')
             return redirect('/login')
+            
         except Exception as e:
             flash(f'Ошибка регистрации: {str(e)}', 'danger')
+    
     return render_page(REGISTER_TEMPLATE)
 
 @app.route('/logout')
@@ -654,6 +666,8 @@ def api_create_order():
             'source': data.get('source', 'Сайт'),
             'comment': data.get('comment', '')
         }).execute()
+        
+        # Обновляем клиента
         phone = data.get('phone', '')
         if phone:
             existing_client = supabase.table('clients').select('*').eq('phone', phone).execute()
@@ -670,6 +684,7 @@ def api_create_order():
                     'orders_count': 1,
                     'total_sum': data.get('price', 0)
                 }).execute()
+        
         return jsonify({'id': result.data[0]['id'], 'message': 'Заказ создан'}), 201
     except Exception as e:
         return jsonify({'error': str(e)}), 500
